@@ -1,0 +1,85 @@
+name: Update Submission Index
+on:
+  workflow_dispatch:
+    inputs:
+      hackathon_id:
+        description: 'Hackathon ID'
+        required: true
+        type: string
+      track_id:
+        description: 'Track ID'
+        required: true
+        type: string
+      hackathon_slug:
+        description: 'Hackathon slug for URLs'
+        required: true
+        type: string
+      track_name:
+        description: 'Track name for index header'
+        required: true
+        type: string
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        run: |
+          # Disable any system credential helper (e.g. macOS osxkeychain on
+          # host-mode runners) — it can't store creds in a non-interactive
+          # session and emits a noisy "failed to store: -25308" line. The
+          # token is embedded in the push URL below, so no helper is needed.
+          git config --global credential.helper ""
+          git clone "${{ github.server_url }}/${{ github.repository }}.git" repo
+          cd repo
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@noreply.localhost"
+
+      - name: Fetch submissions and generate index
+        working-directory: repo
+        env:
+          API_BASE: ${{ github.server_url }}/api/v1/hackforger
+          HACKATHON_ID: ${{ inputs.hackathon_id }}
+          TRACK_ID: ${{ inputs.track_id }}
+          HACKATHON_SLUG: ${{ inputs.hackathon_slug }}
+          TRACK_NAME: ${{ inputs.track_name }}
+          INSTANCE_URL: ${{ github.server_url }}
+        run: |
+          SUBS=$(curl -sf "${API_BASE}/hackathons/${HACKATHON_ID}/submissions" 2>/dev/null || echo '[]')
+          TRACK_SUBS=$(echo "$SUBS" | jq --argjson tid "$TRACK_ID" '[.[] | select(.TrackID == $tid)]')
+
+          # Generate SUBMISSIONS.md (API returns PascalCase field names)
+          {
+            echo "# ${TRACK_NAME} — Submissions"
+            echo ""
+            echo "Track for [hackathon](${INSTANCE_URL}/hackathon/${HACKATHON_SLUG})"
+            echo ""
+            echo "| # | Project | Author | Repo | Demo |"
+            echo "|---|---------|--------|------|------|"
+            echo "$TRACK_SUBS" | jq -r 'to_entries[] | "| \(.key + 1) | \(.value.Title) | User #\(.value.UserID) | \(if .value.RepoID > 0 then "repo" else "-" end) | \(if .value.DemoURL != "" then "[Demo](\(.value.DemoURL))" else "-" end) |"'
+          } > SUBMISSIONS.md
+
+          echo "$TRACK_SUBS" | jq '[.[] | {id: .ID, title: .Title, description: .Description, user_id: .UserID, repo_id: .RepoID, demo_url: .DemoURL}]' > submissions.json
+
+      - name: Commit and push to main
+        working-directory: repo
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          API_BASE: ${{ github.server_url }}/api/v1
+          REPO: ${{ github.repository }}
+        run: |
+          git add SUBMISSIONS.md submissions.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Update submission index"
+
+          # Push directly to main (action token has push access).
+          # No PR flow needed — this is an automated index update.
+          SERVER_HOST="${{ github.server_url }}"
+          SERVER_HOST="${SERVER_HOST#http://}"
+          SERVER_HOST="${SERVER_HOST#https://}"
+          PUSH_URL="http://x-access-token:${GITHUB_TOKEN}@${SERVER_HOST}/${{ github.repository }}.git"
+          git push "$PUSH_URL" main
+          echo "Pushed index update to main"

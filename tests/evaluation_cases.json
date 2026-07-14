@@ -1,0 +1,296 @@
+[
+  {
+    "case_id": "corporate_logo_gift",
+    "request": {
+      "request_id": "req_eval_001",
+      "unit_budget_min_fen": 90000,
+      "unit_budget_max_fen": 130000,
+      "quantity": 20,
+      "recipient_tags": ["business_partner"],
+      "occasion_tags": ["business_gift"],
+      "style_tags": ["elegant"],
+      "meaning_tags": ["prosperity"],
+      "customization_required": true,
+      "required_customization_types": [],
+      "preferred_customization_types": ["packaging"],
+      "logo_required": true,
+      "international_shipping_required": false,
+      "available_lead_days": 45
+    },
+    "expected_contains": ["prod_demo_001"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "elder_birthday",
+    "request": {
+      "request_id": "req_eval_002",
+      "unit_budget_min_fen": 60000,
+      "unit_budget_max_fen": 90000,
+      "quantity": 5,
+      "recipient_tags": ["elder"],
+      "occasion_tags": ["birthday"],
+      "style_tags": ["traditional"],
+      "meaning_tags": ["longevity"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 30
+    },
+    "expected_contains": ["prod_demo_002"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "wedding_blessing",
+    "request": {
+      "request_id": "req_eval_003",
+      "unit_budget_min_fen": 70000,
+      "unit_budget_max_fen": 100000,
+      "quantity": 2,
+      "recipient_tags": ["newlywed"],
+      "occasion_tags": ["wedding"],
+      "style_tags": ["festive"],
+      "meaning_tags": ["union"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 35
+    },
+    "expected_contains": ["prod_demo_004"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "housewarming_friend",
+    "request": {
+      "request_id": "req_eval_004",
+      "unit_budget_min_fen": 50000,
+      "unit_budget_max_fen": 80000,
+      "quantity": 3,
+      "recipient_tags": ["friend"],
+      "occasion_tags": ["housewarming"],
+      "style_tags": ["warm"],
+      "meaning_tags": ["harmony"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 30
+    },
+    "expected_contains": ["prod_demo_005"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "collector_display",
+    "request": {
+      "request_id": "req_eval_005",
+      "unit_budget_min_fen": 180000,
+      "unit_budget_max_fen": 260000,
+      "quantity": 1,
+      "recipient_tags": ["collector"],
+      "occasion_tags": ["collection"],
+      "style_tags": ["grand"],
+      "meaning_tags": ["heritage"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 60
+    },
+    "expected_contains": ["prod_demo_007"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "budget_too_low",
+    "request": {
+      "request_id": "req_eval_006",
+      "unit_budget_min_fen": 0,
+      "unit_budget_max_fen": 20000,
+      "quantity": 10,
+      "recipient_tags": ["business_partner"],
+      "occasion_tags": ["business_gift"],
+      "style_tags": ["minimal"],
+      "meaning_tags": ["heritage"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 60
+    },
+    "expected_contains": [],
+    "expected_empty": true
+  },
+  {
+    "case_id": "quantity_above_all_limits",
+    "request": {
+      "request_id": "req_eval_007",
+      "unit_budget_min_fen": 0,
+      "unit_budget_max_fen": 300000,
+      "quantity": 500,
+      "recipient_tags": ["employee"],
+      "occasion_tags": ["appreciation"],
+      "style_tags": ["minimal"],
+      "meaning_tags": ["gratitude"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 90
+    },
+    "expected_contains": [],
+    "expected_empty": true
+  },
+  {
+    "case_id": "urgent_delivery",
+    "request": {
+      "request_id": "req_eval_008",
+      "unit_budget_min_fen": 0,
+      "unit_budget_max_fen": 300000,
+      "quantity": 5,
+      "recipient_tags": ["business_partner"],
+      "occasion_tags": ["business_gift"],
+      "style_tags": ["modern"],
+      "meaning_tags": ["heritage"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 5
+    },
+    "expected_contains": [],
+    "expected_empty": true
+  },
+  {
+    "case_id": "international_logo_batch",
+    "request": {
+      "request_id": "req_eval_009",
+      "unit_budget_min_fen": 25000,
+      "unit_budget_max_fen": 150000,
+      "quantity": 50,
+      "recipient_tags": ["business_partner"],
+      "occasion_tags": ["business_gift"],
+      "style_tags": ["modern"],
+      "meaning_tags": ["heritage"],
+      "customization_required": true,
+      "required_customization_types": [],
+      "preferred_customization_types": ["packaging"],
+      "logo_required": true,
+      "international_shipping_required": true,
+      "available_lead_days": 40
+    },
+    "expected_contains": ["prod_demo_006"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "overseas_collection_alternative",
+    "request": {
+      "request_id": "req_eval_010",
+      "unit_budget_min_fen": 80000,
+      "unit_budget_max_fen": 260000,
+      "quantity": 1,
+      "recipient_tags": ["collector"],
+      "occasion_tags": ["collection"],
+      "style_tags": ["traditional"],
+      "meaning_tags": ["heritage"],
+      "customization_required": false,
+      "required_customization_types": [],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": true,
+      "available_lead_days": 60
+    },
+    "expected_contains": [],
+    "expected_empty": false
+  },
+  {
+    "case_id": "institution_commemoration",
+    "request": {
+      "request_id": "req_eval_011",
+      "unit_budget_min_fen": 80000,
+      "unit_budget_max_fen": 120000,
+      "quantity": 10,
+      "recipient_tags": ["institution"],
+      "occasion_tags": ["commemoration"],
+      "style_tags": ["modern"],
+      "meaning_tags": ["remembrance"],
+      "customization_required": true,
+      "required_customization_types": ["inscription"],
+      "preferred_customization_types": [],
+      "logo_required": true,
+      "international_shipping_required": false,
+      "available_lead_days": 45
+    },
+    "expected_contains": ["prod_demo_008"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "employee_bulk_logo",
+    "request": {
+      "request_id": "req_eval_012",
+      "unit_budget_min_fen": 25000,
+      "unit_budget_max_fen": 40000,
+      "quantity": 200,
+      "recipient_tags": ["employee"],
+      "occasion_tags": ["appreciation"],
+      "style_tags": ["minimal"],
+      "meaning_tags": ["gratitude"],
+      "customization_required": true,
+      "required_customization_types": [],
+      "preferred_customization_types": ["packaging"],
+      "logo_required": true,
+      "international_shipping_required": false,
+      "available_lead_days": 30
+    },
+    "expected_contains": ["prod_demo_006"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "wedding_pattern_customization",
+    "request": {
+      "request_id": "req_eval_013",
+      "unit_budget_min_fen": 70000,
+      "unit_budget_max_fen": 100000,
+      "quantity": 2,
+      "recipient_tags": ["newlywed"],
+      "occasion_tags": ["wedding"],
+      "style_tags": ["festive"],
+      "meaning_tags": ["union"],
+      "customization_required": true,
+      "required_customization_types": ["pattern"],
+      "preferred_customization_types": ["packaging"],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 40
+    },
+    "expected_contains": ["prod_demo_004"],
+    "expected_empty": false
+  },
+  {
+    "case_id": "unsupported_size_customization",
+    "request": {
+      "request_id": "req_eval_014",
+      "unit_budget_min_fen": 0,
+      "unit_budget_max_fen": 300000,
+      "quantity": 5,
+      "recipient_tags": ["institution"],
+      "occasion_tags": ["commemoration"],
+      "style_tags": ["grand"],
+      "meaning_tags": ["heritage"],
+      "customization_required": true,
+      "required_customization_types": ["size"],
+      "preferred_customization_types": [],
+      "logo_required": false,
+      "international_shipping_required": false,
+      "available_lead_days": 90
+    },
+    "expected_contains": [],
+    "expected_empty": true
+  }
+]

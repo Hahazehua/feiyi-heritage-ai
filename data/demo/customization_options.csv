@@ -1,0 +1,19 @@
+customization_option_id,product_id,customization_type,description_zh,description_en,price_impact,extra_lead_days,enabled,is_demo,demo_disclaimer
+custopt_demo_001_inscription,prod_demo_001,inscription,MVP演示题字选项；内容、字体和权利待确认。,MVP demo inscription option; content font and rights require confirmation.,required_quote,5,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_001_logo,prod_demo_001,logo,MVP演示Logo选项；图形权利和可制作性待确认。,MVP demo logo option; rights and feasibility require confirmation.,required_quote,7,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_001_packaging,prod_demo_001,packaging,MVP演示包装选项；材料和运输适配待确认。,MVP demo packaging option; materials and shipping fit require confirmation.,possible,3,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_002_inscription,prod_demo_002,inscription,MVP演示题字选项；内容、字体和权利待确认。,MVP demo inscription option; content font and rights require confirmation.,required_quote,4,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_002_packaging,prod_demo_002,packaging,MVP演示包装选项；材料和运输适配待确认。,MVP demo packaging option; materials and shipping fit require confirmation.,possible,2,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_003_inscription,prod_demo_003,inscription,MVP演示题字选项；内容、字体和权利待确认。,MVP demo inscription option; content font and rights require confirmation.,required_quote,4,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_003_packaging,prod_demo_003,packaging,MVP演示包装选项；材料和运输适配待确认。,MVP demo packaging option; materials and shipping fit require confirmation.,possible,2,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_004_inscription,prod_demo_004,inscription,MVP演示题字选项；内容、字体和权利待确认。,MVP demo inscription option; content font and rights require confirmation.,required_quote,5,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_004_pattern,prod_demo_004,pattern,MVP演示图案调整；设计范围和权利待确认。,MVP demo pattern option; design scope and rights require confirmation.,required_quote,8,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_004_packaging,prod_demo_004,packaging,MVP演示包装选项；材料和运输适配待确认。,MVP demo packaging option; materials and shipping fit require confirmation.,possible,3,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_005_inscription,prod_demo_005,inscription,MVP演示题字选项；内容、字体和权利待确认。,MVP demo inscription option; content font and rights require confirmation.,required_quote,4,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_005_logo,prod_demo_005,logo,MVP演示Logo选项；图形权利和可制作性待确认。,MVP demo logo option; rights and feasibility require confirmation.,required_quote,6,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_005_packaging,prod_demo_005,packaging,MVP演示包装选项；材料和运输适配待确认。,MVP demo packaging option; materials and shipping fit require confirmation.,possible,2,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_006_logo,prod_demo_006,logo,MVP演示Logo选项；图形权利和可制作性待确认。,MVP demo logo option; rights and feasibility require confirmation.,required_quote,4,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_006_packaging,prod_demo_006,packaging,MVP演示包装选项；材料和运输适配待确认。,MVP demo packaging option; materials and shipping fit require confirmation.,possible,2,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_008_inscription,prod_demo_008,inscription,MVP演示题字选项；内容、字体和权利待确认。,MVP demo inscription option; content font and rights require confirmation.,required_quote,5,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_008_logo,prod_demo_008,logo,MVP演示Logo选项；图形权利和可制作性待确认。,MVP demo logo option; rights and feasibility require confirmation.,required_quote,7,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。
+custopt_demo_008_packaging,prod_demo_008,packaging,MVP演示包装选项；材料和运输适配待确认。,MVP demo packaging option; materials and shipping fit require confirmation.,possible,3,true,true,仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。

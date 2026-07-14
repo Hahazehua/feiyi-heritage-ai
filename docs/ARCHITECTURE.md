@@ -1,0 +1,127 @@
+# HeritageLink AI MVP 架构设计
+
+## 1. 架构原则
+
+采用一个本地可运行的 Streamlit 单体应用。UI 只负责收集和展示；数据校验、推荐、文案和需求单生成均放在纯 Python 模块中。所有决策由版本化规则和结构化数据产生，结果可复现、可单测、可逐项解释。
+
+## 2. 推荐目录结构
+
+```text
+feiyi-heritage-ai/
+├── AGENTS.md
+├── app.py                         # Streamlit 入口（阶段 3 创建）
+├── pyproject.toml                 # 依赖、ruff、pytest 配置（阶段 1 创建）
+├── README.md                      # 比赛原始文件，当前不修改
+├── CONTRIBUTING.md                # 比赛原始文件，不修改
+├── SUBMISSIONS.md                 # 自动维护，不手动修改
+├── submissions.json               # 自动维护，不手动修改
+├── .forgejo/                      # 比赛工作流，不修改
+├── data/
+│   └── demo/
+│       ├── merchants.csv
+│       ├── heritage_items.csv
+│       ├── products.csv
+│       ├── product_texts.csv
+│       └── customization_options.csv
+├── src/
+│   └── heritagelink/
+│       ├── __init__.py
+│       ├── models.py              # TypedDict/dataclass 与枚举
+│       ├── data_loader.py         # pandas 加载、规范化、校验
+│       ├── recommender.py         # 硬过滤、评分、排序、解释
+│       ├── content.py             # 中英文模板化文化内容
+│       └── inquiry.py             # 定制需求单构造与校验
+├── tests/
+│   ├── fixtures/
+│   │   ├── golden_requests.json
+│   │   └── invalid_data/
+│   ├── test_data_loader.py
+│   ├── test_recommender.py
+│   ├── test_content.py
+│   ├── test_inquiry.py
+│   └── test_app_smoke.py
+└── docs/
+    ├── PRODUCT_SPEC.md
+    ├── ARCHITECTURE.md
+    ├── DATA_SCHEMA.md
+    └── IMPLEMENTATION_PLAN.md
+```
+
+该结构是实施目标，不代表这些应用文件当前已经存在。
+
+## 3. 组件职责与数据流
+
+1. `data_loader` 读取五个 CSV，解析 JSON 数组单元格，校验类型、枚举、唯一性、外键和业务范围，并返回 pandas DataFrame。
+2. Streamlit 表单构造规范化的 `gift_request`，不直接计算业务分数。
+3. `recommender` 将产品、定制选项和需求合并，执行硬过滤，计算八维得分并生成结构化解释。
+4. `content` 只把已审核的 `product_texts` 字段放入中英文模板；缺失事实显示“待商家确认”，不补写事实。
+5. `inquiry` 将原始需求、所选推荐快照和开放问题组装为 `customization_inquiry`，校验后导出 JSON。
+6. Streamlit 展示结果并管理本次会话；不持久化客户身份或订单。
+
+## 4. 系统边界与信任边界
+
+- 浏览器与 Streamlit 会话：输入均视为不可信，限制长度、枚举和数值范围，并对展示文本使用框架默认转义。
+- 本地演示数据：加载时必须校验；`is_demo=true` 和数据版本必须传递到页面与导出。
+- 文件导出：仅在内存中生成 JSON；文件名使用系统生成的 `inquiry_id`，不拼接用户输入。
+- 网络：MVP 运行不需要外部网络，不读取环境密钥，不调用任何模型或第三方服务。
+
+## 5. 推荐引擎
+
+### 5.1 规范化
+
+- 预算统一为 CNY 分；总预算除以数量得到单件预算区间，除法向保守方向取整。
+- 标签统一为受控小写 snake_case 集合；缺省偏好为空集合，表示该维度不加偏好而不是自动命中。
+- 日期转换为可用制作天数；没有日期则交期维度记中性分并列为待确认。
+
+### 5.2 硬过滤
+
+按顺序记录淘汰原因：
+
+1. `status != active`；
+2. `price_min_fen > unit_budget_max_fen`，即最低演示单价超过用户绝对单件预算；
+3. `quantity < min_order_qty` 或超过非空的 `demo_max_order_qty`；
+4. 用户要求必须定制但产品没有启用的定制选项，或必需定制类型不受支持；
+5. 用户要求必须加入 Logo，但产品没有启用 `logo` 定制选项；
+6. 用户给出交付日期，且可用天数小于有效制作周期。有效制作周期为 `lead_time_days` 加上所选必需定制项中最大的 `extra_lead_days`；
+7. 海外运输为必要条件，但 `supports_international_shipping=false`。
+
+`supports_international_shipping` 只是演示能力标记，不代表真实可达性、运费或合规承诺；具体目的地仍进入待确认项。若全部淘汰，返回“没有合格产品”、各原因计数和调整建议，不绕过硬约束。
+
+### 5.3 加权评分
+
+每个维度先得到 0–1 的 `match_ratio`，再乘权重并四舍五入到两位；总分为各维度之和。
+
+| 维度 | 权重 | match_ratio 规则 |
+|---|---:|---|
+| budget | 25 | 产品价格区间完全落入用户单价区间为 1；区间有交集为 0.8；仅最低价可承受为 0.5；否则已被过滤 |
+| recipient | 15 | 用户标签与产品标签交集数 / 用户标签数；产品含 `universal` 时最低为 0.5；用户未选为 0.5 |
+| occasion | 15 | 同 recipient，使用 `occasion_tags` |
+| style | 15 | 同 recipient，使用 `style_tags`；用户未选为 0.5 |
+| cultural_meaning | 10 | 同 recipient，使用 `meaning_tags`；用户未选为 0.5 |
+| customization | 10 | 无定制需求为 1；所有偏好均支持为 1；部分支持为 0.5；必需项不支持已被过滤 |
+| quantity | 5 | 数量在 `[min_order_qty, recommended_max_qty]` 为 1；超过建议量但未超过演示上限为 0.5；建议量为空时为 0.5 并待确认 |
+| lead_time | 5 | 交期充足且余量至少 20% 为 1；刚好可行为 0.7；未提供日期为 0.5；不可行已被过滤 |
+
+`recommended_max_qty` 或 `demo_max_order_qty` 为空时不假设无限履约：评分可行但必须添加“产能待确认”。所有比例限制在 `[0, 1]`。
+
+### 5.4 排序与解释
+
+- 按 `total_score desc, product_id asc` 排序，最多返回 3 件。
+- 推荐理由由最高的 2–3 个且与用户已选偏好相关的维度模板组成；不能把中性分包装为命中。
+- 风险说明来自预算边缘、交期余量小、超建议数量、产能/物流未知和未审核内容等结构化标记。
+- UI 展示总分和全部八维分数，避免仅给出笼统“AI 推荐”。
+
+## 6. 双语内容策略
+
+`product_texts.csv` 保存 `zh-CN` 和 `en` 两行内容及审核状态。展示模板由产品名、工艺摘要、文化含义、适用场景和来源说明组成。只有 `review_status=approved` 的事实可作为确定陈述；`draft` 可在演示中展示但必须标注“演示文案，待商家审核”。英文是独立审核字段，不在运行时调用机器翻译。
+
+## 7. 错误与降级
+
+- 数据 schema 错误：启动时阻断并显示文件、行/ID、字段和修复建议。
+- 无推荐：显示硬过滤原因分布和可调整条件，不降低必需约束。
+- 单一语言缺失：不自行翻译，显示待补充并使数据质量测试失败。
+- 导出失败：保留页面预览，显示可操作错误，不输出部分 JSON。
+
+## 8. 未来演进点
+
+未来可将 DataFrame 仓储替换为数据库、将规则引擎替换/增强为学习排序或大模型服务、增加商家后台和多语言内容工作流。接口应继续围绕 `gift_request -> recommendation_result[] -> customization_inquiry`，避免 UI 依赖底层存储。任何模型增强都应保留硬约束层、规则基线和解释审计记录。

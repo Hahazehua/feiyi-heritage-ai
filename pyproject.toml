@@ -9,6 +9,7 @@ description = "Explainable rule-based recommendation core for the HeritageLink A
 requires-python = ">=3.11"
 dependencies = [
     "pandas>=2.2,<4.0",
+    "streamlit>=1.41,<2.0",
 ]
 
 [project.optional-dependencies]

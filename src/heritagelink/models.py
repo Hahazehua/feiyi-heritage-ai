@@ -9,8 +9,8 @@ from types import MappingProxyType
 
 import pandas as pd
 
-DEMO_DISCLAIMER = "仅用于MVP演示，不代表飞颐铁画的真实价格、产能、材料、交期或商业承诺。"
-MVP_DISCLAIMER_PREFIX = "仅用于MVP演示"
+DEMO_DISCLAIMER = "MVP演示数据"
+MVP_DISCLAIMER_PREFIX = "MVP演示数据"
 
 
 class FilterReasonCode(StrEnum):

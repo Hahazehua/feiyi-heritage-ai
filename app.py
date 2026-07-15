@@ -1,4 +1,4 @@
-"""Streamlit demonstration interface for HeritageLink AI."""
+"""Streamlit interface for 飞颐礼遇（HeritageLink AI）."""
 
 from __future__ import annotations
 
@@ -10,28 +10,65 @@ from uuid import uuid4
 import streamlit as st
 
 from heritagelink.content import generate_bilingual_content
+from heritagelink.conversation_state import ConversationState, new_conversation
+from heritagelink.customization_concept import (
+    CONCEPT_DISCLAIMER,
+    build_customization_concept,
+)
 from heritagelink.data_loader import DataValidationError, build_products, load_data
+from heritagelink.dialogue_manager import (
+    mark_recommendations_shown,
+    parsed_request_payload,
+    process_turn,
+    request_revision,
+    skip_suggested_question,
+)
 from heritagelink.inquiry import (
     InquiryDetails,
     build_customization_inquiry,
     inquiry_to_json,
 )
 from heritagelink.models import DataBundle, GiftRequest, Product, Recommendation
+from heritagelink.progressive_recommender import (
+    FIELD_LABELS,
+    MODE_LABELS,
+    ProgressiveRecommendationResult,
+    recommend_progressively,
+)
 from heritagelink.recommender import recommend
 from heritagelink.request_parser import (
+    BUDGET_TYPES,
+    CUSTOMIZATION_TYPES,
     OUTPUT_LANGUAGES,
     ParsedCustomerRequest,
     RequestValidationError,
     parse_request,
     to_business_request,
+    to_inquiry_details,
     validate_parsed_payload,
 )
 
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data" / "demo"
-DISCLAIMER = "当前产品、价格、产能、材料、交期和运输信息仅用于MVP演示，不代表飞颐铁画真实商业承诺。"
 
 CUSTOMER_TYPES = ("企业客户", "政府/高校/文化机构", "个人客户", "海外客户")
+CUSTOMER_TYPE_CODES = {
+    "企业客户": "corporate",
+    "政府/高校/文化机构": "institution",
+    "个人客户": "individual",
+    "海外客户": "overseas",
+}
+OUTPUT_LANGUAGE_LABELS = {"中文": "zh", "English": "en", "中英双语": "bilingual"}
+BUDGET_TYPE_LABELS = {"单件预算": "per_item", "总预算": "total"}
+CUSTOMIZATION_TYPE_LABELS = {
+    "题字": "inscription",
+    "图案": "pattern",
+    "尺寸": "size",
+    "包装": "packaging",
+    "颜色": "color",
+    "Logo": "logo",
+    "其他": "other",
+}
 RECIPIENTS = {
     "商务伙伴": "business_partner",
     "机构客户": "institution",
@@ -107,6 +144,125 @@ TAG_LABELS = {
 }
 
 
+def _apply_modern_theme() -> None:
+    """Apply a restrained modern visual system to the Streamlit shell."""
+    st.markdown(
+        """
+        <style>
+        :root {
+            --hl-ink: #202521;
+            --hl-muted: #68716a;
+            --hl-paper: #f7f6f2;
+            --hl-surface: #ffffff;
+            --hl-line: #e5e1d8;
+            --hl-accent: #a45f35;
+            --hl-accent-dark: #7d4324;
+        }
+        [data-testid="stAppViewContainer"] {
+            background:
+                radial-gradient(circle at 92% 2%, rgba(164, 95, 53, 0.10), transparent 28rem),
+                var(--hl-paper);
+            color: var(--hl-ink);
+        }
+        [data-testid="stHeader"] { background: transparent; }
+        .block-container {
+            max-width: 1180px;
+            padding-top: 2.25rem;
+            padding-bottom: 4rem;
+        }
+        .hl-hero {
+            padding: 2.2rem 2.4rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--hl-line);
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.86);
+            box-shadow: 0 18px 50px rgba(41, 35, 29, 0.06);
+        }
+        .hl-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            background: #f3e8df;
+            color: var(--hl-accent-dark);
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+        }
+        .hl-hero h1 {
+            max-width: 760px;
+            margin: 1rem 0 0.65rem;
+            color: var(--hl-ink);
+            font-size: clamp(2.1rem, 5vw, 3.75rem);
+            line-height: 1.08;
+            letter-spacing: -0.045em;
+        }
+        .hl-hero p {
+            max-width: 680px;
+            margin: 0;
+            color: var(--hl-muted);
+            font-size: 1.02rem;
+            line-height: 1.75;
+        }
+        div[data-testid="stForm"],
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-color: var(--hl-line) !important;
+            border-radius: 18px !important;
+            background: rgba(255, 255, 255, 0.78);
+        }
+        div[data-testid="stMetric"] {
+            padding: 1rem;
+            border: 1px solid var(--hl-line);
+            border-radius: 14px;
+            background: var(--hl-surface);
+        }
+        div[data-testid="stChatMessage"] {
+            border: 1px solid var(--hl-line);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.82);
+        }
+        .stButton > button, .stDownloadButton > button {
+            min-height: 2.65rem;
+            border-radius: 12px;
+            border-color: #d8d1c5;
+            font-weight: 650;
+            transition: transform 120ms ease, box-shadow 120ms ease;
+        }
+        .stButton > button:hover, .stDownloadButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(41, 35, 29, 0.08);
+        }
+        button[kind="primary"] {
+            border-color: var(--hl-accent) !important;
+            background: var(--hl-accent) !important;
+        }
+        [data-baseweb="select"] > div,
+        [data-baseweb="input"] > div,
+        textarea { border-radius: 11px !important; }
+        hr { border-color: var(--hl-line); }
+        @media (max-width: 700px) {
+            .block-container { padding: 1rem 0.8rem 3rem; }
+            .hl-hero { padding: 1.5rem; border-radius: 18px; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_hero() -> None:
+    st.markdown(
+        """
+        <section class="hl-hero">
+            <span class="hl-eyebrow">飞颐礼遇 · HERITAGELINK AI</span>
+            <h1>为每一次赠礼，找到合适的非遗表达</h1>
+            <p>通过对话或详细表单整理需求，获得清晰、可解释的产品推荐与定制方案。</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 @st.cache_resource
 def load_catalog() -> tuple[DataBundle, tuple[Product, ...]]:
     """Load validated local demo data once for the Streamlit process."""
@@ -118,11 +274,20 @@ def _money(fen: int) -> str:
     return f"¥{fen / 100:,.0f}"
 
 
-def _recommendation_reasons(recommendation: Recommendation) -> tuple[str, ...]:
+def _recommendation_reasons(
+    recommendation: Recommendation,
+    participating_dimensions: frozenset[str] | None = None,
+) -> tuple[str, ...]:
     ranked = sorted(
-        recommendation.score_breakdown.values(),
+        (
+            dimension
+            for key, dimension in recommendation.score_breakdown.items()
+            if participating_dimensions is None or key in participating_dimensions
+        ),
         key=lambda dimension: (-dimension.score, -dimension.max_score, dimension.explanation),
     )
+    if not ranked:
+        return ("当前信息较少，先展示具有代表性的产品方向。",)
     return tuple(item.explanation for item in ranked[:3])
 
 
@@ -151,7 +316,7 @@ def _detailed_request_form() -> tuple[GiftRequest, InquiryDetails] | None:
             available_lead_days = st.number_input(
                 "希望在多少天内交付", min_value=1, max_value=365, value=45
             )
-            output_language = st.selectbox("输出语言", OUTPUT_LANGUAGES, index=2)
+            output_language = st.selectbox("输出语言", tuple(OUTPUT_LANGUAGE_LABELS), index=2)
 
         customization_theme = ""
         inscription_text = ""
@@ -222,6 +387,29 @@ def _choice_bool(value: str) -> bool | None:
     return {"是": True, "否": False, "待确认": None}[value]
 
 
+def _invalidate_smart_confirmation(*, clear_parse: bool = False) -> None:
+    """Invalidate stale confirmation and recommendations after smart input changes."""
+    st.session_state["smart_request_confirmed"] = False
+    for key in (
+        "confirmed_customer_request",
+        "edited_customer_request",
+        "smart_confirmed_fingerprint",
+        "recommendation_response",
+        "gift_request",
+        "inquiry_details",
+        "active_inquiry_product",
+    ):
+        st.session_state.pop(key, None)
+    if clear_parse:
+        st.session_state.pop("parsed_customer_request", None)
+
+
+def _reset_smart_editor_widgets() -> None:
+    for key in tuple(st.session_state):
+        if key.startswith("smart_edit_") or key == "smart_confirmation_checkbox":
+            st.session_state.pop(key, None)
+
+
 def _smart_parse_entry() -> None:
     st.subheader("智能描述")
     st.caption("解析结果不会直接推荐；请先逐项检查、修改并确认。")
@@ -231,6 +419,11 @@ def _smart_parse_entry() -> None:
         placeholder="例如：我想给30位美国合作伙伴准备周年纪念礼物……",
         key="smart_request_text",
     )
+    parsed_source = st.session_state.get("smart_parsed_source_text")
+    if parsed_source is not None and text != parsed_source:
+        _invalidate_smart_confirmation(clear_parse=True)
+        st.session_state.pop("smart_parsed_source_text", None)
+        st.warning("原始描述已修改，旧解析和确认状态已失效，请重新解析。")
     parser_choice = st.radio(
         "解析方式",
         ("自动（优先 DeepSeek）", "确定性演示解析"),
@@ -239,8 +432,13 @@ def _smart_parse_entry() -> None:
     )
     if st.button("AI解析需求", type="primary", key="parse_request_button"):
         try:
-            selected_mode = "demo" if parser_choice == "确定性演示解析" else "auto"
-            st.session_state["parsed_customer_request"] = parse_request(text, mode=selected_mode)
+            selected_mode = "deterministic_demo" if parser_choice == "确定性演示解析" else "auto"
+            parsed = parse_request(text, mode=selected_mode)
+            _invalidate_smart_confirmation()
+            _reset_smart_editor_widgets()
+            st.session_state["smart_raw_user_text"] = text
+            st.session_state["smart_parsed_source_text"] = text
+            st.session_state["parsed_customer_request"] = parsed
         except RequestValidationError as exc:
             st.error(str(exc))
 
@@ -249,7 +447,7 @@ def _smart_confirmation_form() -> tuple[GiftRequest, InquiryDetails] | None:
     parsed = st.session_state.get("parsed_customer_request")
     if not isinstance(parsed, ParsedCustomerRequest):
         return None
-    if parsed.parser_mode == "demo":
+    if parsed.parser_mode == "deterministic_demo":
         st.warning("当前使用演示解析模式。该结果不是 DeepSeek 输出，请重点核对。")
     else:
         st.success("当前使用 DeepSeek AI 解析模式。")
@@ -264,12 +462,20 @@ def _smart_confirmation_form() -> tuple[GiftRequest, InquiryDetails] | None:
     with st.expander("查看完整结构化解析结果"):
         st.json(asdict(parsed), expanded=True)
 
-    customer_options = ("待确认", *CUSTOMER_TYPES)
-    recipient_options = ("待确认", *RECIPIENTS.values())
-    scene_options = ("待确认", *OCCASIONS.values())
-    language_options = ("待确认", *OUTPUT_LANGUAGES)
+    customer_options = ("", *CUSTOMER_TYPE_CODES.values())
+    recipient_options = ("", *RECIPIENTS.values())
+    scene_options = ("", *OCCASIONS.values())
+    language_options = ("", *OUTPUT_LANGUAGES)
+    budget_type_options = ("", *BUDGET_TYPES)
     style_options = tuple(dict.fromkeys((*STYLES.values(), *parsed.style_preferences)))
     meaning_options = tuple(dict.fromkeys((*MEANINGS.values(), *parsed.symbolism_preferences)))
+    customization_type_options = tuple(
+        dict.fromkeys((*CUSTOMIZATION_TYPES, *parsed.customization_types))
+    )
+    customer_labels = {value: key for key, value in CUSTOMER_TYPE_CODES.items()}
+    language_labels = {value: key for key, value in OUTPUT_LANGUAGE_LABELS.items()}
+    budget_labels = {value: key for key, value in BUDGET_TYPE_LABELS.items()}
+    customization_labels = {value: key for key, value in CUSTOMIZATION_TYPE_LABELS.items()}
     with st.form("smart_confirmation_form"):
         st.markdown("#### 请检查并修改解析结果")
         left, right = st.columns(2)
@@ -277,60 +483,84 @@ def _smart_confirmation_form() -> tuple[GiftRequest, InquiryDetails] | None:
             customer_type = st.selectbox(
                 "客户类型",
                 customer_options,
-                index=customer_options.index(parsed.customer_type or "待确认"),
-                key="smart_customer_type",
+                index=customer_options.index(parsed.customer_type or ""),
+                format_func=lambda value: customer_labels.get(value, "待确认"),
+                key="smart_edit_customer_type",
             )
-            recipient = st.selectbox(
-                "赠礼对象",
-                recipient_options,
-                index=recipient_options.index(parsed.recipient or "待确认"),
-                key="smart_recipient",
+            budget_type = st.selectbox(
+                "预算类型",
+                budget_type_options,
+                index=budget_type_options.index(parsed.budget_type or ""),
+                format_func=lambda value: budget_labels.get(value, "待确认"),
+                key="smart_edit_budget_type",
+            )
+            total_budget = st.text_input(
+                "总预算（人民币元）",
+                value="" if parsed.total_budget is None else f"{parsed.total_budget:g}",
+                key="smart_edit_total_budget",
             )
             budget = st.text_input(
                 "绝对单件预算上限（人民币元）",
                 value="" if parsed.budget_per_item is None else f"{parsed.budget_per_item:g}",
-                key="smart_budget",
+                key="smart_edit_budget",
             )
             quantity = st.text_input(
                 "采购数量",
                 value="" if parsed.quantity is None else str(parsed.quantity),
-                key="smart_quantity",
+                key="smart_edit_quantity",
+            )
+            recipient = st.selectbox(
+                "赠礼对象",
+                recipient_options,
+                index=recipient_options.index(parsed.recipient or ""),
+                format_func=lambda value: TAG_LABELS.get(value, "待确认"),
+                key="smart_edit_recipient",
             )
             scene = st.selectbox(
                 "使用场景",
                 scene_options,
-                index=scene_options.index(parsed.scene or "待确认"),
-                key="smart_scene",
+                index=scene_options.index(parsed.scene or ""),
+                format_func=lambda value: TAG_LABELS.get(value, "待确认"),
+                key="smart_edit_scene",
             )
             styles = st.multiselect(
                 "风格偏好",
                 style_options,
                 default=parsed.style_preferences,
-                key="smart_styles",
+                format_func=lambda value: TAG_LABELS.get(value, value),
+                key="smart_edit_styles",
             )
             meanings = st.multiselect(
                 "文化寓意偏好",
                 meaning_options,
                 default=parsed.symbolism_preferences,
-                key="smart_meanings",
+                format_func=lambda value: TAG_LABELS.get(value, value),
+                key="smart_edit_meanings",
             )
         with right:
             customization = st.selectbox(
                 "是否需要定制",
                 ("待确认", "是", "否"),
                 index=("待确认", "是", "否").index(_bool_choice(parsed.customization_required)),
-                key="smart_customization",
+                key="smart_edit_customization",
+            )
+            customization_types = st.multiselect(
+                "定制类型",
+                customization_type_options,
+                default=parsed.customization_types,
+                format_func=lambda value: customization_labels.get(value, value),
+                key="smart_edit_customization_types",
             )
             logo = st.selectbox(
                 "是否需要 Logo",
                 ("待确认", "是", "否"),
                 index=("待确认", "是", "否").index(_bool_choice(parsed.logo_required)),
-                key="smart_logo",
+                key="smart_edit_logo",
             )
             destination = st.text_input(
                 "目的国家或地区",
-                value=parsed.destination_country or "",
-                key="smart_destination",
+                value=parsed.destination or "",
+                key="smart_edit_destination",
             )
             international = st.selectbox(
                 "是否必须国际运输",
@@ -338,7 +568,7 @@ def _smart_confirmation_form() -> tuple[GiftRequest, InquiryDetails] | None:
                 index=("待确认", "是", "否").index(
                     _bool_choice(parsed.international_shipping_required)
                 ),
-                key="smart_international",
+                key="smart_edit_international",
             )
             delivery = st.text_input(
                 "交付天数",
@@ -347,52 +577,108 @@ def _smart_confirmation_form() -> tuple[GiftRequest, InquiryDetails] | None:
                     if parsed.required_delivery_days is None
                     else str(parsed.required_delivery_days)
                 ),
-                key="smart_delivery",
+                key="smart_edit_delivery",
             )
             output_language = st.selectbox(
                 "输出语言",
                 language_options,
-                index=language_options.index(parsed.output_language or "待确认"),
-                key="smart_language",
+                index=language_options.index(parsed.output_language or ""),
+                format_func=lambda value: language_labels.get(value, "待确认"),
+                key="smart_edit_language",
             )
-            theme = st.text_input("定制主题", value=parsed.requested_theme or "")
-            requested_text = st.text_input("题字内容", value=parsed.requested_text or "")
-            packaging = st.text_area("包装要求", value=parsed.packaging_requirement or "")
-        confirmed = st.form_submit_button("开始推荐", type="primary", width="stretch")
-    if not confirmed:
-        return None
+            theme = st.text_input(
+                "定制主题", value=parsed.requested_theme or "", key="smart_edit_theme"
+            )
+            requested_text = st.text_input(
+                "题字内容", value=parsed.requested_text or "", key="smart_edit_text"
+            )
+            packaging = st.text_area(
+                "包装要求", value=parsed.packaging_requirement or "", key="smart_edit_packaging"
+            )
+            additional_notes = st.text_area(
+                "其他说明", value=parsed.additional_notes or "", key="smart_edit_notes"
+            )
+        confirmation_ack = st.checkbox(
+            "我已核对以上字段，确认以此版本进行推荐",
+            key="smart_confirmation_checkbox",
+        )
+        confirmation_submitted = st.form_submit_button(
+            "确认结构化需求", type="primary", width="stretch"
+        )
 
     try:
         payload: dict[str, Any] = {
-            "customer_type": None if customer_type == "待确认" else customer_type,
-            "recipient": None if recipient == "待确认" else recipient,
+            "customer_type": customer_type or None,
+            "budget_type": budget_type or None,
+            "total_budget": _parse_optional_float(total_budget, "总预算"),
             "budget_per_item": _parse_optional_float(budget, "单件预算"),
             "quantity": _parse_optional_int(quantity, "采购数量"),
-            "scene": None if scene == "待确认" else scene,
+            "recipient": recipient or None,
+            "scene": scene or None,
             "style_preferences": list(styles),
             "symbolism_preferences": list(meanings),
             "customization_required": _choice_bool(customization),
+            "customization_types": list(customization_types),
             "logo_required": _choice_bool(logo),
-            "destination_country": destination.strip() or None,
             "international_shipping_required": _choice_bool(international),
+            "destination": destination.strip() or None,
             "required_delivery_days": _parse_optional_int(delivery, "交付天数"),
-            "output_language": None if output_language == "待确认" else output_language,
+            "output_language": output_language or None,
             "requested_theme": theme.strip() or None,
             "requested_text": requested_text.strip() or None,
             "packaging_requirement": packaging.strip() or None,
+            "additional_notes": additional_notes.strip() or None,
             "uncertain_fields": [],
             "missing_fields": [],
             "clarification_questions": [],
         }
-        confirmed_parse = validate_parsed_payload(
-            payload,
-            raw_user_text=parsed.raw_user_text,
-            parser_mode=parsed.parser_mode,
-        )
-        return to_business_request(confirmed_parse)
     except RequestValidationError as exc:
         st.error(str(exc))
         return None
+
+    fingerprint = repr(payload)
+    st.session_state["smart_edited_payload"] = payload
+    if (
+        st.session_state.get("smart_request_confirmed")
+        and st.session_state.get("smart_confirmed_fingerprint") != fingerprint
+    ):
+        _invalidate_smart_confirmation()
+        st.warning("结构化字段已修改，旧确认和推荐结果已失效，请重新确认。")
+
+    if confirmation_submitted:
+        if not confirmation_ack:
+            st.error("请先勾选确认声明。")
+        else:
+            try:
+                confirmed_parse = validate_parsed_payload(
+                    payload,
+                    raw_user_text=parsed.raw_user_text,
+                    parser_mode=parsed.parser_mode,
+                )
+                to_business_request(confirmed_parse)
+                st.session_state["edited_customer_request"] = confirmed_parse
+                st.session_state["confirmed_customer_request"] = confirmed_parse
+                st.session_state["smart_request_confirmed"] = True
+                st.session_state["smart_confirmed_fingerprint"] = fingerprint
+                st.success("结构化需求已确认，现在可以开始推荐。")
+            except RequestValidationError as exc:
+                _invalidate_smart_confirmation()
+                st.error(str(exc))
+
+    is_confirmed = bool(st.session_state.get("smart_request_confirmed"))
+    if st.button(
+        "开始推荐",
+        type="primary",
+        width="stretch",
+        disabled=not is_confirmed,
+        key="smart_start_recommendation",
+    ):
+        confirmed_request = st.session_state.get("confirmed_customer_request")
+        if isinstance(confirmed_request, ParsedCustomerRequest):
+            return to_business_request(confirmed_request)
+    if not is_confirmed:
+        st.caption("开始推荐前必须先确认结构化需求。")
+    return None
 
 
 def _render_inquiry(
@@ -420,28 +706,46 @@ def _render_recommendation(
     request: GiftRequest,
     details: InquiryDetails,
     bundle: DataBundle,
+    *,
+    participating_dimensions: frozenset[str] | None = None,
+    conflicts: tuple[str, ...] = (),
+    allow_inquiry: bool = True,
 ) -> None:
     product = recommendation.product
     with st.container(border=True):
         st.markdown(f"### {rank}. {product.product_name_zh}")
         st.caption(product.product_name_en)
         metric_left, metric_mid, metric_right = st.columns(3)
-        metric_left.metric("综合匹配分", f"{recommendation.total_score:.1f} / 100")
+        metric_left.metric("当前匹配分", f"{recommendation.total_score:.1f} / 100")
         metric_mid.metric(
             "演示单价", f"{_money(product.price_min_fen)}–{_money(product.price_max_fen)}"
         )
         metric_right.metric("演示制作周期", f"{product.lead_time_days} 天")
+        if conflicts:
+            st.warning("替代方案存在冲突：" + "；".join(conflicts))
         st.markdown("#### 推荐理由")
-        for reason in _recommendation_reasons(recommendation):
+        for reason in _recommendation_reasons(recommendation, participating_dimensions):
             st.markdown(f"- {reason}")
         with st.expander("查看各维度得分", expanded=True):
             st.dataframe(
                 [
                     {
                         "维度": DIMENSION_LABELS[key],
-                        "得分": value.score,
-                        "满分": value.max_score,
-                        "解释": value.explanation,
+                        "得分": (
+                            value.score
+                            if participating_dimensions is None or key in participating_dimensions
+                            else "—"
+                        ),
+                        "满分": (
+                            value.max_score
+                            if participating_dimensions is None or key in participating_dimensions
+                            else "—"
+                        ),
+                        "解释": (
+                            value.explanation
+                            if participating_dimensions is None or key in participating_dimensions
+                            else "未提供，不参与本轮个性化评分。"
+                        ),
                     }
                     for key, value in recommendation.score_breakdown.items()
                 ],
@@ -460,54 +764,254 @@ def _render_recommendation(
             st.text(content.zh.text)
         with en_tab:
             st.text(content.en.text)
-        if st.button("生成定制需求单", key=f"inquiry_{product.product_id}", width="stretch"):
+        if allow_inquiry and st.button(
+            "生成定制需求单", key=f"inquiry_{product.product_id}", width="stretch"
+        ):
             st.session_state["active_inquiry_product"] = product.product_id
-        if st.session_state.get("active_inquiry_product") == product.product_id:
+        if not allow_inquiry:
+            st.caption("补充预算和数量后可生成更完整的定制需求单。")
+        if allow_inquiry and st.session_state.get("active_inquiry_product") == product.product_id:
             _render_inquiry(recommendation, request, details, bundle)
         st.caption(product.demo_disclaimer)
 
 
 def _render_results(bundle: DataBundle) -> None:
-    response = st.session_state.get("recommendation_response")
+    progressive = st.session_state.get("progressive_result")
+    response = (
+        progressive.response
+        if isinstance(progressive, ProgressiveRecommendationResult)
+        else st.session_state.get("recommendation_response")
+    )
     request = st.session_state.get("gift_request")
     details = st.session_state.get("inquiry_details")
     if response is None or request is None or details is None:
         return
     st.divider()
     st.header("推荐结果")
+    participating: frozenset[str] | None = None
+    allow_inquiry = True
+    if isinstance(progressive, ProgressiveRecommendationResult):
+        mode_col, coverage_col, confidence_col = st.columns(3)
+        mode_col.metric("当前推荐类型", MODE_LABELS[progressive.mode])
+        coverage_col.metric("信息覆盖度", f"{progressive.information_coverage:.0%}")
+        confidence_col.metric("推荐置信度", progressive.confidence_level)
+        participating = frozenset(progressive.participating_dimensions)
+        allow_inquiry = not {
+            "budget_per_item",
+            "quantity",
+        }.intersection(progressive.missing_fields)
+        if progressive.missing_fields:
+            st.caption(
+                "尚未提供："
+                + "、".join(FIELD_LABELS[field] for field in progressive.missing_fields)
+                + "。这些信息未被视为不匹配。"
+            )
+        if progressive.mode.value == "exploring":
+            st.info("当前结果用于帮助了解可选方向，并非基于完整采购条件的最终推荐。")
     if not response.has_eligible_products:
-        st.error("没有合格产品，本次不会强行推荐。")
+        st.error("当前没有满足全部明确条件的现有产品。")
         st.markdown("#### 主要冲突原因")
         for conflict in response.primary_conflicts:
             st.markdown(f"- {conflict}")
         st.markdown("#### 可以调整的条件")
         for suggestion in response.adjustment_suggestions:
             st.markdown(f"- {suggestion}")
+        if isinstance(progressive, ProgressiveRecommendationResult) and progressive.alternatives:
+            st.markdown("#### 接近条件的替代方案")
+            st.caption("以下产品存在明确约束冲突，不属于完全匹配产品。")
+            for rank, alternative in enumerate(progressive.alternatives, start=1):
+                alternative_request = progressive.request_by_product[
+                    alternative.recommendation.product.product_id
+                ]
+                _render_recommendation(
+                    rank,
+                    alternative.recommendation,
+                    alternative_request,
+                    details,
+                    bundle,
+                    participating_dimensions=participating,
+                    conflicts=alternative.conflicts,
+                    allow_inquiry=False,
+                )
+        st.markdown("#### 定制方向（概念草案）")
+        st.caption("如果现有产品均不合格，可以把当前需求整理成待商家评估的概念方案。")
+        if st.button("生成定制方案", key="generate_customization_concept"):
+            st.session_state["customization_concept"] = build_customization_concept(
+                request, details, response
+            )
+        concept = st.session_state.get("customization_concept")
+        if concept:
+            st.warning(CONCEPT_DISCLAIMER)
+            st.json(concept, expanded=False)
         return
-    st.success(f"找到 {len(response.recommendations)} 件符合硬性条件的演示产品。")
+    st.success(f"找到 {len(response.recommendations)} 件当前可推荐产品。")
     for rank, recommendation in enumerate(response.recommendations, start=1):
-        _render_recommendation(rank, recommendation, request, details, bundle)
+        recommendation_request = (
+            progressive.request_by_product[recommendation.product.product_id]
+            if isinstance(progressive, ProgressiveRecommendationResult)
+            else request
+        )
+        _render_recommendation(
+            rank,
+            recommendation,
+            recommendation_request,
+            details,
+            bundle,
+            participating_dimensions=participating,
+            allow_inquiry=allow_inquiry,
+        )
+
+
+def _switch_to_detailed_form() -> None:
+    st.session_state["input_mode"] = "详细表单"
+
+
+def _conversation_advisor(products: tuple[Product, ...]) -> None:
+    """Render and advance the stateful conversational advisor."""
+    st.subheader("飞颐礼遇 AI 顾问")
+    st.caption("先根据现有信息给出建议；你可以继续补充需求，让结果逐步更准确。")
+    parser_label = st.radio(
+        "对话解析方式",
+        ("自动（优先 DeepSeek）", "确定性演示模式"),
+        horizontal=True,
+        key="dialogue_parser_choice",
+    )
+    mode = "auto" if parser_label.startswith("自动") else "deterministic_demo"
+    state = st.session_state.get("conversation_state")
+    if not isinstance(state, ConversationState):
+        state = new_conversation()
+        st.session_state["conversation_state"] = state
+
+    control_left, control_mid, control_right = st.columns(3)
+    if control_left.button("修改需求", width="stretch", key="dialogue_revise"):
+        state = request_revision(state)
+        st.session_state["conversation_state"] = state
+        for key in (
+            "recommendation_response",
+            "progressive_result",
+            "gift_request",
+            "inquiry_details",
+            "customization_concept",
+        ):
+            st.session_state.pop(key, None)
+    if control_mid.button("重新开始", width="stretch", key="dialogue_restart"):
+        state = new_conversation()
+        st.session_state["conversation_state"] = state
+        for key in (
+            "recommendation_response",
+            "progressive_result",
+            "gift_request",
+            "inquiry_details",
+            "customization_concept",
+        ):
+            st.session_state.pop(key, None)
+    control_right.button(
+        "切换详细表单",
+        width="stretch",
+        key="dialogue_to_form",
+        on_click=_switch_to_detailed_form,
+    )
+
+    if not state.messages:
+        with st.chat_message("assistant"):
+            st.write(
+                "请描述礼品需求，例如赠送对象、场景、预算和数量；"
+                "有明确的交期、Logo 或海外运输要求也请说明。"
+            )
+            st.caption("示例：想给外国朋友送一件有中国特色的周年礼物，预算暂时还没确定。")
+    for message in state.messages:
+        with st.chat_message(message.role):
+            st.write(message.content)
+
+    if state.accumulated_request is not None:
+        with st.expander("查看当前结构化需求", expanded=True):
+            summary_left, summary_mid, summary_right = st.columns(3)
+            summary_left.metric(
+                "推荐类型",
+                {
+                    "exploring": "探索推荐",
+                    "guided": "引导推荐",
+                    "constrained": "约束推荐",
+                }.get(state.recommendation_mode, state.recommendation_mode),
+            )
+            summary_mid.metric("信息覆盖度", f"{state.information_coverage:.0%}")
+            summary_right.metric("已识别字段", len(state.known_fields))
+            st.json(parsed_request_payload(state.accumulated_request), expanded=False)
+            if state.uncertain_fields:
+                st.info("存在不确定字段：" + "、".join(state.uncertain_fields))
+            if state.unknown_fields:
+                st.caption(
+                    "尚未提供："
+                    + "、".join(FIELD_LABELS.get(field, field) for field in state.unknown_fields)
+                )
+    if state.clarification_questions and st.button(
+        "跳过问题，查看当前推荐", key="skip_dialogue_question", width="stretch"
+    ):
+        state = skip_suggested_question(state)
+        st.session_state["conversation_state"] = state
+        st.rerun()
+
+    prompt = st.chat_input(
+        "描述需求或补充上一轮信息",
+        key="dialogue_chat_input",
+    )
+    if not prompt:
+        return
+    try:
+        turn = process_turn(state, prompt, mode=mode)
+    except RequestValidationError as exc:
+        st.error(str(exc))
+        return
+    state = turn.state
+    st.session_state["conversation_state"] = state
+    with st.chat_message("user"):
+        st.write(prompt)
+    with st.chat_message("assistant"):
+        st.write(turn.assistant_message)
+    if turn.used_parser_mode == "deterministic_demo":
+        st.warning("当前使用演示解析模式；请核对结构化字段，必要时继续用对话修正。")
+    else:
+        st.success("本轮使用 DeepSeek 对话解析，结果已通过本地字段校验。")
+
+    if turn.recommended_action != "recommend_products":
+        return
+    assert state.accumulated_request is not None
+    progressive = recommend_progressively(products, state.accumulated_request)
+    details = to_inquiry_details(state.accumulated_request)
+    if progressive.response.recommendations:
+        first_product_id = progressive.response.recommendations[0].product.product_id
+    else:
+        first_product_id = next(iter(progressive.request_by_product))
+    request = progressive.request_by_product[first_product_id]
+    st.session_state["gift_request"] = request
+    st.session_state["inquiry_details"] = details
+    st.session_state["confirmed_customer_request"] = state.accumulated_request
+    st.session_state["progressive_result"] = progressive
+    st.session_state["recommendation_response"] = progressive.response
+    st.session_state["conversation_state"] = mark_recommendations_shown(state)
+    st.session_state.pop("customization_concept", None)
+    st.session_state.pop("active_inquiry_product", None)
+    st.rerun()
 
 
 def main() -> None:
-    st.set_page_config(page_title="HeritageLink AI｜非遗礼遇", page_icon="🎁", layout="wide")
-    st.title("HeritageLink AI｜非遗礼遇")
-    st.markdown("把自然语言或详细表单转成可解释推荐和商家可执行的定制需求单。")
-    st.error(DISCLAIMER)
-    st.info("DeepSeek 只解析客户需求；价格、数量、交期、定制和运输仍由原规则引擎判断。")
+    st.set_page_config(page_title="飞颐礼遇｜AI 非遗礼品顾问", page_icon="🎁", layout="wide")
+    _apply_modern_theme()
+    _render_hero()
     try:
         bundle, products = load_catalog()
     except DataValidationError as exc:
         st.error(f"演示数据加载失败：{exc}")
         st.stop()
 
+    st.markdown("### 选择体验方式")
     input_mode = st.radio(
-        "需求输入方式", ("详细表单", "智能描述"), horizontal=True, key="input_mode"
+        "需求输入方式", ("AI礼品顾问", "详细表单"), horizontal=True, key="input_mode"
     )
     form_result: tuple[GiftRequest, InquiryDetails] | None
-    if input_mode == "智能描述":
-        _smart_parse_entry()
-        form_result = _smart_confirmation_form()
+    if input_mode == "AI礼品顾问":
+        _conversation_advisor(products)
+        form_result = None
     else:
         form_result = _detailed_request_form()
     if form_result is not None:
@@ -515,6 +1019,7 @@ def main() -> None:
         st.session_state["gift_request"] = request
         st.session_state["inquiry_details"] = details
         st.session_state["recommendation_response"] = recommend(products, request)
+        st.session_state.pop("progressive_result", None)
         st.session_state.pop("active_inquiry_product", None)
     _render_results(bundle)
 

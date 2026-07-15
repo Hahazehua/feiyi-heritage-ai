@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "heritagelink-ai"
 version = "0.1.0"
-description = "Explainable rule-based recommendation core for the HeritageLink AI MVP"
+description = "Progressive heritage gift recommendation core for 飞颐礼遇"
 requires-python = ">=3.11"
 dependencies = [
     "openai>=1.68,<3.0",

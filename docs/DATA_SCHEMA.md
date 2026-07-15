@@ -1,4 +1,4 @@
-# HeritageLink AI MVP 数据模型
+# 飞颐礼遇 MVP 数据模型
 
 ## 1. 通用约定
 
@@ -157,7 +157,7 @@
 }
 ```
 
-`score_breakdown` 键和满分必须与架构文档的 25/15/15/15/10/10/5/5 一致，总分等于分项和且在 0–100。未入选候选的过滤原因可在本次运行的 `filter_summary` 中聚合，不必暴露完整产品记录。
+`score_breakdown` 键和满分必须与架构文档的 25/15/15/15/10/10/5/5 一致。基础规则分等于八个分项之和；页面使用的 `match_score` 只根据已提供维度归一化到 0–100。未入选候选的过滤原因可在本次运行的 `filter_summary` 中聚合，不必暴露完整产品记录。
 
 ## 5. `customization_inquiry` JSON
 
@@ -227,4 +227,78 @@
 
 ## 7. `parsed_customer_request`（第三阶段运行时结构）
 
-自然语言解析结果不写入 CSV，也不直接进入推荐引擎。它包含客户类型、赠礼对象、单件预算、数量、场景、风格、寓意、定制、Logo、目的地、国际运输、交付天数、输出语言、主题、题字和包装，以及 `uncertain_fields`、`missing_fields`、`clarification_questions`、`parser_mode`、`raw_user_text`。数值和布尔值保留原生 JSON 类型；缺失值为 `null` 或空列表。用户确认后才转换为既有 `GiftRequest`。
+自然语言解析结果不写入 CSV。渐进式适配层只把已知字段转换为逐产品 `GiftRequest`，未知预算和数量使用不会淘汰该产品的内部占位值，且不在页面上表述为用户事实。
+
+| 字段 | 类型 | 受控值/说明 |
+|---|---|---|
+| customer_type | string/null | `corporate/institution/individual/overseas` |
+| budget_type | string/null | `per_item/total` |
+| total_budget | number/null | CNY 元，必须大于 0 |
+| budget_per_item | number/null | CNY 元，必须大于 0；总预算模式由本地确定性换算 |
+| quantity | int/null | 必须大于 0 |
+| recipient | string/null | 与 `GiftRequest.recipient_tags` 词表一致 |
+| scene | string/null | 与 `GiftRequest.occasion_tags` 词表一致 |
+| style_preferences | string[] | 与产品 `style_tags` 词表一致 |
+| symbolism_preferences | string[] | 与产品 `meaning_tags` 词表一致 |
+| customization_required | bool/null | 不允许字符串形式的真假值 |
+| customization_types | string[] | `inscription/pattern/size/packaging/color/logo/other` |
+| logo_required | bool/null | true 时 customization_required 必须为 true |
+| international_shipping_required | bool/null | 只代表客户必要条件 |
+| destination | string/null | 目的国家或地区，不推断具体物流能力 |
+| required_delivery_days | int/null | 大于 0；未说明时为 null |
+| output_language | string/null | `zh/en/bilingual` |
+| requested_theme | string/null | 用户明确表达的主题 |
+| requested_text | string/null | 用户明确提供的题字 |
+| packaging_requirement | string/null | 用户明确表达的包装要求 |
+| additional_notes | string/null | 其他明确要求，不参与隐式评分 |
+| raw_user_text | string | 原始文本，最大 3000 字符 |
+| parser_mode | string | `deepseek/deterministic_demo` |
+| missing_fields | string[] | 本地重新计算，不盲信模型 |
+| uncertain_fields | string[] | 只能引用本结构字段 |
+| clarification_questions | string[] | 面向用户的补充问题 |
+
+### 7.1 预算一致性
+
+- `budget_type=total` 时必须保留 `total_budget`；数量存在时由本地计算 `budget_per_item=total_budget/quantity`。
+- `budget_type=per_item` 时必须提供 `budget_per_item`；若同时提供总预算，则必须与单价乘数量在人民币 0.01 元误差内一致。
+- 换算到推荐引擎时使用十进制定点计算并转换为整数分，不用二进制浮点数决定预算资格。
+
+### 7.2 确认快照
+
+session state 保存逐轮原文、累计解析结果和当前业务版本。参与推荐的字段改变后生成新签名并重新构造 `GiftRequest`；签名不变时不得重复推荐。
+## 8. `conversation_state`（当前 session 运行时结构）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| conversation_id | string | 当前会话随机演示 ID |
+| messages | ConversationMessage[] | `user/assistant` 可显示消息，不保存模型推理 |
+| raw_user_texts | string[] | 各轮用户原文 |
+| accumulated_request | parsed_customer_request/null | 经本地校验的累计需求 |
+| missing_blocking_fields | string[] | 预算、数量、对象、场景中的缺失项 |
+| missing_optional_fields | string[] | 不阻塞推荐的偏好项 |
+| uncertain_fields | string[] | 需要澄清的显式歧义 |
+| clarification_questions | string[] | 当前最多一条问题 |
+| current_stage | enum | `collecting/needs_clarification/ready_to_recommend/showing_recommendations/customization_brief` |
+| ready_to_recommend | bool | 只能由本地规则计算 |
+| user_confirmed_fields | string[] | 已从用户轮次明确得到的字段 |
+| last_recommendation_signature | string/null | 防止同条件重复推荐 |
+| clarification_rounds | int | 0–3 |
+| manual_form_required | bool | 达到上限后引导详细表单 |
+
+DeepSeek 对话响应采用固定 JSON envelope，包含 assistant_message、newly_extracted_fields、
+updated_fields、缺失/不确定字段、clarification_questions、next_question、ready_to_recommend、
+recommended_action 和 confidence_by_field。所有未知字段、非法动作或非法类型均被拒绝并安全回退。
+
+## 9. `custom_heritage_gift_concept`
+
+仅在推荐结果为零时生成。必须包含 `is_existing_product=false`、状态、需求条件、目录冲突、调整
+建议及商家确认问题；禁止包含虚构 product_id/product_name。声明固定为：
+
+> 该内容为 AI 整理的定制需求概念，不代表现有产品、正式报价、产能或交付承诺。
+
+## 10. `progressive_recommendation_result`
+
+运行时结果包含 `recommendation_mode`（`exploring/guided/constrained`）、
+`information_coverage`（0–1）、`confidence_level`（低/中/高）、`known_fields`、
+`missing_fields`、`participating_dimensions`、完全匹配推荐、过滤失败和独立替代建议。
+`match_score` 仅根据参与维度归一化；未知维度不得记零分或中性命中。

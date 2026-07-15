@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import httpx
 import pytest
 from openai import APITimeoutError, AuthenticationError
 
+from heritagelink.config import DEFAULT_DEEPSEEK_MODEL, DeepSeekConfig, deepseek_is_configured
 from heritagelink.llm_client import (
     DeepSeekClient,
-    DeepSeekConfig,
     LLMAuthenticationError,
     LLMEmptyResponseError,
     LLMInvalidJSONError,
@@ -42,6 +43,20 @@ def _response(content: str | None) -> object:
     return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
 
+def test_environment_config_is_centralized_and_placeholder_is_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "your_deepseek_api_key_here")
+    monkeypatch.delenv("DEEPSEEK_MODEL", raising=False)
+
+    config = DeepSeekConfig.from_env()
+
+    assert config.model == DEFAULT_DEEPSEEK_MODEL == "deepseek-v4-flash"
+    assert config.is_configured is False
+    assert deepseek_is_configured() is False
+    assert "your_deepseek_api_key_here" not in repr(config)
+
+
 def test_client_requests_json_and_disables_thinking() -> None:
     client, completions = _client([_response('{"quantity": 30}')])
 
@@ -51,6 +66,24 @@ def test_client_requests_json_and_disables_thinking() -> None:
     assert call["extra_body"] == {"thinking": {"type": "disabled"}}
     assert "JSON" in call["messages"][0]["content"]  # type: ignore[index]
     assert len(completions.calls) == 1
+
+
+def test_dialogue_client_uses_json_envelope_prompt() -> None:
+    response = {
+        "assistant_message": "请补充预算。",
+        "newly_extracted_fields": {"quantity": 30},
+    }
+    client, completions = _client([_response(json.dumps(response))])
+
+    result = client.extract_dialogue_turn(
+        messages=[{"role": "user", "content": "需要30件"}],
+        accumulated_request={},
+    )
+
+    assert result == response
+    call = completions.calls[0]
+    assert call["response_format"] == {"type": "json_object"}
+    assert "recommended_action" in call["messages"][0]["content"]  # type: ignore[index]
 
 
 def test_invalid_json_is_rejected_without_retry() -> None:
@@ -81,7 +114,7 @@ def test_timeout_is_retried_only_once() -> None:
 
 
 def test_authentication_failure_never_leaks_key() -> None:
-    secret = "sk-do-not-leak-123"
+    secret = "deepseek-test-secret-do-not-leak"
     request = httpx.Request("POST", "https://api.deepseek.com/chat/completions")
     response = httpx.Response(401, request=request)
     error = AuthenticationError("bad key " + secret, response=response, body=None)

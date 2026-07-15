@@ -11,13 +11,8 @@ from uuid import uuid4
 from heritagelink.content import PENDING_ZH, BilingualContent
 from heritagelink.models import GiftRequest, Recommendation
 
-INQUIRY_DISCLAIMER_ZH = (
-    "当前产品、价格、产能、材料、交期和运输信息仅用于MVP演示，不代表飞颐铁画真实商业承诺。"
-)
-INQUIRY_DISCLAIMER_EN = (
-    "Product, price, capacity, material, lead-time and shipping information in this inquiry "
-    "is for MVP demonstration only and is not a commercial commitment by Feiyi Iron Painting."
-)
+INQUIRY_DISCLAIMER_ZH = "请与商家确认最终方案。"
+INQUIRY_DISCLAIMER_EN = "Please confirm the final proposal with the merchant."
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +25,7 @@ class InquiryDetails:
     packaging_requirement: str = ""
     destination: str = ""
     output_language: str = "中英双语"
+    additional_notes: str = ""
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -39,6 +35,7 @@ class InquiryDetails:
             "packaging_requirement",
             "destination",
             "output_language",
+            "additional_notes",
         ):
             value = getattr(self, field_name)
             if len(value) > 500:
@@ -110,6 +107,7 @@ def build_customization_inquiry(
         "disclaimer_en": INQUIRY_DISCLAIMER_EN,
         "customer_type": details.customer_type.strip() or PENDING_ZH,
         "output_language": details.output_language,
+        "additional_notes": _provided_or_pending(details.additional_notes),
         "request_snapshot": {
             "request_id": request.request_id,
             "currency": "CNY",

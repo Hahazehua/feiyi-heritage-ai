@@ -137,7 +137,7 @@ def test_loader_supports_more_than_one_merchant(tmp_path: Path) -> None:
     other_product["product_id"] = "prod_demo_other_001"
     other_product["merchant_id"] = "mer_demo_other"
     other_product["sku"] = "DEMO-OTHER-001"
-    other_product["demo_disclaimer"] = "仅用于MVP演示，不代表该商家的真实商业承诺。"
+    other_product["demo_disclaimer"] = "MVP演示数据"
     pd.concat([product_rows, other_product.to_frame().T], ignore_index=True).to_csv(
         products_path, index=False, encoding="utf-8"
     )

@@ -1,8 +1,8 @@
-# HeritageLink AI repository rules
+# 飞颐礼遇 repository rules
 
 ## Goal and MVP boundary
 
-- Build an explainable Streamlit MVP for HeritageLink AI（非遗礼遇）using 5–10 clearly labelled demo products from 飞颐铁画.
+- Build an explainable Streamlit MVP for 飞颐礼遇（HeritageLink AI）using 5–10 clearly labelled demo products from 飞颐铁画.
 - The MVP covers product-data standardization, gift-needs intake, deterministic rule-based ranking, up to three recommendations, bilingual culture copy, and an executable customization inquiry.
 - Use Python, Streamlit, pandas, and local CSV/JSON only. Do not add external model APIs, RAG, vector databases, authentication, payments, logistics, settlement, or a complex admin system unless explicitly requested.
 - Prefer the smallest runnable and explainable solution. Keep data structures ready for multiple merchants and heritage categories.

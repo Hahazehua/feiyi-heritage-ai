@@ -1,4 +1,4 @@
-# HeritageLink AI MVP 架构设计
+# 飞颐礼遇 MVP 架构设计
 
 ## 1. 架构原则
 
@@ -9,9 +9,9 @@
 ```text
 feiyi-heritage-ai/
 ├── AGENTS.md
-├── app.py                         # Streamlit 入口（阶段 3 创建）
+├── app.py                         # Streamlit 详细表单与对话顾问入口
 ├── pyproject.toml                 # 依赖、ruff、pytest 配置（阶段 1 创建）
-├── README.md                      # 比赛原始文件，当前不修改
+├── README.md                      # 安装、运行与项目边界说明
 ├── CONTRIBUTING.md                # 比赛原始文件，不修改
 ├── SUBMISSIONS.md                 # 自动维护，不手动修改
 ├── submissions.json               # 自动维护，不手动修改
@@ -26,11 +26,18 @@ feiyi-heritage-ai/
 ├── src/
 │   └── heritagelink/
 │       ├── __init__.py
+│       ├── config.py              # DeepSeek 环境配置，不含业务逻辑
+│       ├── conversation_state.py  # 不可变多轮会话状态
+│       ├── dialogue_prompt.py     # 对话 JSON 提取约束
+│       ├── dialogue_manager.py    # 合并、澄清、就绪与签名策略
+│       ├── llm_client.py          # OpenAI-compatible 客户端与安全错误映射
+│       ├── request_parser.py      # 解析、确定性回退、本地校验与需求转换
 │       ├── models.py              # TypedDict/dataclass 与枚举
 │       ├── data_loader.py         # pandas 加载、规范化、校验
 │       ├── recommender.py         # 硬过滤、评分、排序、解释
 │       ├── content.py             # 中英文模板化文化内容
-│       └── inquiry.py             # 定制需求单构造与校验
+│       ├── inquiry.py             # 定制需求单构造与校验
+│       └── customization_concept.py # 无产品结果的定制概念
 ├── tests/
 │   ├── fixtures/
 │   │   ├── golden_requests.json
@@ -39,24 +46,32 @@ feiyi-heritage-ai/
 │   ├── test_recommender.py
 │   ├── test_content.py
 │   ├── test_inquiry.py
+│   ├── test_dialogue_manager.py
+│   ├── test_customization_concept.py
 │   └── test_app_smoke.py
 └── docs/
     ├── PRODUCT_SPEC.md
     ├── ARCHITECTURE.md
     ├── DATA_SCHEMA.md
-    └── IMPLEMENTATION_PLAN.md
+    ├── IMPLEMENTATION_PLAN.md
+    ├── RECOMMENDATION_DESIGN.md
+    └── WAVE2_SKILLS.md
 ```
 
-该结构是实施目标，不代表这些应用文件当前已经存在。
+该结构中的核心应用文件已经实现；正式数据库、账号和商家后台仍不在当前范围。
 
 ## 3. 组件职责与数据流
 
-1. `data_loader` 读取五个 CSV，解析 JSON 数组单元格，校验类型、枚举、唯一性、外键和业务范围，并返回 pandas DataFrame。
-2. Streamlit 表单构造规范化的 `gift_request`，不直接计算业务分数。
-3. `recommender` 将产品、定制选项和需求合并，执行硬过滤，计算八维得分并生成结构化解释。
-4. `content` 只把已审核的 `product_texts` 字段放入中英文模板；缺失事实显示“待商家确认”，不补写事实。
-5. `inquiry` 将原始需求、所选推荐快照和开放问题组装为 `customization_inquiry`，校验后导出 JSON。
-6. Streamlit 展示结果并管理本次会话；不持久化客户身份或订单。
+1. `config` 只读取 DeepSeek 环境变量并判断是否配置 Key，不输出密钥。
+2. `llm_client` 封装 OpenAI-compatible 请求、一次受控重试和安全错误映射。
+3. `request_parser` 将 DeepSeek JSON 或确定性规则结果校验为统一 `parsed_customer_request`；总预算换算也在此完成。
+4. Streamlit 展示累计解析字段，并立即调用渐进式推荐适配层；补充问题不阻止当前推荐。
+5. `data_loader` 读取五个 CSV，校验类型、枚举、唯一性、外键和业务范围。
+6. `progressive_recommender` 只把已知约束传给 `recommender`，计算推荐模式、覆盖度、归一化匹配分和替代建议。
+7. `recommender` 执行不可绕过的明确硬约束、八维基础评分和稳定排序，不调用 DeepSeek。
+8. `content` 只使用产品数据库和模板中的事实；缺失事实显示“待商家确认”。
+9. `inquiry` 将需求、推荐快照和开放问题组装为 JSON。
+10. Streamlit 使用 session state 保存当前会话状态，不持久化客户身份或订单。
 
 ## 4. 系统边界与信任边界
 
@@ -85,11 +100,11 @@ feiyi-heritage-ai/
 6. 用户给出交付日期，且可用天数小于有效制作周期。有效制作周期为 `lead_time_days` 加上所选必需定制项中最大的 `extra_lead_days`；
 7. 海外运输为必要条件，但 `supports_international_shipping=false`。
 
-`supports_international_shipping` 只是演示能力标记，不代表真实可达性、运费或合规承诺；具体目的地仍进入待确认项。若全部淘汰，返回“没有合格产品”、各原因计数和调整建议，不绕过硬约束。
+只有用户明确提供的预算、数量、定制、Logo、交期和海外运输条件才启用相应过滤。未知字段不执行过滤，也不作为不匹配。若全部淘汰，返回无完全匹配产品、各原因计数、调整建议及独立替代方案，不绕过已知硬约束。
 
 ### 5.3 加权评分
 
-每个维度先得到 0–1 的 `match_ratio`，再乘权重并四舍五入到两位；总分为各维度之和。
+每个已知维度先得到 0–1 的 `match_ratio`，再乘基础权重。渐进式适配层只用参与维度归一化为 0–100 的当前匹配分；未知维度显示为未参与。
 
 | 维度 | 权重 | match_ratio 规则 |
 |---|---:|---|
@@ -109,7 +124,7 @@ feiyi-heritage-ai/
 - 按 `total_score desc, product_id asc` 排序，最多返回 3 件。
 - 推荐理由由最高的 2–3 个且与用户已选偏好相关的维度模板组成；不能把中性分包装为命中。
 - 风险说明来自预算边缘、交期余量小、超建议数量、产能/物流未知和未审核内容等结构化标记。
-- UI 展示总分和全部八维分数，避免仅给出笼统“AI 推荐”。
+- UI 展示当前匹配分、信息覆盖度、置信度和全部八维状态，避免把未知信息包装成命中。
 
 ## 6. 双语内容策略
 
@@ -131,3 +146,44 @@ feiyi-heritage-ai/
 新增 `llm_client.py` 和 `request_parser.py`。数据流为：用户原文 → DeepSeek 或确定性演示解析 → 本地严格校验 → 用户修改确认 → `GiftRequest` → 原推荐引擎。Streamlit 不持有 API 客户端业务逻辑，推荐引擎也不调用模型。
 
 DeepSeek 配置只从环境读取，使用 JSON 输出和非思考模式，瞬时故障最多安全重试一次。认证、余额、超时、网络、空响应和非法 JSON 均转换为不含密钥或底层堆栈的安全错误；应用随后使用明确标记的演示解析模式。无密钥、无网络时，详细表单仍可完整运行。
+
+### 9.1 Wave 2 状态机
+
+```text
+连续对话或详细表单
+→ 结构化需求累计
+→ 探索、引导或约束推荐
+→ 明确硬约束过滤与已知维度评分
+→ 可选补充问题
+→ 双语文化内容
+→ 定制需求单
+```
+
+对话会话保存各轮原文、消息、累计校验结果、澄清轮数、推荐签名、推荐结果和当前选中产品。参与推荐的字段变化时签名改变并重新推荐；签名不变时保留旧结果。
+
+### 9.2 本阶段边界
+
+本阶段不实现 RAG、向量数据库、AI 语义重排、数据库持久化或商家自助入驻。产品文化事实只来自本地产品数据和模板；DeepSeek 只提取客户明确表达的需求字段。
+## 对话式顾问增量架构（当前实现）
+
+当前页面保留详细表单，并新增由 Streamlit session state 驱动的多轮顾问：
+
+```text
+st.chat_input / st.chat_message
+  → conversation_state.py（不可变会话状态）
+  → dialogue_manager.py（字段合并、一次一个可选问题、需求签名）
+  → llm_client.py（可选 DeepSeek JSON；失败回退）
+  → request_parser.py（不可信输出本地校验）
+  → progressive_recommender.py（模式、覆盖度、未知字段和替代建议）
+  → GiftRequest
+  → recommender.py（明确硬过滤、基础权重、排序保持不变）
+```
+
+`dialogue_manager.py` 是对话策略的权威边界。模型返回的 `ready_to_recommend` 和
+`recommended_action` 不得直接控制业务；任意非空用户需求都可以得到当前推荐。交期、Logo、
+国际运输等一旦被用户明确为硬要求，仍原样交给推荐引擎过滤。所有缺失字段只影响推荐模式、
+信息覆盖度、置信度和待补充提示。
+
+会话以需求字段的稳定哈希作为推荐签名，同一签名不会重复调用推荐器。对话只保存在当前
+session，不写数据库。无产品时 `customization_concept.py` 可生成独立的概念需求对象；它不含
+现有产品身份，并强制声明待商家确认。

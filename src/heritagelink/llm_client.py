@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
-from dataclasses import dataclass
 from typing import Any, Protocol
 
-from dotenv import load_dotenv
 from openai import (
     APIConnectionError,
     APIStatusError,
@@ -16,10 +13,8 @@ from openai import (
     OpenAI,
 )
 
-DEFAULT_BASE_URL = "https://api.deepseek.com"
-DEFAULT_MODEL = "deepseek-v4-flash"
-DEFAULT_TIMEOUT_SECONDS = 20.0
-DEFAULT_MAX_TOKENS = 1400
+from heritagelink.config import DeepSeekConfig
+from heritagelink.dialogue_prompt import DIALOGUE_SYSTEM_PROMPT
 
 
 class LLMClientError(RuntimeError):
@@ -58,30 +53,6 @@ class LLMAPIError(LLMClientError):
     """Raised for other API status failures."""
 
 
-@dataclass(frozen=True, slots=True)
-class DeepSeekConfig:
-    """DeepSeek configuration loaded without exposing the API key."""
-
-    api_key: str
-    base_url: str = DEFAULT_BASE_URL
-    model: str = DEFAULT_MODEL
-    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
-    max_tokens: int = DEFAULT_MAX_TOKENS
-
-    @classmethod
-    def from_env(cls) -> DeepSeekConfig:
-        """Load local ``.env`` values, with environment variables taking precedence."""
-        load_dotenv()
-        api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
-        if not api_key or api_key == "your_deepseek_api_key_here":
-            raise MissingAPIKeyError("未配置 DeepSeek API Key，将使用演示解析模式。")
-        return cls(
-            api_key=api_key,
-            base_url=os.getenv("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL,
-            model=os.getenv("DEEPSEEK_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL,
-        )
-
-
 class _CompletionsClient(Protocol):
     def create(self, **kwargs: Any) -> Any: ...
 
@@ -94,13 +65,14 @@ class _OpenAICompatibleClient(Protocol):
     chat: _ChatClient
 
 
-SYSTEM_PROMPT = """你是 HeritageLink AI 的礼品需求字段提取器。
+SYSTEM_PROMPT = """你是飞颐礼遇的礼品需求字段提取器。
 只提取用户明确表达或可直接判断的事实，禁止猜测预算、数量、交期、风格、包装，
 也禁止推测商家的产能、价格、材料或运输能力。输出必须是一个 JSON 对象，不能输出解释、
 Markdown、推理过程或额外文字。缺失信息使用 null 或空列表并加入 missing_fields；有歧义的
 字段加入 uncertain_fields，并给出 clarification_questions。
 
-受控值：output_language 只能是“中文”“English”“中英双语”或 null。
+受控值：budget_type 只能是 per_item/total；customer_type 只能是
+corporate/institution/individual/overseas；output_language 只能是 zh/en/bilingual 或 null。
 recipient、scene、style_preferences、symbolism_preferences 尽量使用以下业务标签：
 business_partner/institution/employee/elder/family/friend/newlywed/teacher/collector；
 business_gift/commemoration/wedding/anniversary/housewarming/birthday/festival/graduation/
@@ -109,22 +81,26 @@ heritage/prosperity/blessing/harmony/longevity/resilience/remembrance/gratitude/
 
 完整目标 JSON 示例：
 {
-  "customer_type": "企业客户",
-  "recipient": "business_partner",
+  "customer_type": "corporate",
+  "budget_type": "per_item",
+  "total_budget": 30000,
   "budget_per_item": 1000,
+  "recipient": "business_partner",
   "quantity": 30,
   "scene": "anniversary",
   "style_preferences": [],
   "symbolism_preferences": ["heritage"],
   "customization_required": true,
+  "customization_types": ["logo"],
   "logo_required": true,
-  "destination_country": "United States",
+  "destination": "United States",
   "international_shipping_required": true,
   "required_delivery_days": 30,
-  "output_language": "中英双语",
+  "output_language": "bilingual",
   "requested_theme": "安徽文化",
   "requested_text": null,
   "packaging_requirement": null,
+  "additional_notes": null,
   "uncertain_fields": ["budget_per_item"],
   "missing_fields": ["requested_text", "packaging_requirement"],
   "clarification_questions": ["1000元是不可超过的单件预算上限吗？"]
@@ -151,12 +127,36 @@ class DeepSeekClient:
 
     @classmethod
     def from_env(cls) -> DeepSeekClient:
-        return cls(DeepSeekConfig.from_env())
+        config = DeepSeekConfig.from_env()
+        if not config.is_configured:
+            raise MissingAPIKeyError("未配置 DeepSeek API Key，将使用演示解析模式。")
+        return cls(config)
 
     def extract_request(self, text: str) -> dict[str, Any]:
         """Return one decoded JSON object or a sanitized domain exception."""
         if not text.strip():
             raise ValueError("礼品需求描述不能为空。")
+
+        return self._extract_json(SYSTEM_PROMPT, text.strip())
+
+    def extract_dialogue_turn(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        accumulated_request: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Extract one bounded dialogue action without exposing model reasoning."""
+        user_payload = json.dumps(
+            {
+                "conversation_messages": messages,
+                "accumulated_request": accumulated_request,
+            },
+            ensure_ascii=False,
+        )
+        return self._extract_json(DIALOGUE_SYSTEM_PROMPT, user_payload)
+
+    def _extract_json(self, system_prompt: str, user_content: str) -> dict[str, Any]:
+        """Call the compatible JSON endpoint with one bounded safe retry."""
 
         last_transient: Exception | None = None
         for attempt in range(2):
@@ -164,8 +164,8 @@ class DeepSeekClient:
                 response = self._client.chat.completions.create(
                     model=self.config.model,
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": text.strip()},
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content},
                     ],
                     response_format={"type": "json_object"},
                     extra_body={"thinking": {"type": "disabled"}},

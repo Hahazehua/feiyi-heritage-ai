@@ -6,7 +6,8 @@ import pytest
 @pytest.fixture(autouse=True)
 def block_real_deepseek(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests must never discover a local key or call the real OpenAI-compatible API."""
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    # A placeholder prevents python-dotenv from loading a developer's real local key.
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "your_deepseek_api_key_here")
 
     def fail_network(*args: object, **kwargs: object) -> None:
         raise AssertionError("自动化测试禁止真实 DeepSeek 网络请求")

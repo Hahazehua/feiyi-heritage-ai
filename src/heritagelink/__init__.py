@@ -5,16 +5,19 @@ from heritagelink.data_loader import DataValidationError, build_products, load_d
 from heritagelink.inquiry import InquiryDetails, build_customization_inquiry
 from heritagelink.models import GiftRequest, RecommendationResponse
 from heritagelink.recommender import recommend
+from heritagelink.request_parser import ParsedCustomerRequest, parse_request
 
 __all__ = [
     "BilingualContent",
     "DataValidationError",
     "GiftRequest",
     "InquiryDetails",
+    "ParsedCustomerRequest",
     "RecommendationResponse",
     "build_products",
     "build_customization_inquiry",
     "generate_bilingual_content",
     "load_data",
+    "parse_request",
     "recommend",
 ]

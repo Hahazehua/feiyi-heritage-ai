@@ -224,3 +224,7 @@
 ## 6. 受控词表与扩展
 
 词表集中定义在代码枚举或单独版本化配置中，测试确保输入、产品标签和 UI 选项一致。增加商家只需新增 `merchants` 记录并通过外键关联；增加非遗品类只需新增 `heritage_items` 记录和受控 `category_code`，推荐接口无需改变。不得把“飞颐铁画”或 `metal_craft` 写死在评分函数中。
+
+## 7. `parsed_customer_request`（第三阶段运行时结构）
+
+自然语言解析结果不写入 CSV，也不直接进入推荐引擎。它包含客户类型、赠礼对象、单件预算、数量、场景、风格、寓意、定制、Logo、目的地、国际运输、交付天数、输出语言、主题、题字和包装，以及 `uncertain_fields`、`missing_fields`、`clarification_questions`、`parser_mode`、`raw_user_text`。数值和布尔值保留原生 JSON 类型；缺失值为 `null` 或空列表。用户确认后才转换为既有 `GiftRequest`。

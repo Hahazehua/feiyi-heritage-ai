@@ -1,156 +1,235 @@
-# 飞颐礼遇 MVP 实施计划
+# 飞颐礼遇 Wave 2 实施与收尾计划
 
-## 1. 当前仓库基线
+状态快照日期：2026年7月17日。
 
-审计日期：2026-07-14，实际仓库根目录为 `F:\HC\hackathon\feiyi-heritage-ai`。
+本文件记录当前已经落地的实现、最终验证步骤和仍需人工完成的提交事项。赛事阶段、截止日期和交叉评审入口统一见 `docs/wave2/README.md`，此处不重复赛事公告。
 
-- 当前分支：`feat/heritagelink-mvp`。
-- 当前提交：`136172f Initialize track repository`，与本地 `main`、`origin/main` 一致。
-- 远程：`origin` 的 fetch/push 地址均为 `https://www.synnovator.com/harrychen901/feiyi-heritage-ai.git`。
-- 规划前工作树：干净。
-- 已跟踪文件：`.forgejo/workflows/update-submission-index.yml`、`README.md`、`CONTRIBUTING.md`、`SUBMISSIONS.md`、`submissions.json`。
-- 不存在 Python 源码、依赖清单、项目配置、测试或产品数据。
-- Git 因工作区所有者与执行用户不同报告 `dubious ownership`；本次只对读取命令使用临时 `git -c safe.directory=...`，未修改全局 Git 配置。
+## 1. 当前交付范围
 
-### 当前完整业务仓库结构（不展开 `.git` 内部对象）
+当前仓库目标是完成一套可本地运行、可测试、可解释的 Streamlit 原型，而不是正式商业平台。Submitted Skills 和唯一 Workflow 以以下文件为准：
+
+- `docs/WAVE2_SKILLS.md`：简洁兼容入口；
+- `docs/wave2/skills/`：四个详细 Skill 文档；
+- `docs/wave2/WORKFLOW.md`：唯一端到端 Workflow；
+- `docs/wave2/EVALUATION.md`：实际命令与评测证据；
+- `docs/wave2/COMPLIANCE.md`：最终合规状态和人工待办。
+
+当前目录使用本地 CSV/JSON 和 Streamlit session，不使用正式数据库、RAG、向量检索、账号、支付、物流、订单或生产级后台。
+
+## 2. 截至 2026年7月17日的完成状态
+
+### 2.1 Conversational Gift Request Understanding
+
+已实现：
+
+- 自然语言首轮解析和详细表单；
+- DeepSeek 可选字段提取；
+- 无 Key、认证、余额、超时、网络、空响应和非法 JSON 的安全回退；
+- 本地字段白名单、类型、枚举、金额和交叉字段校验；
+- `ConversationState`、`process_turn` 和累计字段合并；
+- 确认页中的连续历史展示、下一轮补充和显式合并；
+- 用户结构化修订和确认优先于模型候选输出。
+
+AI 只提供候选字段。多轮合并、问题选择、需求签名和推荐就绪状态均由本地代码决定。
+
+### 2.2 Progressive Heritage Gift Recommendation
+
+已实现：
+
+- 探索、引导和约束三种推荐模式；
+- 只对用户明确条件启用硬过滤；
+- 25/15/15/15/10/10/5/5 八维固定权重；
+- 只使用已知维度的 0–100 归一化当前匹配分；
+- `score desc, product_id asc` 稳定排序和最多 3 件输出；
+- 页面展示信息覆盖度、低/中/高置信度和八维状态；
+- 无方案满足全部明确硬约束时返回零件合格推荐、冲突原因和调整方向；
+- 冲突方案只出现在独立参考区；独立定制概念不虚构产品身份。
+
+### 2.3 Grounded Bilingual Heritage Content
+
+已实现：
+
+- 本地中英文资料加载和双语模板组织；
+- 来源说明、审核状态和缺失字段标记；
+- 运行时不调用机器翻译、DeepSeek 或 RAG 补写文化事实；
+- 馆藏参考目录、图片许可和本地图片关联；
+- 馆藏物件与 MVP 礼赠方案商业字段分开维护。
+
+当前 20 件方案对应 40 条双语资料，全部为 `review_status=draft`。这表示文案可用于明确标记的 MVP 演示，但不能称为商家已审核内容。
+
+### 2.4 Merchant-Ready Customization Brief
+
+已实现：
+
+- 一个选中合格方案的商品与价格快照；
+- 客户需求、定制、交付、双语内容、行动项和开放问题；
+- `InquiryRequestContext` 保留客户未知预算、数量、定制、Logo、国际运输和交期为 `None`；
+- 中英文 MVP 演示需求单声明；
+- 页面预览、可复制摘要和 UTF-8 JSON 下载；
+- 下载前结构校验。
+
+无合格方案时的 `custom_heritage_gift_concept` 是独立输出，不等于选中产品需求单。
+
+### 2.5 Prototype 与数据
+
+已实现五阶段 Streamlit 主路径：
 
 ```text
-feiyi-heritage-ai/
-├── .forgejo/
-│   └── workflows/
-│       └── update-submission-index.yml
-├── .git/                         # Git 元数据
-├── CONTRIBUTING.md
-├── README.md
-├── SUBMISSIONS.md
-└── submissions.json
+描述需求
+→ 确认、连续补充与结构化修订
+→ 渐进式推荐
+→ 双语文化内容
+→ 商家需求单
 ```
 
-## 2. 不应修改的现有文件
+当前 `data/demo/` 包含：
 
-- `SUBMISSIONS.md`：贡献指南明确说明由自动化维护，不得手动编辑。
-- `submissions.json`：提交元数据由同一工作流生成，不得作为产品数据使用或手动编辑。
-- `.forgejo/workflows/update-submission-index.yml`：比赛方索引自动化，除非比赛维护者明确要求，不修改。
-- `CONTRIBUTING.md`：比赛提交流程基线，保留原文。
-- `README.md`：当前仅含赛道标识和简介，现阶段保留；后续如需补充项目说明，应先确认比赛方是否允许修改，或优先新增独立项目文档。
-- `.git/`：不得手动修改。
+- 1 个平台演示选品主体；
+- 4 个 `unverified` 工艺分类；
+- 20 件带图 MVP 礼赠方案；
+- 40 条 `draft` 双语资料；
+- 43 条 MVP 定制选项。
 
-本次仅新增 `AGENTS.md` 与 `docs/` 下规划文档，不覆盖任何原文件。
+页面全局显示 `MVP 演示数据 / MVP demo data`。价格、数量、交期、运输和定制能力需要商家复核，不构成报价或履约承诺。
 
-## 3. 分阶段开发顺序
+## 3. 当前测试资产
 
-### 阶段 0：规划与规范（本次）
+仓库已包含以下测试层：
 
-交付产品规格、架构、数据 schema、实施计划和仓库代理规则。完成一致性检查，不写完整应用、不提交、不推送。
+- 需求解析、DeepSeek 客户端、无 Key 回退和对话合并；
+- 渐进式推荐、每项硬过滤、固定评分和稳定排序；
+- 数据列、主键、外键、枚举、金额、数量、双语资料、图片和演示声明；
+- 双语内容缺失与审核边界；
+- 需求单完整性、未知客户字段和 JSON 校验；
+- 无结果概念不虚构商品；
+- Streamlit AppTest 主路径、连续补充、无强推和探索性需求单未知值；
+- 14 个确定性推荐回归案例。
 
-退出条件：五份文档字段、评分权重、范围、目录和验收口径一致；Git diff 仅包含预期新增文档。
+`tests/conftest.py` 设置占位 API Key，并把真实 completion 调用替换为立即失败的守卫。自动化测试不得访问真实 DeepSeek API 或产生费用。
 
-### 阶段 1：工程骨架与数据契约
+这些测试资产已在2026年7月17日完成全量验证；真实环境、命令和结果记录在 `docs/wave2/EVALUATION.md`，不得将其改写为业务指标。
 
-1. 创建 `pyproject.toml`，固定 Python 3.11+ 和最小依赖：Streamlit、pandas、pytest、ruff。
-2. 创建包目录、空入口和测试目录，但不先堆叠 UI。
-3. 实现受控枚举、金额/请求类型及 CSV schema 校验。
-4. 为无效 ID、外键、枚举、JSON 标签、金额和双语缺失编写失败测试。
+## 4. 最终自动化验证
 
-退出条件：`ruff`、`pytest` 通过；无效 fixture 会给出可定位错误。
+### 4.1 环境记录
 
-### 阶段 2：飞颐铁画演示数据与推荐内核
+2026年7月17日已记录：
 
-1. 与商家确认 5–10 件产品事实；无法确认的字段明确写 `unverified` 或待审核。
-2. 建立五个 `data/demo` CSV，全部标注演示数据和版本。
-3. 实现预算规范化、五项硬过滤、八维评分、稳定排序和解释模板。
-4. 建立至少 10 个黄金需求，由商家/领域人员给出可接受 Top-3 与不可推荐条件。
+- 验证对象为本次未提交工作树，最终 commit hash 仍需提交负责人补录；
+- Microsoft Windows NT 10.0.26200.0；
+- Python 3.11.4、Streamlit 1.59.2、Starlette 1.3.1；
+- 独立启动检查移除了 `DEEPSEEK_API_KEY`；
+- 数据规模为 1 个演示选品主体、4 个分类、20 件方案、40 条双语资料和 43 条定制选项。
 
-退出条件：硬约束违规为 0；相同输入结果可复现；黄金集 Top-3 命中率达到试点目标 80% 或记录经确认的调权决定。
+### 4.2 安装
 
-### 阶段 3：双语内容与需求单
+在干净 Python 3.11+ 环境中执行：
 
-1. 填写每件产品中英文文化内容及来源/审核状态。
-2. 实现内容模板，不对缺失事实进行生成式补全。
-3. 实现 `customization_inquiry` 构造、快照、待确认项、schema 校验和 JSON 导出。
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .[dev]
+```
 
-退出条件：双语内容完整率与需求单 schema 通过率均为 100%。
+以上 editable install 已在独立 `.venv` 中成功完成，退出码为 0。
 
-### 阶段 4：Streamlit 完整流程
+### 4.3 质量检查
 
-1. 构建需求表单、结果卡、分数明细、无结果提示和需求单预览。
-2. 在首页、产品卡和导出中展示 `MVP 演示数据 / MVP demo data`。
-3. 加入 session state、输入长度限制、错误提示和下载按钮。
-
-退出条件：从填写到 JSON 下载的冒烟测试通过；无外部网络和密钥也可运行。
-
-### 阶段 5：评测、商家走查与演示加固
-
-1. 邀请飞颐铁画代表审查事实、英文内容、推荐理由和需求单可执行性。
-2. 执行桌面端和窄屏手工走查、边界输入测试及演示脚本演练。
-3. 记录数据版本、规则版本、已知限制和未来多商家接入清单。
-
-退出条件：产品规格中的验收指标有证据；已知问题不影响核心演示。
-
-## 4. 测试与评测方案
-
-### 4.1 自动化测试层级
-
-- Schema 测试：必填列、类型、唯一主键、商家/非遗外键、枚举、JSON 数组、金额、数量、双语行和 demo 标记。
-- 单元测试：预算换算边界、每个硬过滤条件、八个评分维度、分数封顶、稳定同分排序和解释选择。
-- 需求单测试：快照不可丢字段、金额单位一致、未决事实进入开放问题、JSON 可序列化并通过 schema。
-- 集成测试：固定需求从 CSV 加载到 Top-3、文化内容和需求单导出的端到端纯函数链路。
-- UI 冒烟：应用可启动，主表单、结果区和下载区存在；业务正确性仍由纯函数测试承担。
-
-### 4.2 黄金集设计
-
-至少 10 个需求，覆盖企业答谢、商务伙伴、长辈、婚礼、乔迁、纪念、收藏，以及预算不足、数量超限、定制不支持、交期不足等无结果或少结果场景。每个案例记录：输入、不可违反约束、可接受产品集合、首选产品（若有）、标注人和原因。
-
-评测报告至少计算：硬约束违规数、Top-1 命中率、Top-3 命中率、平均候选数、解释完整率、双语完整率、需求单 schema 通过率和重复运行一致率。5–10 件商品下不使用复杂离线学习指标取代人工业务判断。
-
-### 4.3 验收命令
-
-阶段 1 配置完成后，每次实现修改运行：
-
-```text
+```powershell
 python -m ruff format --check .
 python -m ruff check .
 python -m pytest
 ```
 
-UI 修改另运行 `python -m streamlit run app.py --server.headless true`，并使用 Streamlit AppTest 完成对话式顾问和详细表单核心流程。所有结果以当次实际命令输出为准。
+实测结果：Ruff 格式检查为 `37 files already formatted`，静态检查为 `All checks passed!`，pytest 为 `106 passed in 12.01s`；三条命令退出码均为 0。
 
-## 5. 风险与缓解
+### 4.4 分 Skill 复现
 
-| 风险 | 影响 | MVP 缓解 |
-|---|---|---|
-| 商品价格、产能、工期未经确认 | 推荐不可执行 | 演示标记、审核状态、快照和待确认项；不做交易承诺 |
-| 5–10 件产品导致评分看似精确 | 用户误解 | 展示维度分、规则版本和限制，不称为智能预测概率 |
-| 标签过密使所有产品高分 | 区分度不足 | 受控词表、黄金集、商家复核；记录调权而非暗改 |
-| 中英文内容出现文化误述 | 信任与合规风险 | 来源说明、双语独立审核、缺失即待确认 |
-| 数据模型写死单商家 | 无法扩展 | 所有产品通过 `merchant_id`、`heritage_id` 外键关联，评分不引用商家常量 |
-| 比赛基础文件被误改 | 提交流程受损 | `AGENTS.md` 明确保护，diff 检查只接受预期文件 |
+必要时使用：
 
-## 6. 当前可执行开发切片：Wave 2 自然语言解析
+```powershell
+python -m pytest tests/test_request_parser.py tests/test_dialogue_manager.py tests/test_llm_client.py
+python -m pytest tests/test_progressive_recommender.py tests/test_recommender.py tests/test_customization_concept.py
+python -m pytest tests/test_content.py tests/test_data_loader.py tests/test_catalog.py
+python -m pytest tests/test_inquiry.py
+python -m pytest tests/test_app_smoke.py tests/test_catalog_app.py
+```
 
-1. 同步产品、架构、数据、推荐和 Skill 文档，锁定职责边界。
-2. 将 DeepSeek 环境配置从客户端中分离，并保持模型名称只有一个默认定义。
-3. 扩展统一解析结构，支持总预算换算、定制类型、其他说明和完整受控值校验。
-4. 实现解析、编辑、明确确认、开始推荐四个独立状态（已由后续多轮会话状态取代）。
-5. 使用 Fake/Mock 覆盖 DeepSeek 成功、认证、超时、空响应和无 Key 回退，不发出真实请求。
-6. 使用 AppTest 覆盖自然语言流程，并确认详细表单不受影响。
+失败时先保存可定位的失败信息，再修复代码、数据、测试或文档；不得删除合理断言来制造通过结果。
 
-退出条件：Ruff、全部 pytest、AppTest 和本地 Streamlit 健康检查通过；推荐引擎文件没有业务 diff；`.env` 未跟踪且仓库无真实密钥。
+## 5. Streamlit 人工冒烟
 
-## 7. Wave 2 后续计划（尚未实现）
+启动命令：
 
-RAG、AI 语义重排、正式数据库、商家自助入驻、账号权限、真实库存/报价和订单工作流均留待后续阶段。不得在演示或文档中表述为当前能力。
+```powershell
+python -m streamlit run app.py --server.headless true
+```
 
-## 8. 当前完成切片：对话式 AI 非遗礼品顾问
+该命令持续运行。确认应用成功启动后，按 `docs/wave2/DEMO_CASE.md` 至少走查：
 
-1. 用不可变 `ConversationState` 保存消息、累计需求、已知/未知字段、覆盖度、推荐模式和签名；
-2. 由 `dialogue_manager` 本地控制一次一个可选问题；缺失字段不阻止推荐；
-3. DeepSeek 增加严格 JSON 对话 envelope，失败或无 Key 时使用确定性演示解析；
-4. Streamlit 使用 `st.chat_message`、`st.chat_input` 和 session state，保留详细表单；
-5. 渐进式适配层提供探索、引导和约束推荐；需求变化后重新推荐，相同签名保留原结果；
-6. 无合格产品时允许生成不绑定现有产品的定制概念，并显示强制免责声明；
-7. 单元测试覆盖逐轮合并、追问策略、轮数上限、签名、回退、硬约束传递和无结果概念；
-8. AppTest 覆盖完整对话、补充回答、历史保留、重启、详细表单切换和概念生成。
+1. 无 `.env` 或主动选择确定性演示模式；
+2. 企业海外礼赠代表案例完成五阶段主路径；
+3. 确认页输入第二轮补充并验证累计字段更新；
+4. 推荐页显示模式、覆盖度、置信度和不超过 3 件结果；
+5. 文化页显示来源、`draft` 和待审核边界；
+6. 需求单未知字段保持待确认，页面显示中英文 MVP 声明，JSON 可以下载并解析；
+7. 低预算无结果案例不显示合格方案选择按钮；
+8. 馆藏目录明确说明馆藏原物不是平台在售商品。
 
-本切片退出检查仍为 `ruff format --check`、`ruff check`、全部 `pytest`、Streamlit 冒烟、密钥与
-缓存审计。推荐引擎的硬过滤、权重和排序文件不因本切片改变。
+把实际观察、浏览器地址和终止方式记录到 `docs/wave2/EVALUATION.md`。
+
+## 6. 一致性收尾
+
+最终提交前执行以下只读检查：
+
+- 四个 Submitted Skills 的中英文名称在根 README、Specs、Skill 文档和 PR 描述中完全一致；
+- 仓库只声明一条指定名称的 Submitted Workflow；
+- README、Specs、架构、数据 schema、代码和测试没有把未来能力写成当前功能；
+- 所有链接和相对路径存在；
+- 安装、启动和测试命令与最终 `pyproject.toml` 一致；
+- 所有产品数量、文化资料数量和定制选项数量与最终 CSV 一致；
+- 所有公开资料、MVP 演示字段、模板表达和待确认事实保持可区分；
+- `.env`、密钥、缓存和个人信息未进入提交；
+- 没有占位在线 Demo 链接、虚构测试数或未经验证的指标。
+
+## 7. 评测证据边界
+
+`tests/evaluation_cases.json` 的 14 个案例只证明确定性回归行为。当前没有商家或领域专家标注人、独立盲评或满意度证据，因此不报告：
+
+- 自然语言解析准确率；
+- Top-1 或 Top-3 命中率；
+- 商家满意度；
+- 询单转化率；
+- 真实履约成功率。
+
+未来若开展人工评测，必须记录案例版本、标注人角色、标注依据、计算脚本和可复现输出，不能把自动化测试通过比例改写为业务指标。
+
+## 8. 用户或提交负责人仍需完成
+
+- 由不熟悉项目的人按 `docs/wave2/README.md` 的最短路径复现一次；
+- 最终提交后在 `docs/wave2/EVALUATION.md` 补录 commit hash；
+- 检查 PR 描述、提交表单和最终仓库链接；
+- 如提供在线 Demo，只填写实际可访问且经过验证的地址；没有则保留“仅本地 Prototype”；
+- 后续由真实商家审核 40 条 `draft` 双语资料及价格、产能、交期、运输和定制字段；在完成前保持演示和待确认标记。
+
+## 9. 后续阶段而非本轮交付
+
+以下内容继续保留为未来计划，不得写成当前已实现：
+
+- RAG、Embedding、向量数据库和 AI 语义重排；
+- 正式数据库和长期会话持久化；
+- 多商家后台、商家自主入驻和生产级审核权限；
+- 用户账号；
+- 正式库存、报价、合同、支付、物流、税务和订单系统；
+- 未经人工审核的文化事实自动发布。
+
+## 10. 完成条件
+
+只有在以下事项全部有证据时，Wave 2 工程材料才可标为最终完成：
+
+1. 四个 Skills 和唯一 Workflow 与最终代码一致；
+2. 干净环境安装、Ruff、pytest 和 Streamlit 启动均有真实记录；
+3. 无 Key、连续补充、成功推荐、无结果和需求单路径均完成复现；
+4. 演示数据、来源、审核和未来边界在页面与文档中一致；
+5. 所有相对链接有效；
+6. 提交负责人完成最终人工走查和外部提交步骤。

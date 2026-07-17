@@ -11,8 +11,11 @@ from uuid import uuid4
 from heritagelink.content import PENDING_ZH, BilingualContent
 from heritagelink.models import GiftRequest, Recommendation
 
-INQUIRY_DISCLAIMER_ZH = "请与商家确认最终方案。"
-INQUIRY_DISCLAIMER_EN = "Please confirm the final proposal with the merchant."
+INQUIRY_DISCLAIMER_ZH = "MVP 演示需求单；价格、产能、交期、运输和定制可行性均需商家确认。"
+INQUIRY_DISCLAIMER_EN = (
+    "MVP demo inquiry; price, capacity, lead time, shipping, and customization "
+    "feasibility require merchant confirmation."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,24 +45,94 @@ class InquiryDetails:
                 raise ValueError(f"{field_name} 不能超过 500 个字符")
 
 
+@dataclass(frozen=True, slots=True)
+class InquiryRequestContext:
+    """Customer-stated facts used by an inquiry, preserving unknown values as null."""
+
+    unit_budget_min_fen: int | None = None
+    unit_budget_max_fen: int | None = None
+    budget_total_min_fen: int | None = None
+    budget_total_max_fen: int | None = None
+    quantity: int | None = None
+    recipient_tags: tuple[str, ...] = ()
+    occasion_tags: tuple[str, ...] = ()
+    style_tags: tuple[str, ...] = ()
+    meaning_tags: tuple[str, ...] = ()
+    customization_required: bool | None = None
+    required_customization_types: tuple[str, ...] = ()
+    preferred_customization_types: tuple[str, ...] = ()
+    logo_required: bool | None = None
+    international_shipping_required: bool | None = None
+    available_lead_days: int | None = None
+
+    def __post_init__(self) -> None:
+        money_fields = (
+            "unit_budget_min_fen",
+            "unit_budget_max_fen",
+            "budget_total_min_fen",
+            "budget_total_max_fen",
+        )
+        for field_name in money_fields:
+            value = getattr(self, field_name)
+            if value is not None and value < 0:
+                raise ValueError(f"{field_name} 不能为负数")
+        if self.quantity is not None and self.quantity <= 0:
+            raise ValueError("quantity 必须大于 0 或为 null")
+        if self.available_lead_days is not None and self.available_lead_days < 0:
+            raise ValueError("available_lead_days 不能为负数")
+
+    @classmethod
+    def from_request(cls, request: GiftRequest) -> InquiryRequestContext:
+        """Treat a normal GiftRequest as fully customer-confirmed for compatibility."""
+        return cls(
+            unit_budget_min_fen=request.unit_budget_min_fen,
+            unit_budget_max_fen=request.unit_budget_max_fen,
+            budget_total_min_fen=request.unit_budget_min_fen * request.quantity,
+            budget_total_max_fen=request.unit_budget_max_fen * request.quantity,
+            quantity=request.quantity,
+            recipient_tags=tuple(sorted(request.recipient_tags)),
+            occasion_tags=tuple(sorted(request.occasion_tags)),
+            style_tags=tuple(sorted(request.style_tags)),
+            meaning_tags=tuple(sorted(request.meaning_tags)),
+            customization_required=request.customization_required,
+            required_customization_types=tuple(sorted(request.required_types)),
+            preferred_customization_types=tuple(sorted(request.preferred_customization_types)),
+            logo_required=request.logo_required,
+            international_shipping_required=request.international_shipping_required,
+            available_lead_days=request.available_lead_days,
+        )
+
+
 def _provided_or_pending(value: str) -> str:
     return value.strip() or PENDING_ZH
 
 
-def _open_questions(request: GiftRequest, details: InquiryDetails) -> list[str]:
+def _open_questions(context: InquiryRequestContext, details: InquiryDetails) -> list[str]:
     questions = [
         "请确认产品当前是否可接单，并提供最终含税或未税报价。",
         "请确认真实材料、可生产数量及基础制作周期。",
     ]
-    if request.customization_required:
+    if context.unit_budget_max_fen is None:
+        questions.append("客户尚未提供单件预算，请确认可接受的预算范围。")
+    if context.quantity is None:
+        questions.append("客户尚未提供采购数量，请确认目标数量。")
+    if not context.recipient_tags:
+        questions.append("客户尚未明确赠礼对象，请补充后确认适配方向。")
+    if not context.occasion_tags:
+        questions.append("客户尚未明确礼赠场景，请补充后确认适配方向。")
+    if context.customization_required is None:
+        questions.append("客户尚未说明是否需要定制，请确认定制需求。")
+    elif context.customization_required:
         questions.append("请确认定制主题的可制作范围、费用和附加工期。")
         if not details.customization_theme.strip():
             questions.append("客户尚未明确定制主题，请协助确认主题方向。")
-    if "inscription" in request.required_types or details.inscription_text.strip():
+    if "inscription" in context.required_customization_types or details.inscription_text.strip():
         questions.append("请确认题字内容、字体、位置及相关权利。")
         if not details.inscription_text.strip():
             questions.append("客户尚未提供题字文字，请确认最终文字。")
-    if request.logo_required:
+    if context.logo_required is None:
+        questions.append("客户尚未说明是否需要 Logo，请确认品牌定制要求。")
+    elif context.logo_required:
         questions.append("请确认 Logo 文件、使用授权、尺寸、颜色和放置位置。")
     if not details.packaging_requirement.strip():
         questions.append("客户尚未明确包装要求，请提供适用包装方案。")
@@ -67,11 +140,27 @@ def _open_questions(request: GiftRequest, details: InquiryDetails) -> list[str]:
         questions.append("请确认目的地对应的包装、运输可达性、费用和合规要求。")
     else:
         questions.append("客户尚未提供目的国家或地区，请补充后评估运输。")
-    if request.available_lead_days is None:
+    if context.international_shipping_required is None:
+        questions.append("客户尚未说明是否需要国际运输，请确认运输范围。")
+    if context.available_lead_days is None:
         questions.append("客户尚未提供交付期限，请确认期望交付日期。")
     else:
-        questions.append(f"请确认能否在 {request.available_lead_days} 天内完成制作与交付。")
+        questions.append(f"请确认能否在 {context.available_lead_days} 天内完成制作与交付。")
     return questions
+
+
+def _pending_customer_fields(context: InquiryRequestContext) -> list[str]:
+    values = {
+        "unit_budget_max_fen": context.unit_budget_max_fen,
+        "quantity": context.quantity,
+        "recipient_tags": context.recipient_tags,
+        "occasion_tags": context.occasion_tags,
+        "customization_required": context.customization_required,
+        "logo_required": context.logo_required,
+        "international_shipping_required": context.international_shipping_required,
+        "available_lead_days": context.available_lead_days,
+    }
+    return [name for name, value in values.items() if value is None or value == ()]
 
 
 def build_customization_inquiry(
@@ -82,19 +171,21 @@ def build_customization_inquiry(
     *,
     inquiry_id: str | None = None,
     created_at: datetime | None = None,
+    customer_context: InquiryRequestContext | None = None,
 ) -> dict[str, Any]:
     """Build one complete JSON-ready inquiry without changing recommendation facts."""
     if content.product_id != recommendation.product.product_id:
         raise ValueError("双语内容与选中产品不一致")
     timestamp = created_at or datetime.now(UTC)
     generated_id = inquiry_id or f"inq_demo_{uuid4().hex[:12]}"
+    context = customer_context or InquiryRequestContext.from_request(request)
     theme = _provided_or_pending(details.customization_theme)
     inscription = _provided_or_pending(details.inscription_text)
     packaging = _provided_or_pending(details.packaging_requirement)
     destination = _provided_or_pending(details.destination)
     delivery = (
-        f"{request.available_lead_days} 天内"
-        if request.available_lead_days is not None
+        f"{context.available_lead_days} 天内"
+        if context.available_lead_days is not None
         else PENDING_ZH
     )
 
@@ -111,30 +202,31 @@ def build_customization_inquiry(
         "request_snapshot": {
             "request_id": request.request_id,
             "currency": "CNY",
-            "unit_budget_min_fen": request.unit_budget_min_fen,
-            "unit_budget_max_fen": request.unit_budget_max_fen,
-            "budget_total_min_fen": request.unit_budget_min_fen * request.quantity,
-            "budget_total_max_fen": request.unit_budget_max_fen * request.quantity,
-            "quantity": request.quantity,
-            "recipient_tags": sorted(request.recipient_tags),
-            "occasion_tags": sorted(request.occasion_tags),
-            "style_tags": sorted(request.style_tags),
-            "meaning_tags": sorted(request.meaning_tags),
+            "unit_budget_min_fen": context.unit_budget_min_fen,
+            "unit_budget_max_fen": context.unit_budget_max_fen,
+            "budget_total_min_fen": context.budget_total_min_fen,
+            "budget_total_max_fen": context.budget_total_max_fen,
+            "quantity": context.quantity,
+            "recipient_tags": list(context.recipient_tags),
+            "occasion_tags": list(context.occasion_tags),
+            "style_tags": list(context.style_tags),
+            "meaning_tags": list(context.meaning_tags),
+            "pending_fields": _pending_customer_fields(context),
         },
         "customization_brief": {
-            "required": request.customization_required,
-            "required_types": sorted(request.required_types),
-            "preferred_types": sorted(request.preferred_customization_types),
+            "required": context.customization_required,
+            "required_types": list(context.required_customization_types),
+            "preferred_types": list(context.preferred_customization_types),
             "theme": theme,
             "inscription": inscription,
-            "logo_required": request.logo_required,
-            "logo_asset": PENDING_ZH if request.logo_required else "不需要",
+            "logo_required": context.logo_required,
+            "logo_asset": (PENDING_ZH if context.logo_required is not False else "不需要"),
             "packaging": packaging,
         },
         "delivery": {
             "destination": destination,
-            "international_shipping_required": request.international_shipping_required,
-            "available_lead_days": request.available_lead_days,
+            "international_shipping_required": context.international_shipping_required,
+            "available_lead_days": context.available_lead_days,
             "delivery_requirement": delivery,
         },
         "selected_products": [
@@ -144,7 +236,7 @@ def build_customization_inquiry(
                 "merchant_name_zh": recommendation.product.merchant_name_zh,
                 "product_name_zh": recommendation.product.product_name_zh,
                 "product_name_en": recommendation.product.product_name_en,
-                "quantity": request.quantity,
+                "quantity": context.quantity,
                 "quoted_price_min_fen": recommendation.product.price_min_fen,
                 "quoted_price_max_fen": recommendation.product.price_max_fen,
                 "score_at_selection": recommendation.total_score,
@@ -158,7 +250,7 @@ def build_customization_inquiry(
             "确认最终报价、材料、产能、工期、包装和运输条件。",
             "对中英文文化文案进行事实与表达审核。",
         ],
-        "open_questions": _open_questions(request, details),
+        "open_questions": _open_questions(context, details),
         "culture_copy": {
             "zh-CN": content.zh.text,
             "en": content.en.text,

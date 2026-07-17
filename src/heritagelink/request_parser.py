@@ -383,20 +383,47 @@ def demo_parse_request(text: str) -> ParsedCustomerRequest:
     elif re.search(r"不需要(?:国际|海外)运输", text):
         payload["international_shipping_required"] = False
 
+    no_customization = bool(re.search(r"(?:不需要|无需|不要)(?:任何)?定制", text))
+    no_inscription = bool(re.search(r"(?:不需要|无需|不要).{0,4}(?:题字|刻字)", text))
+    no_packaging = bool(re.search(r"(?:不需要|无需|不要).{0,4}(?:包装|礼盒)", text))
     no_logo = bool(re.search(r"不(?:需要|加|加入).{0,4}logo", text, re.IGNORECASE))
     logo_requested = not no_logo and bool(
         re.search(r"(?:加|加入|印|放).{0,6}logo", text, re.IGNORECASE)
     )
-    custom_requested = logo_requested or bool(re.search(r"定制|题字|刻字", text))
-    if custom_requested:
-        payload["customization_required"] = True
-    elif re.search(r"不需要定制", text):
+    inscription_requested = not no_inscription and bool(re.search(r"题字|刻字", text))
+    packaging_requested = not no_packaging and bool(re.search(r"包装|礼盒", text))
+    additional_customization_types = {
+        "pattern": bool(re.search(r"图案定制|定制图案", text)),
+        "size": bool(re.search(r"尺寸定制|定制尺寸", text)),
+        "color": bool(re.search(r"颜色定制|定制颜色", text)),
+        "other": bool(re.search(r"其他定制", text)),
+    }
+    generic_custom_requested = not no_customization and bool(re.search(r"定制", text))
+    custom_requested = any(
+        (
+            logo_requested,
+            inscription_requested,
+            packaging_requested,
+            generic_custom_requested,
+            *additional_customization_types.values(),
+        )
+    )
+    if no_customization and not custom_requested:
         payload["customization_required"] = False
+    elif custom_requested:
+        payload["customization_required"] = True
     if logo_requested:
         payload["logo_required"] = True
         payload["customization_types"].append("logo")
     elif no_logo:
         payload["logo_required"] = False
+    if inscription_requested:
+        payload["customization_types"].append("inscription")
+    if packaging_requested:
+        payload["customization_types"].append("packaging")
+    for customization_type, requested in additional_customization_types.items():
+        if requested:
+            payload["customization_types"].append(customization_type)
 
     if re.search(r"中英文|中英双语|双语", text):
         payload["output_language"] = "bilingual"
@@ -405,14 +432,18 @@ def demo_parse_request(text: str) -> ParsedCustomerRequest:
     elif "中文" in text:
         payload["output_language"] = "zh"
 
-    text_match = re.search(r"(?:题字|刻字)[为是：:]?\s*[“\"]([^”\"]+)[”\"]", text)
+    text_match = (
+        re.search(r"(?:题字|刻字)[为是：:]?\s*[“\"]([^”\"]+)[”\"]", text)
+        if inscription_requested
+        else None
+    )
     if text_match:
         payload["requested_text"] = text_match.group(1).strip()
-        payload["customization_types"].append("inscription")
-    packaging_match = re.search(r"([^，。；;]{1,30}(?:包装|礼盒))", text)
+    packaging_match = (
+        re.search(r"([^，。；;]{1,30}(?:包装|礼盒))", text) if packaging_requested else None
+    )
     if packaging_match:
         payload["packaging_requirement"] = packaging_match.group(1).strip()
-        payload["customization_types"].append("packaging")
     notes_match = re.search(r"(?:备注|其他要求)[：:]\s*([^。；;]+)", text)
     if notes_match:
         payload["additional_notes"] = notes_match.group(1).strip()
@@ -431,6 +462,10 @@ def to_business_request(
     parsed: ParsedCustomerRequest,
 ) -> tuple[GiftRequest, InquiryDetails]:
     """Convert a user-confirmed parse into the unchanged recommendation contract."""
+    if parsed.uncertain_fields:
+        raise RequestValidationError(
+            "开始推荐前请确认不确定字段：" + ", ".join(parsed.uncertain_fields)
+        )
     required = {
         "budget_type": parsed.budget_type,
         "budget_per_item": parsed.budget_per_item,
@@ -465,16 +500,20 @@ def to_business_request(
 
 def to_inquiry_details(parsed: ParsedCustomerRequest) -> InquiryDetails:
     """Build non-ranking inquiry details even when procurement fields are incomplete."""
+
+    def confirmed(field_name: str) -> Any:
+        return None if field_name in parsed.uncertain_fields else getattr(parsed, field_name)
+
     return InquiryDetails(
-        customer_type=parsed.customer_type or "待商家确认",
-        customization_theme=parsed.requested_theme or "",
-        inscription_text=parsed.requested_text or "",
-        packaging_requirement=parsed.packaging_requirement or "",
-        destination=parsed.destination or "",
+        customer_type=confirmed("customer_type") or "待商家确认",
+        customization_theme=confirmed("requested_theme") or "",
+        inscription_text=confirmed("requested_text") or "",
+        packaging_requirement=confirmed("packaging_requirement") or "",
+        destination=confirmed("destination") or "",
         output_language={"zh": "中文", "en": "English", "bilingual": "中英双语"}.get(
-            parsed.output_language or "", "待商家确认"
+            confirmed("output_language") or "", "待商家确认"
         ),
-        additional_notes=parsed.additional_notes or "",
+        additional_notes=confirmed("additional_notes") or "",
     )
 
 

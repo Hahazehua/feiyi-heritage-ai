@@ -137,17 +137,27 @@ def recommendation_mode(parsed: ParsedCustomerRequest) -> RecommendationMode:
     """Classify the current request using only facts the user actually supplied."""
     has_hard_constraint = any(
         (
-            parsed.budget_per_item is not None,
-            parsed.quantity is not None,
-            parsed.required_delivery_days is not None,
-            parsed.customization_required is True,
-            parsed.logo_required is True,
-            parsed.international_shipping_required is True,
+            _field_is_known(parsed, "budget_per_item"),
+            _field_is_known(parsed, "quantity"),
+            _field_is_known(parsed, "required_delivery_days"),
+            _field_is_known(parsed, "customization_required")
+            and parsed.customization_required is True,
+            _field_is_known(parsed, "logo_required") and parsed.logo_required is True,
+            _field_is_known(parsed, "international_shipping_required")
+            and parsed.international_shipping_required is True,
         )
     )
     if has_hard_constraint:
         return RecommendationMode.CONSTRAINED
-    if parsed.recipient or parsed.scene or parsed.style_preferences or parsed.symbolism_preferences:
+    if any(
+        _field_is_known(parsed, field_name)
+        for field_name in (
+            "recipient",
+            "scene",
+            "style_preferences",
+            "symbolism_preferences",
+        )
+    ):
         return RecommendationMode.GUIDED
     return RecommendationMode.EXPLORING
 
@@ -156,9 +166,7 @@ def known_and_missing_fields(
     parsed: ParsedCustomerRequest,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     known = tuple(
-        field_name
-        for field_name in _COVERAGE_FIELDS
-        if not _is_missing(getattr(parsed, field_name))
+        field_name for field_name in _COVERAGE_FIELDS if _field_is_known(parsed, field_name)
     )
     missing = tuple(field_name for field_name in _COVERAGE_FIELDS if field_name not in known)
     return known, missing
@@ -168,7 +176,7 @@ def participating_dimensions(parsed: ParsedCustomerRequest) -> tuple[str, ...]:
     return tuple(
         dimension
         for dimension, field_name in DIMENSION_REQUEST_FIELDS.items()
-        if not _is_missing(getattr(parsed, field_name))
+        if _field_is_known(parsed, field_name)
     )
 
 
@@ -178,12 +186,8 @@ def _request_for_product(
     *,
     ignore_hard_constraints: bool = False,
 ) -> GiftRequest:
-    budget_is_hard = (
-        parsed.budget_per_item is not None
-        and "budget_per_item" not in parsed.uncertain_fields
-        and not ignore_hard_constraints
-    )
-    quantity_is_hard = parsed.quantity is not None and not ignore_hard_constraints
+    budget_is_hard = _field_is_known(parsed, "budget_per_item") and not ignore_hard_constraints
+    quantity_is_hard = _field_is_known(parsed, "quantity") and not ignore_hard_constraints
     budget_fen = (
         int((Decimal(str(parsed.budget_per_item)) * 100).to_integral_value(rounding=ROUND_FLOOR))
         if budget_is_hard
@@ -195,24 +199,51 @@ def _request_for_product(
         request_id=f"req_progressive_{uuid4().hex[:12]}",
         unit_budget_max_fen=budget_fen,
         quantity=quantity,
-        recipient_tags=frozenset({parsed.recipient}) if parsed.recipient else frozenset(),
-        occasion_tags=frozenset({parsed.scene}) if parsed.scene else frozenset(),
-        style_tags=frozenset(parsed.style_preferences),
-        meaning_tags=frozenset(parsed.symbolism_preferences),
+        recipient_tags=(
+            frozenset({parsed.recipient})
+            if _field_is_known(parsed, "recipient") and parsed.recipient
+            else frozenset()
+        ),
+        occasion_tags=(
+            frozenset({parsed.scene})
+            if _field_is_known(parsed, "scene") and parsed.scene
+            else frozenset()
+        ),
+        style_tags=(
+            frozenset(parsed.style_preferences)
+            if _field_is_known(parsed, "style_preferences")
+            else frozenset()
+        ),
+        meaning_tags=(
+            frozenset(parsed.symbolism_preferences)
+            if _field_is_known(parsed, "symbolism_preferences")
+            else frozenset()
+        ),
         customization_required=(
-            bool(parsed.customization_required) if not ignore_hard_constraints else False
+            bool(parsed.customization_required)
+            if _field_is_known(parsed, "customization_required") and not ignore_hard_constraints
+            else False
         ),
         required_customization_types=(
             frozenset(parsed.customization_types) - {"logo"}
-            if not ignore_hard_constraints
+            if _field_is_known(parsed, "customization_types") and not ignore_hard_constraints
             else frozenset()
         ),
-        logo_required=bool(parsed.logo_required) if not ignore_hard_constraints else False,
+        logo_required=(
+            bool(parsed.logo_required)
+            if _field_is_known(parsed, "logo_required") and not ignore_hard_constraints
+            else False
+        ),
         international_shipping_required=(
-            bool(parsed.international_shipping_required) if not ignore_hard_constraints else False
+            bool(parsed.international_shipping_required)
+            if _field_is_known(parsed, "international_shipping_required")
+            and not ignore_hard_constraints
+            else False
         ),
         available_lead_days=(
-            parsed.required_delivery_days if not ignore_hard_constraints else None
+            parsed.required_delivery_days
+            if _field_is_known(parsed, "required_delivery_days") and not ignore_hard_constraints
+            else None
         ),
     )
 
@@ -271,3 +302,9 @@ def _build_alternatives(
 
 def _is_missing(value: object) -> bool:
     return value is None or value == "" or value == () or value == []
+
+
+def _field_is_known(parsed: ParsedCustomerRequest, field_name: str) -> bool:
+    return field_name not in parsed.uncertain_fields and not _is_missing(
+        getattr(parsed, field_name)
+    )

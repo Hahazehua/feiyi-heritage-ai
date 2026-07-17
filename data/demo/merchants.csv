@@ -1,2 +1,2 @@
 merchant_id,merchant_name_zh,merchant_name_en,city,province,contact_channel,status,data_version,is_demo
-mer_demo_feiyi,飞颐铁画（MVP演示商家）,Feiyi Iron Painting (MVP Demo Merchant),芜湖（演示）,安徽（演示）,MVP演示占位渠道,active,2026-07-14.1,true
+mer_demo_feiyi,飞颐礼遇（平台演示选品）,HeritageLink AI Curated Gifts (Demo),平台演示,多地区选品,平台演示询单,active,2026-07-17.2,true

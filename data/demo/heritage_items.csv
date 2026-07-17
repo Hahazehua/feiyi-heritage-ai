@@ -1,2 +1,5 @@
 heritage_id,heritage_name_zh,heritage_name_en,category_code,region,official_level,verification_note,status,data_version,is_demo
-heritage_demo_iron_painting,铁画（MVP演示项目）,Iron Painting (MVP Demo Item),metal_craft,安徽芜湖（演示）,unverified,本MVP不声明官方认证级别、传承人身份或政府背书；相关信息待权威来源和商家共同核验。,active,2026-07-14.1,true
+heritage_demo_lacquer,漆器髹饰技艺（平台演示分类）,Chinese Lacquer Craft (Demo Category),lacquer_craft,中国（平台方案分类）,unverified,仅作为平台商品分类，不声明具体项目的官方认证级别、传承人身份或政府背书。,active,2026-07-17.2,true
+heritage_demo_longquan,龙泉青瓷烧制技艺（平台演示分类）,Longquan Celadon Craft (Demo Category),celadon_craft,中国（平台方案分类）,unverified,仅作为平台商品分类，不声明具体项目的官方认证级别、传承人身份或政府背书。,active,2026-07-17.2,true
+heritage_demo_textile,传统丝织与刺绣技艺（平台演示分类）,Chinese Silk and Embroidery Craft (Demo Category),textile_craft,中国（平台方案分类）,unverified,仅作为平台商品分类，不声明具体项目的官方认证级别、传承人身份或政府背书。,active,2026-07-17.2,true
+heritage_demo_jade,传统玉雕技艺（平台演示分类）,Chinese Jade Carving (Demo Category),jade_craft,中国（平台方案分类）,unverified,仅作为平台商品分类，不声明具体项目的官方认证级别、传承人身份或政府背书。,active,2026-07-17.2,true

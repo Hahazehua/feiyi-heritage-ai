@@ -8,6 +8,7 @@ from heritagelink.content import PENDING_ZH, generate_bilingual_content
 from heritagelink.data_loader import build_products, load_data
 from heritagelink.inquiry import (
     InquiryDetails,
+    InquiryRequestContext,
     build_customization_inquiry,
     inquiry_to_json,
 )
@@ -89,3 +90,29 @@ def test_missing_inquiry_information_is_marked_and_questioned() -> None:
     assert inquiry["customization_brief"]["packaging"] == PENDING_ZH
     assert inquiry["delivery"]["destination"] == PENDING_ZH
     assert any("尚未" in question for question in inquiry["open_questions"])
+
+
+def test_unknown_customer_facts_remain_null_instead_of_using_product_proxy_values() -> None:
+    request, recommendation, content = _selected_result()
+    details = InquiryDetails(customer_type="待商家确认")
+
+    inquiry = build_customization_inquiry(
+        request,  # type: ignore[arg-type]
+        recommendation,  # type: ignore[arg-type]
+        content,  # type: ignore[arg-type]
+        details,
+        customer_context=InquiryRequestContext(),
+    )
+
+    snapshot = inquiry["request_snapshot"]
+    assert snapshot["unit_budget_max_fen"] is None
+    assert snapshot["quantity"] is None
+    assert inquiry["selected_products"][0]["quantity"] is None
+    assert inquiry["customization_brief"]["required"] is None
+    assert inquiry["customization_brief"]["logo_required"] is None
+    assert inquiry["delivery"]["international_shipping_required"] is None
+    assert {"unit_budget_max_fen", "quantity"}.issubset(snapshot["pending_fields"])
+    assert any("单件预算" in question for question in inquiry["open_questions"])
+    assert any("采购数量" in question for question in inquiry["open_questions"])
+    assert "MVP 演示需求单" in inquiry["disclaimer_zh"]
+    assert "MVP demo inquiry" in inquiry["disclaimer_en"]

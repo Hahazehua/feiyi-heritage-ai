@@ -60,9 +60,9 @@ def _valid_payload(**overrides: object) -> dict[str, object]:
         "requested_text": None,
         "packaging_requirement": None,
         "additional_notes": None,
-        "uncertain_fields": ["budget_per_item"],
+        "uncertain_fields": [],
         "missing_fields": ["requested_text", "packaging_requirement", "additional_notes"],
-        "clarification_questions": ["1000元是预算上限吗？"],
+        "clarification_questions": [],
     }
     payload.update(overrides)
     return payload
@@ -112,6 +112,32 @@ def test_parser_recognizes_customization_and_logo() -> None:
 
 
 @pytest.mark.parametrize(
+    ("text", "expected_required", "forbidden_type"),
+    [
+        ("不需要定制", False, None),
+        ("不需要题字", None, "inscription"),
+        ("不需要刻字", None, "inscription"),
+        ("不需要定制包装", False, "packaging"),
+    ],
+)
+def test_demo_parser_does_not_turn_negated_customization_into_a_requirement(
+    text: str, expected_required: bool | None, forbidden_type: str | None
+) -> None:
+    parsed = demo_parse_request(text)
+
+    assert parsed.customization_required is expected_required
+    if forbidden_type is not None:
+        assert forbidden_type not in parsed.customization_types
+
+
+def test_demo_parser_preserves_supported_customization_types() -> None:
+    parsed = demo_parse_request("需要图案定制、尺寸定制和颜色定制")
+
+    assert parsed.customization_required is True
+    assert set(parsed.customization_types) == {"pattern", "size", "color"}
+
+
+@pytest.mark.parametrize(
     ("text", "expected"),
     [("需要中文介绍", "zh"), ("需要英文介绍", "en"), ("需要中英文介绍", "bilingual")],
 )
@@ -153,6 +179,15 @@ def test_valid_json_converts_to_customer_request() -> None:
     assert request.logo_required is True
     assert request.international_shipping_required is True
     assert details.destination == "United States"
+
+
+def test_uncertain_fields_cannot_enter_confirmed_business_request() -> None:
+    parsed = validate_parsed_payload(
+        _valid_payload(uncertain_fields=["quantity"]), raw_user_text=EXAMPLE
+    )
+
+    with pytest.raises(RequestValidationError, match="quantity"):
+        to_business_request(parsed)
 
 
 def test_mock_deepseek_success_path_uses_validated_result() -> None:

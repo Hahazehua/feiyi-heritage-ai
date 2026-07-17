@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 from heritagelink.data_loader import build_products, load_data
@@ -35,6 +36,38 @@ def test_unknown_fields_do_not_filter_products() -> None:
     assert result.mode == RecommendationMode.EXPLORING
     assert result.response.recommendations
     assert result.information_coverage == 0
+
+
+def test_uncertain_fields_are_treated_as_unknown_by_public_recommender() -> None:
+    parsed = demo_parse_request(
+        "送给30位美国合作伙伴的周年礼物，每件预算100元，需要Logo，1天内完成"
+    )
+    parsed = replace(
+        parsed,
+        uncertain_fields=(
+            "budget_per_item",
+            "quantity",
+            "recipient",
+            "scene",
+            "customization_required",
+            "customization_types",
+            "logo_required",
+            "international_shipping_required",
+            "required_delivery_days",
+        ),
+    )
+
+    result = recommend_progressively(_products(), parsed)
+
+    assert result.mode == RecommendationMode.EXPLORING
+    assert result.information_coverage == 0
+    assert result.participating_dimensions == ()
+    assert result.response.recommendations
+    assert all(not request.recipient_tags for request in result.request_by_product.values())
+    assert all(not request.logo_required for request in result.request_by_product.values())
+    assert all(
+        request.available_lead_days is None for request in result.request_by_product.values()
+    )
 
 
 def test_explicit_budget_remains_a_hard_constraint() -> None:

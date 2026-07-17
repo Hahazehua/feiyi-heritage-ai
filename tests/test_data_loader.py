@@ -31,13 +31,15 @@ def test_loads_expected_demo_dataset() -> None:
     products = build_products(bundle)
 
     assert len(bundle.merchants) == 1
-    assert len(bundle.heritage_items) == 1
-    assert len(products) == 8
-    assert len(bundle.product_texts) == 16
+    assert len(bundle.heritage_items) == 4
+    assert len(products) == 20
+    assert len(bundle.product_texts) == 40
     assert all(product.is_demo for product in products)
     assert all(product.demo_disclaimer == DEMO_DISCLAIMER for product in products)
+    assert all((Path(__file__).parents[1] / product.image_path).is_file() for product in products)
+    assert len({product.image_path for product in products}) == 20
     assert (bundle.customization_options["demo_disclaimer"] == DEMO_DISCLAIMER).all()
-    assert bundle.heritage_items.iloc[0]["official_level"] == "unverified"
+    assert (bundle.heritage_items["official_level"] == "unverified").all()
 
 
 def test_missing_csv_raises_clear_error(tmp_path: Path) -> None:
@@ -106,6 +108,18 @@ def test_invalid_foreign_key_raises_clear_error(tmp_path: Path) -> None:
         load_data(data_dir)
 
 
+def test_missing_product_image_raises_clear_error(tmp_path: Path) -> None:
+    data_dir = _copy_data(tmp_path)
+
+    def break_image(frame: pd.DataFrame) -> None:
+        frame.loc[0, "image_path"] = "assets/products/missing.jpg"
+
+    _rewrite_products(data_dir, break_image)
+
+    with pytest.raises(DataValidationError, match="找不到图片"):
+        load_data(data_dir)
+
+
 def test_incomplete_demo_disclaimer_is_rejected(tmp_path: Path) -> None:
     data_dir = _copy_data(tmp_path)
 
@@ -152,5 +166,5 @@ def test_loader_supports_more_than_one_merchant(tmp_path: Path) -> None:
 
     products = build_products(load_data(data_dir))
 
-    assert len(products) == 9
+    assert len(products) == 21
     assert any(product.merchant_id == "mer_demo_other" for product in products)

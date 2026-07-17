@@ -85,6 +85,10 @@ class Product:
     lead_time_days: int
     dimensions_text: str
     material_text: str
+    image_path: str
+    image_alt_zh: str
+    reference_source_url: str
+    image_license: str
     recipient_tags: frozenset[str]
     occasion_tags: frozenset[str]
     style_tags: frozenset[str]
@@ -140,6 +144,10 @@ class ProductSummary:
     lead_time_days: int
     dimensions_text: str
     material_text: str
+    image_path: str
+    image_alt_zh: str
+    reference_source_url: str
+    image_license: str
     supports_international_shipping: bool
     shipping_note: str
     data_version: str

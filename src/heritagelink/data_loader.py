@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlparse
 
 import pandas as pd
 
@@ -14,6 +15,10 @@ from heritagelink.models import MVP_DISCLAIMER_PREFIX, DataBundle, Product, read
 
 class DataValidationError(ValueError):
     """Raised when local product data cannot safely feed the recommender."""
+
+
+PROJECT_ROOT = Path(__file__).parents[2]
+ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 TABLE_COLUMNS = {
@@ -55,6 +60,10 @@ TABLE_COLUMNS = {
         "lead_time_days",
         "dimensions_text",
         "material_text",
+        "image_path",
+        "image_alt_zh",
+        "reference_source_url",
+        "image_license",
         "recipient_tags",
         "occasion_tags",
         "style_tags",
@@ -206,6 +215,38 @@ def _validate_enum(frame: pd.DataFrame, file_name: str, column: str, allowed: se
         )
 
 
+def _validate_product_media(frame: pd.DataFrame) -> None:
+    for row_index, row in frame.iterrows():
+        row_number = row_index + 2
+        relative = PurePosixPath(row["image_path"])
+        is_catalog_image = relative.parts[:3] == ("assets", "catalog", "products")
+        is_merchant_image = relative.parts[:2] == ("assets", "products")
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or not (is_catalog_image or is_merchant_image)
+        ):
+            raise DataValidationError(
+                f"products.csv 字段 image_path 在 CSV 行 {row_number} 必须指向安全的商品图片目录"
+            )
+        image_file = PROJECT_ROOT / relative
+        if image_file.suffix.lower() not in ALLOWED_IMAGE_SUFFIXES:
+            raise DataValidationError(
+                f"products.csv 字段 image_path 在 CSV 行 {row_number} 的图片格式不受支持"
+            )
+        if not image_file.is_file():
+            raise DataValidationError(
+                f"products.csv 字段 image_path 在 CSV 行 {row_number} 找不到图片："
+                f"{row['image_path']}"
+            )
+        source = urlparse(row["reference_source_url"])
+        if source.scheme != "https" or not source.netloc:
+            raise DataValidationError(
+                "products.csv 字段 reference_source_url "
+                f"在 CSV 行 {row_number} 必须是完整 HTTPS 地址"
+            )
+
+
 def _normalize_merchants(frame: pd.DataFrame) -> pd.DataFrame:
     file_name = "merchants.csv"
     _validate_ids(frame, file_name, "merchant_id")
@@ -313,6 +354,7 @@ def _normalize_products(frame: pd.DataFrame) -> pd.DataFrame:
         ]
     if not frame["is_demo"].all():
         raise DataValidationError("products.csv 的 MVP 数据必须全部标记 is_demo=true")
+    _validate_product_media(frame)
     return frame
 
 
@@ -457,6 +499,10 @@ def build_products(bundle: DataBundle) -> tuple[Product, ...]:
                 lead_time_days=int(row["lead_time_days"]),
                 dimensions_text=row["dimensions_text"],
                 material_text=row["material_text"],
+                image_path=row["image_path"],
+                image_alt_zh=row["image_alt_zh"],
+                reference_source_url=row["reference_source_url"],
+                image_license=row["image_license"],
                 recipient_tags=row["recipient_tags"],
                 occasion_tags=row["occasion_tags"],
                 style_tags=row["style_tags"],

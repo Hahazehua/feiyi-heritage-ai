@@ -1,45 +1,41 @@
-# 飞颐礼遇 Wave 2 Skills
+# 飞颐礼遇 Wave 2 Submitted Skills
 
-## Skill 1：对话式需求解析
+本文件是旧路径的简洁兼容入口。四个 Submitted Skills 的完整输入、输出、运行方式、代码映射、测试、回退、AI 边界和当前限制，以 [`docs/wave2/skills/`](wave2/skills/) 下的详细文档为准。
 
-- 输入：多轮自然语言消息、累计需求或详细表单。
-- 输出：统一 `parsed_customer_request`、会话状态、缺失字段、不确定字段和至多一个澄清问题。
-- 执行者：DeepSeek 或明确标记的确定性演示解析器。
-- 验收：只提取明确事实；总预算只做确定性换算；缺失字段不阻止当前推荐；每轮最多一个可选问题；相同签名不重复推荐。
+## 1. Conversational Gift Request Understanding / 对话式礼赠需求理解
 
-## Skill 2：渐进式规则推荐
+- 作用：把自然语言首轮、确认页中的连续补充或详细表单转换为经过本地校验、可由用户确认的累计结构化需求。
+- 当前实现：DeepSeek 可选字段提取或确定性演示回退；`process_turn`、字段合并、问题选择、校验和需求签名均由本地代码控制。
+- 详细文档：[01-conversational-gift-request-understanding.md](wave2/skills/01-conversational-gift-request-understanding.md)
 
-- 输入：本地校验后的累计需求和产品目录。
-- 输出：探索、引导或约束推荐，信息覆盖度、置信度，以及 0–3 件完全匹配产品或独立替代建议。
-- 执行者：渐进式适配层与确定性规则引擎。
-- 验收：只有明确条件参与硬过滤；未知维度不计负分；权重固定为 25/15/15/15/10/10/5/5；稳定排序。
+## 2. Progressive Heritage Gift Recommendation / 渐进式非遗礼品推荐
 
-## Skill 3：双语文化内容
+- 作用：只使用已知条件执行明确硬约束过滤和已知维度评分，返回探索、引导或约束推荐。
+- 当前实现：固定 25/15/15/15/10/10/5/5 权重、稳定排序、信息覆盖度、置信度和 0–3 件合格 MVP 演示方案；无方案满足全部明确硬约束时不强行推荐。
+- 详细文档：[02-progressive-heritage-gift-recommendation.md](wave2/skills/02-progressive-heritage-gift-recommendation.md)
 
-- 输入：产品数据库中的中英文资料与审核状态。
-- 输出：中文和英文模板内容、待确认标记。
-- 执行者：本地模板。
-- 验收：不新增数据库中不存在的认证、人物、历史、材料或功效事实。
+## 3. Grounded Bilingual Heritage Content / 有事实边界的双语文化内容组织
 
-## Skill 4：定制需求单
+- 作用：从本地中英文资料、来源说明和审核状态组织文化内容，不补写未知产品事实。
+- 当前实现：20 件方案对应 40 条本地双语资料，全部为 `review_status=draft`；页面必须标为 MVP 演示文案、待商家审核。
+- 详细文档：[03-grounded-bilingual-heritage-content.md](wave2/skills/03-grounded-bilingual-heritage-content.md)
 
-- 输入：确认需求、选中产品快照和双语内容。
-- 输出：可下载 JSON 与商家待确认问题。
-- 执行者：确定性需求单模块。
-- 验收：数量、预算、主题、题字、Logo、包装、目的地和交期完整或明确待确认。
+## 4. Merchant-Ready Customization Brief / 商家可执行的定制需求单生成
 
-## Wave 2 工作流
+- 作用：把客户已确认事实、一个选中方案快照、双语内容和待确认问题组装为可预览、复制和下载的 JSON 需求单。
+- 当前实现：`InquiryRequestContext` 保留未知预算、数量、定制、Logo、国际运输和交期为 `null`；输出包含中英文 MVP 演示声明。无合格方案时的独立定制概念不等于选中产品需求单。
+- 详细文档：[04-merchant-ready-customization-brief.md](wave2/skills/04-merchant-ready-customization-brief.md)
+
+## 唯一 Submitted Workflow
+
+[Conversational Heritage Gift Matching and Customization Workflow / 对话式非遗礼品匹配与定制工作流](wave2/WORKFLOW.md)
 
 ```text
-连续对话或详细表单
-→ 结构化需求累计
-→ 根据已知信息立即推荐
-→ 明确硬约束过滤与已知维度评分
-→ 可选补充问题和动态更新
-→ 双语文化内容
-→ 定制需求单
+自然语言描述、连续补充或详细表单
+→ 本地校验、累计与用户确认
+→ 渐进式推荐和明确硬约束过滤
+→ 有事实边界的双语文化内容
+→ 选中方案的商家可执行定制需求单
 ```
 
-## 回退与未来边界
-
-无 Key 或 DeepSeek 失败时只切换需求解析方式，不改变后续规则。无产品结果可整理带强制免责声明的定制概念，但不能冒充现有商品。当前不包含 RAG、AI 语义重排、数据库持久化和商家自助入驻；这些是未来计划，不是已完成功能。
+完整评审入口、代表性案例和实际验证状态见 [`docs/wave2/README.md`](wave2/README.md) 与 [`docs/wave2/EVALUATION.md`](wave2/EVALUATION.md)。

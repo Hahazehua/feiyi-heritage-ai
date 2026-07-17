@@ -1,24 +1,54 @@
 # 飞颐礼遇｜HeritageLink AI
 
-飞颐礼遇是面向非遗礼品推荐与定制沟通的 AI 顾问。当前用飞颐铁画的 8 件演示产品，验证从客户需求理解、渐进式推荐、双语文化介绍到商家定制需求单的完整交易前流程；HeritageLink AI 为项目英文名称。
+飞颐礼遇是面向非遗礼品推荐与定制沟通的 AI 顾问。当前产品库包含漆艺、龙泉青瓷、传统织绣和传统玉雕四组共 20 件带图商品方案，用于验证从客户需求理解、渐进式推荐、双语文化介绍到商家定制需求单的完整交易前流程；HeritageLink AI 为项目英文名称。
 
 本项目属于 SynNovator 数字文化赛道（原赛道标识：`track-98`）。
 
+## Wave 2 Submission
+
+### Wave 2 Alignment
+
+- 当前阶段：OPC 2026 Youth S3 第二轮 Wave 2。
+- 报名并提交截止：2026年7月20日；社区交叉评测：2026年7月21日；晋级结果公布：2026年7月22日。
+- 本轮任务：完成产品原型，跑通关键能力；当前交付不是正式商业平台。
+- Submitted Skills：
+  1. [Conversational Gift Request Understanding / 对话式礼赠需求理解](docs/wave2/skills/01-conversational-gift-request-understanding.md)
+  2. [Progressive Heritage Gift Recommendation / 渐进式非遗礼品推荐](docs/wave2/skills/02-progressive-heritage-gift-recommendation.md)
+  3. [Grounded Bilingual Heritage Content / 有事实边界的双语文化内容组织](docs/wave2/skills/03-grounded-bilingual-heritage-content.md)
+  4. [Merchant-Ready Customization Brief / 商家可执行的定制需求单生成](docs/wave2/skills/04-merchant-ready-customization-brief.md)
+- Submitted Workflow：[Conversational Heritage Gift Matching and Customization Workflow / 对话式非遗礼品匹配与定制工作流](docs/wave2/WORKFLOW.md)。
+- Prototype：使用 Streamlit 实现的“飞颐礼遇”；安装后运行 `python -m streamlit run app.py`，没有 DeepSeek API Key 时使用确定性演示回退。
+- 测试与评测入口：运行 `python -m pytest`，并查看 [测试与评测证据](docs/wave2/EVALUATION.md)。自动化测试会阻断真实外部 API 调用。
+
+不熟悉项目的评审人员可直接从 [Wave 2 最短评审路径](docs/wave2/README.md) 开始，无需先阅读长期商业规划。
+
 ## 用户流程
 
-用户可以选择两种入口：
+页面采用五阶段礼赠顾问流程：
 
-1. “AI礼品顾问”：通过连续对话描述需求，由 DeepSeek 或本地演示解析器逐轮提取并合并字段；
-2. “详细表单”：逐项填写需求，完全不经过大模型；
-3. 对话顾问会展示当前结构化摘要，并根据已知信息立即给出探索、引导或约束推荐；
-4. 每次最多提出一个可选的高价值问题，用户可以跳过；任何缺失字段都不会阻止查看当前推荐；
-5. 明确提出交期、Logo 或海外运输硬约束时，这些条件会进入原有硬性过滤；
-6. 同一需求签名不会重复执行推荐，用户可继续对话修改条件、重新开始或切回详细表单；
-7. 已提供的维度按固定权重归一化为当前匹配分，同时展示信息覆盖度和置信度；
-8. 用户可查看模板化中英文文化介绍，并生成 JSON 定制需求单；
-9. 没有完全匹配产品时，系统独立展示冲突明确的替代建议，也可生成不冒充现有产品的定制概念草案。
+1. 用户在首页用自然语言描述需求，或切换到“精准填写需求”；
+2. 系统先展示结构化理解结果，区分已确认、待确认和缺失信息；用户可继续补充或修正，再核对进入推荐；
+3. 本地规则引擎执行硬性条件过滤和八维评分，最多展示 3 件可解释方案；
+4. 用户查看中英文文化故事、工艺依据和定制建议，再选择具体方案；
+5. 系统生成可预览、复制和下载的商家定制需求单。
+
+首页“体验企业海外礼赠案例”会填入一套完整需求并调用真实的本地解析和推荐逻辑。页面使用 `st.session_state` 保存当前会话、阶段、确认需求、推荐结果和选中产品，支持连续补充、返回、调整与重新开始；会话不会写入长期存储。
 
 DeepSeek 只做自然语言字段提取，不决定推荐结果，也不能绕过硬性条件。
+
+## 非遗礼赠产品库
+
+首页可进入“浏览 20 件非遗礼赠产品”。每件商品均配置本地图片、中英文名称、方案价格、起订量、交期、定制能力、文化介绍和推荐标签，可以直接进入规则推荐引擎。
+
+- 结构化资料位于 `data/catalog/heritage_products.csv`；
+- 网页使用的本地图片位于 `assets/catalog/products/`；
+- `data/demo/products.csv` 保存 20 件可推荐商品及对应 `image_path`；
+- `data/catalog/heritage_products.csv` 的 `demo_product_id` 将图片来源资料与商品一一关联；
+- `source_url`、`image_source_url`、`source_object_number` 和 `image_license` 保存资料出处与使用许可；
+- 当前图片来自大都会艺术博物馆开放馆藏，所选页面均标记为 Public Domain，目录按 [The Met Open Access](https://www.metmuseum.org/about-the-met/policies-and-documents/open-access) 记录为 CC0；
+- 图片与历史信息作为设计依据；方案价格、数量、交期和定制能力由飞颐礼遇产品数据单独维护，不从馆藏资料推断。
+
+未来替换为商家的正式产品图片时，应把文件放入 `assets/products/<merchant_id>/`，再由正式商品数据中的图片路径关联；不要覆盖本目录的馆藏来源图片。
 
 ## 安装
 
@@ -91,11 +121,11 @@ python -m streamlit run app.py --server.headless true
 
 ## 演示数据
 
-`data/demo/` 包含 1 个飞颐铁画演示商家、1 个 `unverified` 铁画演示项目、8 件演示产品、双语模板资料和演示定制能力。所有未确认的价格、产能、材料、交期、运输和定制能力均为 MVP 演示数据，不代表真实商业承诺；仓库不声明真实传承人身份、官方认证级别或政府背书。
+`data/demo/` 包含 1 个平台演示选品主体、4 个 `unverified` 工艺分类、20 件带图商品方案、40 条双语资料和 43 条定制选项。价格、数量、交期、运输和定制能力属于当前方案数据，正式询单时仍需商家复核；仓库不声明真实传承人身份、官方认证级别或政府背书。
 
 ## 当前限制
 
-- 只有一个试点商家和少量演示产品；
+- 当前商品由一个平台演示选品主体统一维护，尚未开放真实商家自助入驻；
 - DeepSeek 只提取用户明确表达的字段；对话摘要可随时查看和修改，推荐资格由本地代码决定；
 - 推荐仍是固定硬性过滤、权重和稳定排序，不是学习模型；
 - 双语文化内容来自本地资料和模板，不由 DeepSeek 编写，仍需商家审核；
@@ -104,6 +134,7 @@ python -m streamlit run app.py --server.headless true
 - 当前不使用 RAG、向量数据库、数据库或 ORM。
 - 当前不使用 AI 语义重排，也不提供商家自助入驻。
 - 对话仅保存在当前 Streamlit session，不提供账号、跨设备同步或长期历史记录。
+- 20 件推荐商品均已关联本地图片；图片来源与商品方案通过稳定 ID 关联，后续可逐件替换为商家正式产品图。
 
 ## 后续大模型与 RAG 计划
 

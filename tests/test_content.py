@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -44,3 +45,12 @@ def test_missing_content_is_marked_pending_confirmation() -> None:
     assert PENDING_ZH in content.zh.text
     assert PENDING_EN in content.en.text
     assert content.pending_confirmations
+
+
+def test_english_source_notes_are_localized_and_keep_provenance() -> None:
+    bundle = load_data(ROOT / "data" / "demo")
+    english_rows = bundle.product_texts[bundle.product_texts["locale"] == "en"]
+
+    assert len(english_rows) == 20
+    assert all("https://www.metmuseum.org/" in note for note in english_rows["source_note"])
+    assert all(not re.search(r"[\u4e00-\u9fff]", note) for note in english_rows["source_note"])

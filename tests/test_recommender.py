@@ -183,7 +183,7 @@ def test_effective_lead_time_includes_required_customization(
     failure = _failure_for(response, "prod_demo_001")
 
     assert FilterReasonCode.LEAD_TIME_INSUFFICIENT in failure.reason_codes
-    assert any("28 天" in reason for reason in failure.reasons)
+    assert any("26 天" in reason for reason in failure.reasons)
 
 
 def test_evaluation_cases_are_runnable(products: tuple[Product, ...]) -> None:

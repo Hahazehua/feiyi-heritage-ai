@@ -7,7 +7,7 @@ from heritagelink.customization_concept import (
     build_customization_concept,
 )
 from heritagelink.data_loader import build_products, load_data
-from heritagelink.inquiry import InquiryDetails
+from heritagelink.inquiry import InquiryDetails, InquiryRequestContext
 from heritagelink.models import GiftRequest
 from heritagelink.recommender import recommend
 
@@ -52,3 +52,22 @@ def test_concept_is_rejected_when_catalog_has_eligible_products() -> None:
     assert response.has_eligible_products
     with pytest.raises(ValueError, match="存在合格"):
         build_customization_concept(request, InquiryDetails(customer_type="企业客户"), response)
+
+
+def test_concept_keeps_unstated_budget_quantity_and_boolean_requirements_unknown() -> None:
+    products = build_products(load_data(DATA_DIR))
+    proxy_request = _request(1)
+    response = recommend(products, proxy_request)
+
+    concept = build_customization_concept(
+        proxy_request,
+        InquiryDetails(customer_type="待商家确认"),
+        response,
+        customer_context=InquiryRequestContext(available_lead_days=1),
+    )
+
+    assert concept["target_unit_budget_fen"] is None
+    assert concept["quantity"] is None
+    assert concept["customization_required"] is None
+    assert concept["logo_required"] is None
+    assert concept["international_shipping_required"] is None

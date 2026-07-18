@@ -20,6 +20,11 @@ dev = [
     "ruff>=0.6,<1.0",
 ]
 
+[tool.poetry]
+packages = [
+    { include = "heritagelink", from = "src" },
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

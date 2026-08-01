@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict, dataclass, replace
 from typing import Any, Literal, Protocol
 
@@ -35,6 +36,7 @@ RecommendedAction = Literal[
 ]
 
 CORE_BLOCKING_FIELDS = ("budget_per_item", "quantity", "recipient", "scene")
+MAX_CLARIFICATION_ROUNDS = 5
 SUGGESTED_CONSTRAINT_FIELDS = (
     "required_delivery_days",
     "logo_required",
@@ -58,12 +60,10 @@ ALLOWED_ACTIONS = frozenset(
     }
 )
 QUESTION_GROUPS = (
-    (
-        ("budget_per_item", "quantity"),
-        "这批礼品大约需要多少件，单件预算是多少？",
-    ),
     (("recipient",), "主要赠送给哪类对象？"),
     (("scene",), "这批礼品主要用于什么场景？"),
+    (("budget_per_item",), "您大概希望控制在什么单件预算范围？"),
+    (("quantity",), "这次大约需要准备多少件？"),
     (("required_delivery_days",), "如果交期是硬性要求，希望多少天内完成？"),
     (("logo_required",), "是否必须加入 Logo 或其他定制内容？"),
     (
@@ -173,12 +173,14 @@ def process_turn(
     user_entry = ConversationMessage("user", cleaned)
 
     signature = recommendation_signature(accumulated)
-    action = (
-        "recommend_products"
-        if signature != state.last_recommendation_signature
-        else "show_editable_summary"
+    ready = state.ready_to_recommend or _should_recommend(
+        accumulated, cleaned, state.clarification_rounds
     )
-    selected = _select_question(question_candidates, state.asked_fields)
+    selected = (
+        None
+        if ready or state.clarification_rounds >= MAX_CLARIFICATION_ROUNDS
+        else _select_question(question_candidates, state.asked_fields)
+    )
     if selected is None:
         next_question = None
         asked_fields = state.asked_fields
@@ -188,21 +190,33 @@ def process_turn(
         next_question = _safe_model_question(envelope, local_question)
         asked_fields = state.asked_fields | frozenset(fields)
         rounds = state.clarification_rounds + 1
+    if selected is None:
+        ready = True
+    action: RecommendedAction
+    if ready:
+        action = (
+            "recommend_products"
+            if signature != state.last_recommendation_signature
+            else "show_editable_summary"
+        )
+    else:
+        action = "ask_clarification"
     mode_value = recommendation_mode(accumulated)
     known_fields, unknown_fields = known_and_missing_fields(accumulated)
     coverage = round(len(known_fields) / (len(known_fields) + len(unknown_fields)), 2)
-    if action == "recommend_products":
-        assistant = "我先根据目前的信息展示推荐。"
+    if action == "ask_clarification" and next_question:
+        assistant = next_question
+    elif action == "recommend_products":
+        assistant = "好的，我会根据您已经提供的条件整理合适的礼品。"
     else:
-        assistant = "需求与上次推荐相同，已保留当前结果。"
-    if next_question:
-        assistant = f"{assistant} 如愿意进一步优化：{next_question}"
+        assistant = "好的，我会保留当前方向，您可以继续查看或调整。"
     stage = (
-        ConversationStage.CONFIRMED_RECOMMENDATION
+        ConversationStage.NEEDS_CLARIFICATION
+        if action == "ask_clarification"
+        else ConversationStage.CONFIRMED_RECOMMENDATION
         if not unknown_fields
         else ConversationStage.PROVISIONAL_RECOMMENDATION
     )
-    ready = True
     manual = False
 
     assistant_entry = ConversationMessage("assistant", assistant)
@@ -455,6 +469,35 @@ def _specific_question(fields: tuple[str, ...], default: str) -> str:
     if fields == ("symbolism_preferences",):
         return "希望礼品重点表达什么文化寓意？"
     return default
+
+
+def _should_recommend(
+    request: ParsedCustomerRequest,
+    user_message: str,
+    clarification_rounds: int,
+) -> bool:
+    """Stop asking when direction is clear, requested, skipped, or capped."""
+    if clarification_rounds >= MAX_CLARIFICATION_ROUNDS:
+        return True
+    if re.search(
+        r"直接推荐|先.{0,4}推荐|先看看|帮我决定|你决定|跳过|不知道|没想法",
+        user_message,
+    ):
+        return True
+    directional = sum(
+        not _is_missing(getattr(request, field_name)) and field_name not in request.uncertain_fields
+        for field_name in (
+            "recipient",
+            "scene",
+            "style_preferences",
+            "symbolism_preferences",
+        )
+    )
+    commercial = sum(
+        not _is_missing(getattr(request, field_name)) and field_name not in request.uncertain_fields
+        for field_name in ("budget_per_item", "quantity", "required_delivery_days")
+    )
+    return directional >= 2 or (directional >= 1 and commercial >= 1)
 
 
 def _safe_model_question(envelope: ValidatedDialogueEnvelope | None, local_question: str) -> str:

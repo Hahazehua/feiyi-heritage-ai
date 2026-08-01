@@ -16,7 +16,9 @@ DATA_DIR = ROOT / "data" / "demo"
 
 @pytest.fixture(scope="module")
 def products() -> tuple[Product, ...]:
-    return build_products(load_data(DATA_DIR))
+    return tuple(
+        product for product in build_products(load_data(DATA_DIR)) if product.status == "active"
+    )
 
 
 def _request(**overrides: object) -> GiftRequest:

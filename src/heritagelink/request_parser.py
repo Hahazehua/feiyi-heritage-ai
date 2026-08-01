@@ -287,6 +287,9 @@ def demo_parse_request(text: str) -> ParsedCustomerRequest:
         r"(?:每(?:件|份)|单件)\s*(?:预算(?:为|是)?\s*)?(\d+(?:\.\d+)?)\s*元",
         text,
     )
+    general_budget_match = re.search(
+        r"(?:预算|控制在|不超过)?\s*(\d+(?:\.\d+)?)\s*元(?:以内|以下|左右)", text
+    )
     if total_match:
         payload["budget_type"] = "total"
         multiplier = 10000 if total_match.group(2) else 1
@@ -294,6 +297,9 @@ def demo_parse_request(text: str) -> ParsedCustomerRequest:
     elif per_item_match:
         payload["budget_type"] = "per_item"
         payload["budget_per_item"] = float(per_item_match.group(1))
+    elif general_budget_match:
+        payload["budget_type"] = "per_item"
+        payload["budget_per_item"] = float(general_budget_match.group(1))
     if (total_match or per_item_match) and re.search(r"左右|大约|约|上下", text):
         field = "total_budget" if total_match else "budget_per_item"
         uncertain.append(field)
@@ -317,6 +323,7 @@ def demo_parse_request(text: str) -> ParsedCustomerRequest:
             "新人": "newlywed",
             "教师": "teacher",
             "老师": "teacher",
+            "教授": "teacher",
             "收藏家": "collector",
             "机构": "institution",
         },
@@ -345,6 +352,7 @@ def demo_parse_request(text: str) -> ParsedCustomerRequest:
         "简约": "minimal",
         "大气": "grand",
         "典雅": "elegant",
+        "正式": "elegant",
         "喜庆": "festive",
         "温暖": "warm",
     }.items():

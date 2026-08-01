@@ -1,0 +1,40 @@
+agent_id: "heritagelink_gift_advisor"
+display_name: "HAHA｜飞颐礼遇 AI Heritage Global Agent"
+entrypoint: "heritagelink.agent_orchestrator:run_agent_turn"
+analysis_entrypoint: "heritagelink.agent_orchestrator:run_choice_signal_analysis"
+runtime:
+  customer_flow: "synchronous"
+  analysis_flow: "offline_on_demand"
+  trace_contains_raw_chat: false
+  trace_contains_pii: false
+  automatic_weight_updates: false
+skills:
+  - id: "understand_gift_request"
+    order: 1
+    required: true
+    fallback: "deterministic_parser"
+  - id: "infer_soft_preferences"
+    order: 2
+    required: true
+    fallback: "preserve_unknown"
+  - id: "recommend_heritage_gifts"
+    order: 3
+    required: true
+    fallback: "no_match_response"
+  - id: "compose_grounded_content"
+    order: 4
+    required: false
+    fallback: "omit_unverified_content"
+  - id: "build_final_gift_plan"
+    order: 5
+    required: false
+    fallback: "omit_unknown_commercial_fields"
+  - id: "capture_consented_choice"
+    order: 6
+    required: false
+    fallback: "continue_without_storage"
+  - id: "analyze_gift_choice_signals"
+    order: 7
+    required: false
+    execution: "offline_on_demand"
+    fallback: "insufficient_sample_report"

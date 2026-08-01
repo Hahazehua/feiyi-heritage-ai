@@ -1,8 +1,37 @@
-# 飞颐礼遇｜HeritageLink AI
+# HAHA｜飞颐礼遇
 
-飞颐礼遇是面向非遗礼品推荐与定制沟通的 AI 顾问。当前产品库包含漆艺、龙泉青瓷、传统织绣和传统玉雕四组共 20 件带图商品方案，用于验证从客户需求理解、渐进式推荐、双语文化介绍到商家定制需求单的完整交易前流程；HeritageLink AI 为项目英文名称。
+HAHA 代表 **Help Artisan Happy Again**：让手艺人因被看见、被尊重、获得持续机会而再次绽放笑容。HAHA｜飞颐礼遇，是连接非遗手艺人与全球礼赠及商业机会的 AI 出海平台。平台以“让中国手艺被世界理解、选择与珍藏”为愿景，面向全国 20 万件非遗产品资源的长期数字化连接目标，帮助传统工艺跨越语言、文化与商业沟通门槛。当前可运行 Demo 目录共 50 件：20 件带图推荐方案，以及 30 件带明确来源边界、不可下单且不参与推荐的开放馆藏探索参考。
 
 本项目属于 SynNovator 数字文化赛道（原赛道标识：`track-98`）。
+
+## Wave 3 Submission
+
+第三轮提交材料已按“Agent + Skills + Demo + Specs 证据”重新组织。评审者请从 [Wave 3 最短评审路径](docs/wave3/README.md) 开始；其中包含 Agent 执行闭环、七项 Skills 编排、可复现 Demo、Specs 证据矩阵和评测命令。
+
+Agent Orchestration：Streamlit 客户页只调用统一 `run_agent_turn` 入口，由七项正式 Skills 完成带门控执行、安全回退和仅评审可见的脱敏 Trace。机器清单见 [`agent_manifest.yaml`](docs/wave3/agent_manifest.yaml)，实现与四条轨迹见 [`ORCHESTRATION.md`](docs/wave3/ORCHESTRATION.md)。
+
+- Live Demo：`<LIVE_DEMO_URL>`
+- Review Mode：`<REVIEW_MODE_URL>`
+- Demo Video：`<DEMO_VIDEO_URL>`
+- 部署指南：[`STREAMLIT_DEPLOYMENT.md`](docs/wave3/STREAMLIT_DEPLOYMENT.md)
+- 浏览器验收：[`BROWSER_ACCEPTANCE.md`](docs/wave3/BROWSER_ACCEPTANCE.md)
+- 提交文本与清单：[`SUBMISSION_TEXT.md`](docs/wave3/SUBMISSION_TEXT.md) · [`SUBMISSION_CHECKLIST.md`](docs/wave3/SUBMISSION_CHECKLIST.md)
+
+```text
+Streamlit UI → Agent Orchestrator → Skills 1–6 带门控客户链 → AgentTurnResult
+授权匿名事件 → Skill 7 离线按需聚合（不自动修改推荐）
+```
+
+七项 Skills：需求理解、受控软偏好推断、稳定礼品推荐、可靠双语内容、最终方案、匿名授权记录和匿名信号分析。2026-08-01 发布收口验收为 Ruff 全部通过、`164 passed`；真实浏览器结果见 Wave 3 评测和浏览器验收文档。
+
+最短本地运行：
+
+```powershell
+python -m pip install -e .
+python -m streamlit run app.py
+```
+
+数据和隐私：50件目录中仅20件正式方案参与推荐，30件馆藏参考不进入正式结果；匿名选择默认关闭且不保存完整聊天或联系方式。
 
 ## Wave 2 Submission
 
@@ -22,31 +51,37 @@
 
 不熟悉项目的评审人员可直接从 [Wave 2 最短评审路径](docs/wave2/README.md) 开始，无需先阅读长期商业规划。
 
-## 用户流程
+## 当前单页面用户流程
 
-页面采用五阶段礼赠顾问流程：
+```text
+用户描述需求 → 顾问每轮提出至多一个问题 → 展示自然语言需求摘要
+→ 受控补全非关键偏好 → 同页展示最多 3 件推荐 → 用户选择产品
+→ 生成并下载专属礼品方案
+```
 
-1. 用户在首页用自然语言描述需求，或切换到“精准填写需求”；
-2. 系统先展示结构化理解结果，区分已确认、待确认和缺失信息；用户可继续补充或修正，再核对进入推荐；
-3. 本地规则引擎执行硬性条件过滤和八维评分，最多展示 3 件可解释方案；
-4. 用户查看中英文文化故事、工艺依据和定制建议，再选择具体方案；
-5. 系统生成可预览、复制和下载的商家定制需求单。
+- 首屏直接显示欢迎语、聊天输入和四个快捷需求，不要求先选择录入模式；
+- “我想直接填写需求”保留为次级入口；
+- 信息足够、用户要求直接推荐、用户跳过、已完成最多 5 次主动追问或继续追问价值很低时停止追问；
+- 风格、文化寓意、包装语气和内容语言可以按集中策略受控补全，用户可通过“调整需求”覆盖；
+- 预算、数量、交期、运输、价格、产能、材料、尺寸和定制能力不得推断；
+- 硬约束和八维评分权重保持不变，详细评分只在“为什么推荐给我？”中展示；
+- DeepSeek 只做可选字段提取，不决定推荐结果，也不能绕过硬性条件；失败状态不在客户主流程中暴露。
 
-首页“体验企业海外礼赠案例”会填入一套完整需求并调用真实的本地解析和推荐逻辑。页面使用 `st.session_state` 保存当前会话、阶段、确认需求、推荐结果和选中产品，支持连续补充、返回、调整与重新开始；会话不会写入长期存储。
+页面使用 `st.session_state` 保存当前会话。只有用户主动勾选匿名授权后，系统才会通过独立 Repository 保存结构化偏好、推荐和选择事件；不保存姓名、联系方式或完整聊天原文。
 
-DeepSeek 只做自然语言字段提取，不决定推荐结果，也不能绕过硬性条件。
+匿名反馈闭环：`capture-consented-choice` 在明确授权后幂等保存匿名选择，`analyze-gift-choice-signals` 再读取这些事件并输出带最小样本保护的聚合信号。分析只提供未来优化依据，不自动修改推荐权重或排序。
 
 ## 非遗礼赠产品库
 
-首页可进入“浏览 20 件非遗礼赠产品”。每件商品均配置本地图片、中英文名称、方案价格、起订量、交期、定制能力、文化介绍和推荐标签，可以直接进入规则推荐引擎。
+首页可进入“浏览完整礼品目录”。50 件记录均有本地图片、双语名称和来源状态；其中只有原有 20 件 MVP 方案进入演示推荐，新增 30 件开放馆藏记录仅用于跨品类探索，不能下单，也不会进入规则推荐引擎。
 
 - 结构化资料位于 `data/catalog/heritage_products.csv`；
 - 网页使用的本地图片位于 `assets/catalog/products/`；
-- `data/demo/products.csv` 保存 20 件可推荐商品及对应 `image_path`；
+- `data/demo/products.csv` 保存 20 件可推荐 Demo 方案与 30 件 inactive 馆藏参考及对应 `image_path`；
 - `data/catalog/heritage_products.csv` 的 `demo_product_id` 将图片来源资料与商品一一关联；
 - `source_url`、`image_source_url`、`source_object_number` 和 `image_license` 保存资料出处与使用许可；
 - 当前图片来自大都会艺术博物馆开放馆藏，所选页面均标记为 Public Domain，目录按 [The Met Open Access](https://www.metmuseum.org/about-the-met/policies-and-documents/open-access) 记录为 CC0；
-- 图片与历史信息作为设计依据；方案价格、数量、交期和定制能力由飞颐礼遇产品数据单独维护，不从馆藏资料推断。
+- 图片与历史信息作为设计依据；所有价格、数量、交期、运输和定制演示值均标记 `demo_assumption`，不得理解为馆方或商家承诺。来源、覆盖矩阵和审计结论见 [`docs/CATALOG_EXPANSION_REPORT.md`](docs/CATALOG_EXPANSION_REPORT.md)。
 
 未来替换为商家的正式产品图片时，应把文件放入 `assets/products/<merchant_id>/`，再由正式商品数据中的图片路径关联；不要覆盖本目录的馆藏来源图片。
 
@@ -97,13 +132,37 @@ python -m streamlit run app.py
 
 浏览器通常会打开 `http://localhost:8501`。
 
-### DeepSeek 模式与演示回退模式
+### DeepSeek 与安全回退
 
 - 自动模式：存在有效 `DEEPSEEK_API_KEY` 时优先调用 DeepSeek，并由本地代码重新校验、合并和判断推荐就绪状态；
-- 演示模式：使用有限的正则和关键词规则，页面会明确显示“当前使用演示解析模式”；
+- 回退模式：使用有限的正则和关键词规则，客户主界面继续提供顾问式交互，不显示技术模式或错误细节；
 - 没有 API Key、认证失败、余额不足、超时、网络错误或空响应时，系统安全回退到演示模式；
 - API 故障不会影响详细表单和原有推荐功能；
-- 用户也可主动选择确定性演示解析，完全不发出 API 请求。
+- 推荐、文化内容和方案生成不依赖外部模型成功。
+
+## 匿名选择分析配置
+
+默认关闭跨会话分析。启用时使用环境变量或 Streamlit Secrets：
+
+```dotenv
+ANALYTICS_ENABLED=true
+ANALYTICS_DATABASE_URL=postgresql://user:password@host:5432/database
+ANALYTICS_BACKEND=auto
+ANALYTICS_STORE_RAW_CHAT=false
+APP_VERSION=0.1.0
+```
+
+本地开发可使用 `sqlite:///var/analytics/choices.sqlite3`；SQLite 文件已由 `.gitignore` 排除，不适合作为 Streamlit Cloud 跨会话正式存储。云端使用 PostgreSQL/Supabase 兼容连接，数据库不可用时只记录内部日志，不中断推荐流程。`ANALYTICS_STORE_RAW_CHAT` 默认且建议保持 `false`，当前记录模型不包含完整聊天原文。
+
+生成并分析明确标记的本地合成演示数据：
+
+```powershell
+python scripts/generate_synthetic_choice_data.py --sessions 50
+python skills/analyze-gift-choice-signals/scripts/analyze_choices.py --format table
+python skills/analyze-gift-choice-signals/scripts/analyze_choices.py --scene anniversary --format json
+```
+
+默认数据库位于 `.local/heritagelink_analytics_demo.db`，不会提交到 Git；所有输出都会说明合成数据不代表真实客户偏好。
 
 ## 测试与代码检查
 
@@ -131,9 +190,9 @@ python -m streamlit run app.py --server.headless true
 - 双语文化内容来自本地资料和模板，不由 DeepSeek 编写，仍需商家审核；
 - 不提供登录、支付、库存、合同、物流、结算或商家后台；
 - 不保存客户个人身份和联系方式；
-- 当前不使用 RAG、向量数据库、数据库或 ORM。
+- 当前不使用 RAG、向量数据库或 ORM；匿名选择分析可选使用 SQLite（本地）或 PostgreSQL（云端）。
 - 当前不使用 AI 语义重排，也不提供商家自助入驻。
-- 对话仅保存在当前 Streamlit session，不提供账号、跨设备同步或长期历史记录。
+- 对话仅保存在当前 Streamlit session，不提供账号、跨设备同步或长期聊天历史；授权后的跨会话分析只保存匿名结构化事件。
 - 20 件推荐商品均已关联本地图片；图片来源与商品方案通过稳定 ID 关联，后续可逐件替换为商家正式产品图。
 
 ## 后续大模型与 RAG 计划

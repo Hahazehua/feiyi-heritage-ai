@@ -1,5 +1,5 @@
 # ruff: noqa: E501
-"""Small reusable presentation helpers for the five-stage experience."""
+"""Small reusable presentation helpers for the conversational experience."""
 
 from __future__ import annotations
 
@@ -21,12 +21,10 @@ def render_hero() -> None:
     st.markdown(
         """
         <section class="hl-hero">
-          <div class="hl-eyebrow">AI · INTANGIBLE CULTURAL HERITAGE · GIFTING</div>
-          <h1 class="hl-brand">飞颐礼遇</h1>
-          <div class="hl-en">HERITAGELINK AI</div>
-          <div class="hl-value">让中国非遗礼赠需求更清晰、更有文化依据、更便于商家确认。</div>
-          <p class="hl-copy">说出赠礼对象、预算与场景，AI 顾问将整理需求，并从当前产品中提供可解释的匹配方案与商家沟通材料。</p>
-          <div class="hl-tags"><span class="hl-tag">可解释推荐</span><span class="hl-tag">中英双语</span><span class="hl-tag">定制需求整理</span></div>
+          <div class="hl-eyebrow">HAHA · HELP ARTISAN HAPPY AGAIN</div>
+          <h1 class="hl-brand">HAHA｜飞颐礼遇</h1>
+          <div class="hl-value">连接非遗手艺人与全球礼赠及商业机会</div>
+          <p class="hl-copy">让手艺人因被看见、被尊重、获得持续机会而再次绽放笑容。我们以 AI 连接全国 20 万件非遗产品资源的长期愿景，从一份真实礼赠需求开始，为您匹配有文化依据的礼品方案。</p>
         </section>
         """,
         unsafe_allow_html=True,

@@ -24,7 +24,7 @@ def apply_theme() -> None:
             radial-gradient(circle at 4% 30%,rgba(102,119,105,.08),transparent 24rem),
             var(--paper); color:var(--ink);
         }
-        .block-container {max-width:1160px;padding:2.4rem 2rem 5rem;}
+        .block-container {max-width:980px;padding:1.8rem 1.5rem 6rem;}
         h1,h2,h3 {color:var(--ink);letter-spacing:-.025em;}
         p,.stCaption {color:var(--muted);}
         .hl-hero {padding:3rem 3.2rem;border:1px solid var(--line);border-radius:30px;
@@ -68,6 +68,11 @@ def apply_theme() -> None:
         div.stButton > button, div.stDownloadButton > button {border-radius:999px;min-height:2.8rem;font-weight:700;}
         div.stButton > button[kind="primary"] {background:var(--bronze-dark);border-color:var(--bronze-dark);}
         [data-testid="stTextArea"] textarea,[data-testid="stTextInput"] input {border-radius:14px;}
+        [data-testid="stChatMessage"] {padding:.75rem 1rem;border-radius:18px;margin:.45rem 0;}
+        [data-testid="stChatInput"] {border:1px solid var(--line);border-radius:18px;background:var(--surface);}
+        .hl-summary {display:flex;gap:.5rem;flex-wrap:wrap;margin:.75rem 0 1.2rem;}
+        .hl-summary span {padding:.48rem .72rem;border-radius:999px;background:#f1eadf;
+          color:var(--bronze-dark);font-size:.8rem;border:1px solid var(--line);}
         [data-testid="stMetric"] {padding:.9rem 1rem;border:1px solid var(--line);border-radius:15px;background:var(--surface);}
         .stProgress > div > div > div {background:var(--bronze);}
         .hl-catalog-note {margin:0 0 1.25rem;padding:1rem 1.2rem;border:1px solid var(--line);
@@ -80,7 +85,7 @@ def apply_theme() -> None:
         [data-testid="stImage"] img {aspect-ratio:4/3;object-fit:cover;border-radius:16px;
           border:1px solid var(--line);background:var(--soft);}
         @media(max-width:760px){
-          .block-container{padding:1.2rem .9rem 3rem}.hl-hero{padding:2rem 1.35rem}.hl-hero:after{display:none}
+          .block-container{padding:1rem .75rem 5rem;overflow-x:hidden}.hl-hero{padding:1.7rem 1.1rem}.hl-hero:after{display:none}
           .hl-stepper{grid-template-columns:1fr}.hl-step{display:none}.hl-step.active{display:block}
           .hl-status-grid{grid-template-columns:1fr}.hl-product-visual{min-height:150px}
         }

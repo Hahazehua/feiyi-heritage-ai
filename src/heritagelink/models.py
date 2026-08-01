@@ -89,6 +89,23 @@ class Product:
     image_alt_zh: str
     reference_source_url: str
     image_license: str
+    category_code: str
+    region_code: str
+    price_tier: str
+    source_product_url: str
+    source_culture_url: str
+    source_merchant_url: str
+    source_type: str
+    source_accessed_at: str
+    source_status: str
+    verification_status: str
+    merchant_fact_status: str
+    commercial_data_status: str
+    cultural_data_status: str
+    image_status: str
+    image_attribution: str
+    data_quality_level: str
+    catalog_role: str
     recipient_tags: frozenset[str]
     occasion_tags: frozenset[str]
     style_tags: frozenset[str]

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Analyze Gift Choice Signals"
+  short_description: "Analyze anonymous aggregate gift choice signals"
+  default_prompt: "Use $analyze-gift-choice-signals to produce a privacy-safe aggregate report from consented gift choice events."

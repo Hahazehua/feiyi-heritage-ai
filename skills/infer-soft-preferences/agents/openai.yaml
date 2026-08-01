@@ -1,0 +1,4 @@
+interface:
+  display_name: "ÊÜ¿ØÈíÆ«ºÃÍÆ¶Ï"
+  short_description: "Infer only allowlisted and customer-overridable soft preferences"
+  default_prompt: "Use $infer-soft-preferences to infer only allowed soft preferences."

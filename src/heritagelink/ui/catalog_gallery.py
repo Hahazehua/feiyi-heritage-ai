@@ -74,12 +74,18 @@ def render_catalog_gallery(
                 st.caption(product.product_name_en)
                 st.markdown(
                     f'<span class="hl-catalog-pill">{item.craft_category_zh}</span>'
-                    '<span class="hl-catalog-pill muted">可参与智能推荐</span>',
+                    + (
+                        '<span class="hl-catalog-pill muted">可参与智能推荐 · Demo 商业参数</span>'
+                        if product.catalog_role == "recommendation_demo"
+                        else '<span class="hl-catalog-pill muted">馆藏探索参考 · 不参与推荐</span>'
+                    ),
                     unsafe_allow_html=True,
                 )
                 st.markdown(
                     f"**{_money(product.price_min_fen)}–{_money(product.price_max_fen)} / 件**"
                 )
+                if product.commercial_data_status == "demo_assumption":
+                    st.caption("以上为推荐流程演示预算带，不是商家公开报价")
                 st.caption(
                     f"起订 {product.min_order_qty} 件 · 基础制作周期 {product.lead_time_days} 天"
                 )
@@ -91,4 +97,8 @@ def render_catalog_gallery(
                     st.write(f"地区：{item.region_text}")
                     st.write(f"馆藏编号：{item.source_object_number}")
                     st.caption(f"图片许可：{item.image_license}")
+                    st.caption(
+                        f"数据质量：Level {product.data_quality_level} · "
+                        f"商业数据：{product.commercial_data_status}"
+                    )
                     st.link_button("查看馆藏原页", item.source_url, width="stretch")

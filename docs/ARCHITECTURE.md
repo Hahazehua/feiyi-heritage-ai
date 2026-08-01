@@ -2,17 +2,37 @@
 
 ## 1. 当前架构目标
 
-飞颐礼遇使用一个可本地运行的 Streamlit 单体应用验证交易前礼赠匹配流程。UI 只负责编排输入、确认和展示；字段校验、对话累计、推荐、内容组织和需求单构造位于可独立测试的 Python 模块中。
+飞颐礼遇使用一个可本地运行的 Streamlit 单体应用验证交易前礼赠匹配流程。UI 只负责输入、session 写回和展示；统一 Agent 编排器负责调用顺序、门控和回退；字段校验、对话累计、推荐、内容组织和需求单构造位于七个可独立测试的薄包装 Skill 之后。
+
+当前客户层为单页面聊天式顾问，领域层仍维持确定性推荐边界。新增 `inference_policy`/`recommendation_context` 分离用户陈述与软偏好推断，新增 `analytics`、`analytics_models` 和 `repositories` 分离 UI 与匿名事件存储。
 
 当前架构遵循以下原则：
 
 - DeepSeek 是可选字段提取器，不是推荐决策者；
 - 多轮累计、校验、问题选择和推荐就绪状态以本地代码为准；
 - 推荐硬约束、固定权重和稳定排序不可由模型或 UI 改写；
-- 当前存储是本地 CSV/JSON 和 Streamlit session，不是正式数据库；
+- 产品主数据仍是本地 CSV；当前会话使用 Streamlit session；经用户授权的匿名选择事件可使用本地 SQLite 或云端 PostgreSQL；
 - 馆藏参考事实、MVP 商品方案字段和模板表达必须保持可区分；
 - 未知客户字段保持未知，不得用推荐内部代理值冒充客户事实；
 - 核心流程在没有 API Key 和外部网络时仍可运行。
+- 数据库未配置或写入失败时不影响推荐、选择和方案下载。
+
+### 1.1 当前单页面数据流
+
+```text
+Streamlit UI → agent_orchestrator.run_agent_turn → AgentTurnResult
+→ Skills 1–3：需求理解、受控推断、稳定推荐
+→ Skills 4–5：选品后可靠内容与最终方案
+→ Skill 6：明确授权后匿名记录（无授权/故障不阻断）
+
+显式离线入口 → Skill 7：匿名聚合指标（不回写推荐权重）
+```
+
+`agent_trace.safe_summary` 是唯一 Trace 摘要边界；评审模式同时要求环境开关与 `review_mode=1`，公开模式不渲染技术轨迹。完整设计见 [`wave3/ORCHESTRATION.md`](wave3/ORCHESTRATION.md)。
+
+Repository 不接收完整聊天原文。推荐事件使用会话 ID 与推荐签名生成稳定 UUID，选择事件使用推荐事件与产品 ID 生成稳定 UUID；数据库约束和 upsert 共同抵御 Streamlit rerun 重复写入。
+
+记录服务返回结构化安全状态；数据库错误被截断在分析边界内。选择信号分析由独立 CLI 或服务调用，不出现在公开客户 UI，也不自动影响线上推荐。
 
 ## 2. 当前仓库结构
 

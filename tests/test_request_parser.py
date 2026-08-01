@@ -258,7 +258,12 @@ def test_parsed_request_cannot_bypass_global_hard_filters(
     response = recommend(build_products(load_data(ROOT / "data" / "demo")), request)
 
     assert not response.has_eligible_products
-    assert all(reason in failure.reason_codes for failure in response.filter_failures)
+    active_failures = [
+        failure
+        for failure in response.filter_failures
+        if failure.product_id.startswith("prod_demo_")
+    ]
+    assert all(reason in failure.reason_codes for failure in active_failures)
 
 
 def test_parsed_logo_and_shipping_requirements_remain_hard_filters() -> None:

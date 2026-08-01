@@ -1,14 +1,16 @@
 from streamlit.testing.v1 import AppTest
 
 
-def test_reference_catalog_opens_and_renders_twenty_images() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
-    browse_button = [button for button in app.button if button.label == "浏览 20 件非遗礼赠产品"][0]
+def _images(app: AppTest):  # type: ignore[no-untyped-def]
+    """Return image elements across Streamlit AppTest protocol names."""
+    return app.get("imgs") or app.get("image")
 
-    browse_button.click().run(timeout=30)
+
+def test_reference_catalog_is_a_secondary_single_page_section() -> None:
+    app = AppTest.from_file("app.py").run(timeout=30)
 
     assert not app.exception
-    assert app.session_state["ui_stage"] == "catalog"
-    assert any("非遗礼赠产品库" in str(item.value) for item in app.markdown)
-    assert len(app.get("image")) == 20
+    assert app.session_state["ui_stage"] == "advisor"
+    assert any(expander.label == "浏览完整礼品目录" for expander in app.expander)
+    assert len(_images(app)) == 50
     assert any("¥" in str(item.value) for item in app.markdown)

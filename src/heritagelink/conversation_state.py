@@ -72,4 +72,4 @@ class ConversationState:
 
 def new_conversation() -> ConversationState:
     """Create a fresh local conversation without persistence or personal data."""
-    return ConversationState(conversation_id=f"conv_demo_{uuid4().hex[:12]}")
+    return ConversationState(conversation_id=f"conv_{uuid4().hex[:12]}")

@@ -51,6 +51,6 @@ def test_english_source_notes_are_localized_and_keep_provenance() -> None:
     bundle = load_data(ROOT / "data" / "demo")
     english_rows = bundle.product_texts[bundle.product_texts["locale"] == "en"]
 
-    assert len(english_rows) == 20
+    assert len(english_rows) == 50
     assert all("https://www.metmuseum.org/" in note for note in english_rows["source_note"])
     assert all(not re.search(r"[\u4e00-\u9fff]", note) for note in english_rows["source_note"])

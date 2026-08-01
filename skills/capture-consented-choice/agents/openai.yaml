@@ -1,0 +1,4 @@
+interface:
+  display_name: "Capture Consented Anonymous Choice"
+  short_description: "Save consented anonymous gift choices safely"
+  default_prompt: "Use $capture-consented-choice to save an authorized anonymous gift recommendation and selection event."

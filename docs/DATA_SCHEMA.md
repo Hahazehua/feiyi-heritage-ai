@@ -8,6 +8,16 @@
 - CSV 中的多值标签使用合法 JSON 数组字符串，例如 `["business","elder"]`，加载后转为集合。
 - 所有演示记录含 `is_demo=true`；页面和导出显示 `MVP 演示数据 / MVP demo data`。
 - `data_version` 建议使用日期加序号，如 `2026-07-14.1`，用于复现实验。
+- 客户主界面不直接展示 `is_demo`、解析模式或内部字段名；这些字段继续保留在主数据、导出和赛事合规材料中。
+- 用户陈述与受控推断必须分开记录；匿名跨会话数据只有在用户授权后才可写入 Repository。
+
+### 1.1 匿名分析数据
+
+分析数据分为 `sessions`、`final_requirements`、`recommendation_events` 和 `selection_events`。稳定 UUID、推荐签名、唯一约束和 upsert 保证幂等。会话同时记录授权版本、授权时间和 `data_source`，以区分真实授权事件与合成演示数据。字段、隐私边界、聚合指标和 SQLite/PostgreSQL 映射见 [`ANALYTICS_SCHEMA.md`](ANALYTICS_SCHEMA.md)。完整聊天原文、姓名、电话、邮箱、地址和证件不属于分析 schema。
+
+### 1.2 推断来源
+
+运行时 `RecommendationContext` 同时保存 `stated_request`、`effective_request`、`user_provided_fields`、`inferred_fields` 和自然语言方向摘要。每项推断包含值、原因、置信度和来源；允许与禁止字段见 [`INFERENCE_POLICY.md`](INFERENCE_POLICY.md)。
 
 ## 2. 主数据表
 
@@ -62,6 +72,23 @@
 | image_alt_zh | string | 是 | 中文图片替代文本 |
 | reference_source_url | string | 是 | 图片与设计参考的 HTTPS 来源 |
 | image_license | string | 是 | 图片许可或使用依据 |
+| category_code | string | 是 | 覆盖矩阵使用的稳定品类代码 |
+| region_code | string | 是 | 地区或明确标注的文化语境；不得冒充商品产地 |
+| price_tier | enum | 是 | `entry/mid/business/high/collector`；与金额字段一致 |
+| source_product_url | string | 是 | 商品页或馆藏对象页 |
+| source_culture_url | string | 是 | 官方文化/工艺背景页 |
+| source_merchant_url | string | 否 | 无真实商家时为空，不能补造 |
+| source_type | string | 是 | 如 `museum_open_collection` |
+| source_accessed_at | date | 是 | 来源访问日期 |
+| source_status | string | 是 | 来源可访问与审核状态 |
+| verification_status | string | 是 | 整条记录的用途和验证状态 |
+| merchant_fact_status | fact_status | 是 | 商家事实状态 |
+| commercial_data_status | fact_status | 是 | 价格、交期、数量、运输等商业字段状态 |
+| cultural_data_status | fact_status | 是 | 文化事实状态 |
+| image_status | string | 是 | 本地副本、占位或待确认状态 |
+| image_attribution | string | 是 | 图片署名/归属说明 |
+| data_quality_level | enum | 是 | `A/B/C` |
+| catalog_role | enum | 是 | `recommendation_demo/catalog_reference`；后者必须 inactive |
 | recipient_tags | json[string] | 是 | 受控标签，可含 `universal` |
 | occasion_tags | json[string] | 是 | 如 `business_gift/wedding/housewarming/memorial/collection` |
 | style_tags | json[string] | 是 | 如 `traditional/modern/minimal/grand/elegant` |
@@ -72,6 +99,8 @@
 | data_version | string | 是 | 数据版本 |
 | is_demo | bool | 是 | MVP 必须为 true |
 | demo_disclaimer | string | 是 | 必须为完整指定免责声明 |
+
+`fact_status` 允许 `verified_merchant_fact`、`verified_public_cultural_fact`、`public_listing_snapshot`、`demo_assumption`、`pending_verification`。`demo_assumption` 与 `pending_verification` 不能同时被标成商家已验证事实。`catalog_reference` 记录必须为 `inactive`，因此不会通过推荐硬过滤。
 
 ### 2.4 `product_texts.csv`
 
@@ -103,6 +132,7 @@
 | enabled | bool | 是 | 是否可选 |
 | is_demo | bool | 是 | MVP 必须为 true |
 | demo_disclaimer | string | 是 | 必须为完整指定免责声明 |
+| commercial_data_status | fact_status | 是 | 当前演示选项均为 `demo_assumption`，需真实商家确认 |
 
 ## 3. `gift_request` JSON
 

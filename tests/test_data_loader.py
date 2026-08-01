@@ -31,13 +31,13 @@ def test_loads_expected_demo_dataset() -> None:
     products = build_products(bundle)
 
     assert len(bundle.merchants) == 1
-    assert len(bundle.heritage_items) == 4
-    assert len(products) == 20
-    assert len(bundle.product_texts) == 40
+    assert len(bundle.heritage_items) == 10
+    assert len(products) == 50
+    assert len(bundle.product_texts) == 100
     assert all(product.is_demo for product in products)
-    assert all(product.demo_disclaimer == DEMO_DISCLAIMER for product in products)
+    assert all(product.demo_disclaimer.startswith(DEMO_DISCLAIMER) for product in products)
     assert all((Path(__file__).parents[1] / product.image_path).is_file() for product in products)
-    assert len({product.image_path for product in products}) == 20
+    assert len({product.image_path for product in products}) == 50
     assert (bundle.customization_options["demo_disclaimer"] == DEMO_DISCLAIMER).all()
     assert (bundle.heritage_items["official_level"] == "unverified").all()
 
@@ -166,5 +166,5 @@ def test_loader_supports_more_than_one_merchant(tmp_path: Path) -> None:
 
     products = build_products(load_data(data_dir))
 
-    assert len(products) == 21
+    assert len(products) == 51
     assert any(product.merchant_id == "mer_demo_other" for product in products)

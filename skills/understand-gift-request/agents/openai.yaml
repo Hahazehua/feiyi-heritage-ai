@@ -1,0 +1,4 @@
+interface:
+  display_name: "礼赠需求理解"
+  short_description: "Safely understand and merge multi-turn gift requirements"
+  default_prompt: "Use $understand-gift-request to understand this gift request safely."

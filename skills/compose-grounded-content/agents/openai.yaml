@@ -1,0 +1,4 @@
+interface:
+  display_name: "有事实边界的双语内容"
+  short_description: "Compose bilingual product content from approved catalog facts"
+  default_prompt: "Use $compose-grounded-content to compose grounded bilingual product content."

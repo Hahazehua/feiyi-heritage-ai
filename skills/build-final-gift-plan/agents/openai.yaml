@@ -1,0 +1,4 @@
+interface:
+  display_name: "最终礼品方案生成"
+  short_description: "Build a downloadable gift plan without invented commitments"
+  default_prompt: "Use $build-final-gift-plan to create a safe final gift plan."

@@ -20,6 +20,17 @@ class DataValidationError(ValueError):
 PROJECT_ROOT = Path(__file__).parents[2]
 ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
+FACT_STATUS_VALUES = {
+    "verified_merchant_fact",
+    "verified_public_cultural_fact",
+    "public_listing_snapshot",
+    "demo_assumption",
+    "pending_verification",
+}
+QUALITY_LEVEL_VALUES = {"A", "B", "C"}
+CATALOG_ROLE_VALUES = {"recommendation_demo", "catalog_reference"}
+PRICE_TIER_VALUES = {"entry", "mid", "business", "high", "collector"}
+
 
 TABLE_COLUMNS = {
     "merchants.csv": {
@@ -64,6 +75,23 @@ TABLE_COLUMNS = {
         "image_alt_zh",
         "reference_source_url",
         "image_license",
+        "category_code",
+        "region_code",
+        "price_tier",
+        "source_product_url",
+        "source_culture_url",
+        "source_merchant_url",
+        "source_type",
+        "source_accessed_at",
+        "source_status",
+        "verification_status",
+        "merchant_fact_status",
+        "commercial_data_status",
+        "cultural_data_status",
+        "image_status",
+        "image_attribution",
+        "data_quality_level",
+        "catalog_role",
         "recipient_tags",
         "occasion_tags",
         "style_tags",
@@ -97,6 +125,7 @@ TABLE_COLUMNS = {
         "enabled",
         "is_demo",
         "demo_disclaimer",
+        "commercial_data_status",
     },
 }
 
@@ -299,9 +328,16 @@ def _normalize_products(frame: pd.DataFrame) -> pd.DataFrame:
     _require_nonempty(
         frame,
         file_name,
-        TABLE_COLUMNS[file_name] - {"recommended_max_qty", "demo_max_order_qty"},
+        TABLE_COLUMNS[file_name]
+        - {"recommended_max_qty", "demo_max_order_qty", "source_merchant_url"},
     )
     _validate_enum(frame, file_name, "status", STATUS_VALUES)
+    _validate_enum(frame, file_name, "price_tier", PRICE_TIER_VALUES)
+    _validate_enum(frame, file_name, "data_quality_level", QUALITY_LEVEL_VALUES)
+    _validate_enum(frame, file_name, "catalog_role", CATALOG_ROLE_VALUES)
+    _validate_enum(frame, file_name, "merchant_fact_status", FACT_STATUS_VALUES)
+    _validate_enum(frame, file_name, "commercial_data_status", FACT_STATUS_VALUES)
+    _validate_enum(frame, file_name, "cultural_data_status", FACT_STATUS_VALUES)
     if frame.duplicated(subset=["merchant_id", "sku"]).any():
         raise DataValidationError("products.csv 的 merchant_id + sku 必须唯一")
 
@@ -341,6 +377,13 @@ def _normalize_products(frame: pd.DataFrame) -> pd.DataFrame:
             raise DataValidationError(
                 f"products.csv 在 CSV 行 {row_number} 必须明确标注为 MVP 演示数据"
             )
+        if row["catalog_role"] == "catalog_reference" and row["status"] != "inactive":
+            raise DataValidationError("catalog_reference 产品必须为 inactive，不能进入正式推荐")
+        if (
+            row["commercial_data_status"] in {"demo_assumption", "pending_verification"}
+            and row["merchant_fact_status"] == "verified_merchant_fact"
+        ):
+            raise DataValidationError("未验证商业字段不得标记为 verified_merchant_fact")
 
     for column in TAG_COLUMNS:
         frame[column] = [
@@ -389,6 +432,7 @@ def _normalize_customization_options(frame: pd.DataFrame) -> pd.DataFrame:
     _require_nonempty(frame, file_name, TABLE_COLUMNS[file_name])
     _validate_enum(frame, file_name, "customization_type", CUSTOMIZATION_TYPES)
     _validate_enum(frame, file_name, "price_impact", PRICE_IMPACT_VALUES)
+    _validate_enum(frame, file_name, "commercial_data_status", FACT_STATUS_VALUES)
     frame["extra_lead_days"] = [
         _parse_int(value, file_name, "extra_lead_days", row + 2)
         for row, value in enumerate(frame["extra_lead_days"])
@@ -503,6 +547,23 @@ def build_products(bundle: DataBundle) -> tuple[Product, ...]:
                 image_alt_zh=row["image_alt_zh"],
                 reference_source_url=row["reference_source_url"],
                 image_license=row["image_license"],
+                category_code=row["category_code"],
+                region_code=row["region_code"],
+                price_tier=row["price_tier"],
+                source_product_url=row["source_product_url"],
+                source_culture_url=row["source_culture_url"],
+                source_merchant_url=row["source_merchant_url"],
+                source_type=row["source_type"],
+                source_accessed_at=row["source_accessed_at"],
+                source_status=row["source_status"],
+                verification_status=row["verification_status"],
+                merchant_fact_status=row["merchant_fact_status"],
+                commercial_data_status=row["commercial_data_status"],
+                cultural_data_status=row["cultural_data_status"],
+                image_status=row["image_status"],
+                image_attribution=row["image_attribution"],
+                data_quality_level=row["data_quality_level"],
+                catalog_role=row["catalog_role"],
                 recipient_tags=row["recipient_tags"],
                 occasion_tags=row["occasion_tags"],
                 style_tags=row["style_tags"],

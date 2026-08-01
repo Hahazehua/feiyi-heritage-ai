@@ -71,16 +71,14 @@ def test_complete_request_recommends_and_optional_question_does_not_block() -> N
     assert request.logo_required and request.international_shipping_required
 
 
-def test_budget_and_quantity_are_asked_in_one_high_value_question() -> None:
+def test_clear_recipient_and_scene_end_questions_without_extra_prompt() -> None:
     result = process_turn(
         new_conversation(), "送给合作伙伴，用于周年纪念", mode="deterministic_demo"
     )
 
     assert result.recommended_action == "recommend_products"
     assert result.state.ready_to_recommend
-    assert result.next_question is not None
-    assert "多少件" in result.next_question and "预算" in result.next_question
-    assert result.next_question.count("？") == 1
+    assert result.next_question is None
 
 
 def test_second_turn_merges_new_fields_instead_of_restarting() -> None:
@@ -139,18 +137,29 @@ def test_signature_is_stable_and_changes_with_business_condition() -> None:
     assert recommendation_signature(request) != recommendation_signature(changed)
 
 
-def test_unanswered_questions_never_force_manual_form_or_block_results() -> None:
+def test_unanswered_questions_stop_after_user_skips() -> None:
     state = new_conversation()
     asked: set[str] = set()
     for message in ("我想送礼", "暂时不知道", "还没决定", "先跳过", "继续看看"):
         result = process_turn(state, message, mode="deterministic_demo")
         state = result.state
-        assert state.ready_to_recommend
         assert not state.manual_form_required
         if result.next_question:
             assert result.next_question not in asked
             asked.add(result.next_question)
+    assert state.ready_to_recommend
     assert state.current_stage == ConversationStage.PROVISIONAL_RECOMMENDATION
+
+
+def test_each_turn_asks_at_most_one_question_and_stops_after_five() -> None:
+    state = new_conversation()
+    for index in range(6):
+        result = process_turn(state, f"第{index + 1}轮还没有决定", mode="deterministic_demo")
+        state = result.state
+        if result.next_question:
+            assert result.next_question.count("？") + result.next_question.count("?") <= 1
+    assert state.clarification_rounds <= 5
+    assert state.ready_to_recommend
 
 
 def test_invalid_model_envelope_safely_uses_demo_parser() -> None:

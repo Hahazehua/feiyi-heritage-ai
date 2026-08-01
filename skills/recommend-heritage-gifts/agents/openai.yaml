@@ -1,0 +1,4 @@
+interface:
+  display_name: "非遗礼品稳定推荐"
+  short_description: "Recommend catalog gifts with stable hard-constraint filters"
+  default_prompt: "Use $recommend-heritage-gifts to produce a constraint-safe recommendation."

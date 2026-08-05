@@ -49,5 +49,6 @@ DeepSeek 只用于可选字段提取，失败时安全回退到确定性解析�
 ## Links
 
 - Repository: `https://www.synnovator.com/harrychen901/feiyi-heritage-ai`
+- Pull Request: `https://www.synnovator.com/opc-2026-youth-w3/track-108/pulls/2`
 - Live Demo: `https://feiyi-haha-ai.streamlit.app/`
 - Demo Video: `https://www.bilibili.com/video/BV1rcMm64ELw/`

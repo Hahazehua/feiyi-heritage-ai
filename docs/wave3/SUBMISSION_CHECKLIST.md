@@ -35,7 +35,7 @@
 ## Submission
 
 - [ ] Repository URL已填写
-- [ ] Pull Request URL已填写
+- [x] Pull Request URL已填写
 - [x] Live Demo URL已填写
 - [x] Demo Video URL已填写
 - [x] 评测文档已准备

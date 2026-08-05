@@ -4,7 +4,7 @@
 
 ## Summary
 
-本变更将飞颐礼遇整理为一个可运行、可观察、可复现的七 Skills Agent。Streamlit 客户页通过统一入口完成需求理解、受控推断、硬过滤推荐、选品内容、最终方案和授权记录；匿名信号分析保持离线按需执行。
+本变更将 HAHA（Heritage Artisans, Horizons Ahead）旗下的飞颐礼遇 AI 礼赠顾问整理为一个可运行、可观察、可复现的七 Skills Agent。Streamlit 客户页通过统一入口完成需求理解、受控推断、硬过滤推荐、选品内容、最终方案和授权记录；匿名信号分析保持离线按需执行。
 
 ## Reviewer path
 
@@ -26,7 +26,6 @@
 
 - Repository: `<REPOSITORY_URL>`
 - Pull Request: `<PULL_REQUEST_URL>`
-- Live Demo: `<LIVE_DEMO_URL>`
+- Live Demo: `https://feiyi-haha-ai.streamlit.app/`
 - Review Mode: `<REVIEW_MODE_URL>`
 - Demo Video: `<DEMO_VIDEO_URL>`
-

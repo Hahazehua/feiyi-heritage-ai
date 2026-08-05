@@ -1,4 +1,6 @@
-# HAHA｜飞颐礼遇
+# HAHA｜Heritage Artisans, Horizons Ahead
+
+飞颐礼遇 AI 礼赠顾问是 HAHA 当前的产品原型。
 
 ## 当前产品规格（保留 Wave 2 合规基线）
 
@@ -12,7 +14,9 @@
 
 ## 1. 产品定位
 
-HAHA 代表 Help Artisan Happy Again，其品牌使命是让手艺人因被看见、被尊重、获得持续机会而再次绽放笑容。HAHA｜飞颐礼遇的长期目标，是建立连接非遗手艺人与全球礼赠及商业机会的 AI 出海平台，并逐步形成面向全国 20 万件非遗产品资源的数字化连接能力。当前 Demo 验证需求理解、可信推荐、文化表达与商业询单闭环，不代表已经收录或可交易 20 万件产品。
+HAHA 代表 Heritage Artisans, Horizons Ahead，中文定位是“连接非遗手艺人、文化礼品与全球买家的 AI 出海智能体”。当前 Demo 验证需求理解、可信推荐、双语文化表达与商业询单闭环。目录共 50 件，其中 20 件正式演示商品参与推荐，30 件馆藏或文化参考不参与推荐；全部商业字段仍需真实商家确认。
+
+当前 Agent 统一入口编排七项正式 Skills：礼赠需求理解、受控软偏好推断、非遗礼品硬过滤与稳定推荐、有事实边界的双语文化内容组织、最终礼品方案生成、匿名授权选择记录和匿名礼品选择信号分析。Wave 2 的四项 Submitted Skills 继续作为历史评审基线保留。
 
 平台帮助客户将模糊的文化礼赠需求转化为：
 
@@ -104,9 +108,9 @@ MVP 可以生成英文文化介绍并识别海外运输需求，但不对以下�
 
 ---
 
-## 4. Wave 2 Submitted Skills 与唯一 Workflow
+## 4. Wave 2 Submitted Skills 与唯一 Workflow（历史基线）
 
-本轮只提交以下四个 Skills。每个 Skill 的输入、输出、运行方式、代码、测试、回退和限制见 [`docs/wave2/skills/`](wave2/skills/)。
+Wave 2 当时提交以下四个 Skills。每个 Skill 的输入、输出、运行方式、代码、测试、回退和限制见 [`docs/wave2/skills/`](wave2/skills/)。当前 Wave 3 的七项 Skills 以 [`docs/wave3/SKILLS.md`](wave3/SKILLS.md) 和 Agent manifest 为准。
 
 ### Skill 1：Conversational Gift Request Understanding / 对话式礼赠需求理解
 

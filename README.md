@@ -1,170 +1,252 @@
-# HAHA｜飞颐礼遇
+# HAHA
 
-HAHA 代表 **Help Artisan Happy Again**：让手艺人因被看见、被尊重、获得持续机会而再次绽放笑容。HAHA｜飞颐礼遇，是连接非遗手艺人与全球礼赠及商业机会的 AI 出海平台。平台以“让中国手艺被世界理解、选择与珍藏”为愿景，面向全国 20 万件非遗产品资源的长期数字化连接目标，帮助传统工艺跨越语言、文化与商业沟通门槛。当前可运行 Demo 目录共 50 件：20 件带图推荐方案，以及 30 件带明确来源边界、不可下单且不参与推荐的开放馆藏探索参考。
+## Heritage Artisans, Horizons Ahead
 
-本项目属于 SynNovator 数字文化赛道（原赛道标识：`track-98`）。
+> 连接非遗手艺人、文化礼品与全球买家的 AI 出海智能体
 
-## Wave 3 Submission
+HAHA 是一个面向全球礼赠市场的非遗出海智能体，帮助用户理解文化礼品、匹配合适作品，并将选择转化为可执行的双语销售询盘。
 
-第三轮提交材料已按“Agent + Skills + Demo + Specs 证据”重新组织。评审者请从 [Wave 3 最短评审路径](docs/wave3/README.md) 开始；其中包含 Agent 执行闭环、七项 Skills 编排、可复现 Demo、Specs 证据矩阵和评测命令。
-
-Agent Orchestration：Streamlit 客户页只调用统一 `run_agent_turn` 入口，由七项正式 Skills 完成带门控执行、安全回退和仅评审可见的脱敏 Trace。机器清单见 [`agent_manifest.yaml`](docs/wave3/agent_manifest.yaml)，实现与四条轨迹见 [`ORCHESTRATION.md`](docs/wave3/ORCHESTRATION.md)。
-
-- Live Demo：`<LIVE_DEMO_URL>`
-- Review Mode：`<REVIEW_MODE_URL>`
-- Demo Video：`<DEMO_VIDEO_URL>`
-- 部署指南：[`STREAMLIT_DEPLOYMENT.md`](docs/wave3/STREAMLIT_DEPLOYMENT.md)
-- 浏览器验收：[`BROWSER_ACCEPTANCE.md`](docs/wave3/BROWSER_ACCEPTANCE.md)
-- 提交文本与清单：[`SUBMISSION_TEXT.md`](docs/wave3/SUBMISSION_TEXT.md) · [`SUBMISSION_CHECKLIST.md`](docs/wave3/SUBMISSION_CHECKLIST.md)
+An AI agent connecting heritage artisans, culturally meaningful gifts, and global buyers through grounded recommendations and bilingual sales workflows.
 
 ```text
-Streamlit UI → Agent Orchestrator → Skills 1–6 带门控客户链 → AgentTurnResult
-授权匿名事件 → Skill 7 离线按需聚合（不自动修改推荐）
+HAHA
+└── 飞颐礼遇 AI 礼赠顾问｜HeritageLink AI Gift Advisor
 ```
 
-七项 Skills：需求理解、受控软偏好推断、稳定礼品推荐、可靠双语内容、最终方案、匿名授权记录和匿名信号分析。2026-08-01 发布收口验收为 Ruff 全部通过、`164 passed`；真实浏览器结果见 Wave 3 评测和浏览器验收文档。
+| 快速入口 | 当前状态 |
+|---|---|
+| [Live Demo](https://feiyi-haha-ai.streamlit.app/) | 已公开，2026-08-05 验证可访问 |
+| Review Mode | 默认关闭，按 [评审模式说明](docs/wave3/DEMO.md) 在本地启用 |
+| [Wave 3 Docs](docs/wave3/README.md) | 评审路径、Demo、证据与合规材料 |
+| [Agent Manifest](docs/wave3/agent_manifest.yaml) | 统一入口、七项 Skills 与回退配置 |
+| Tests | `164 passed`，Ruff format 与 lint 均通过（2026-08-05） |
 
-最短本地运行：
+> 非遗不缺少故事，缺少的是从故事到理解、从理解到选择、从选择到合作的连接。
 
-```powershell
-python -m pip install -e .
-python -m streamlit run app.py
+## 为什么需要 HAHA
+
+非遗的文化价值并不需要 AI 来创造。真正的难点，是怎样让不同语言和文化背景的人准确理解这种价值，并把兴趣转化为合适、审慎的礼赠选择。
+
+### 文化理解断层
+
+海外客户可能看到一件产品，却不了解它的工艺背景、图案寓意、适合的赠礼对象，以及如何向收礼人解释这份礼物。单纯展示商品图片和参数，难以完成这一步。
+
+### 需求匹配断层
+
+用户很少用商品字段描述需求。他们更可能说“送海外合作伙伴”“给教授准备礼物”“用于企业周年”，或“希望有中国特色，但不要太传统”。普通目录可以被浏览，却无法把这些自然语言转成可执行的选品条件。
+
+### 销售转化断层
+
+从喜欢一件作品到形成询盘，还需要确认数量、预算、Logo、包装、题字、目的地、交期和其他待定条件。遗漏这些信息，文化兴趣就很难进入下一步商业沟通。
+
+### 数字能力断层
+
+手艺人和小型文化品牌拥有工艺知识与创作判断，但多语言内容、海外客户沟通、推荐系统和数据分析往往需要额外的技术投入。问题不在于非遗缺少价值，而在于这种价值尚未被转换成海外客户容易理解和行动的方式。
+
+HAHA 因此把需求理解、受控推断、确定性推荐、双语文化内容、销售询盘和匿名选择分析组织成一条有边界的 Agent 工作流。它服务海外礼赠市场，但不替手艺人定义文化，也不替商家承诺尚未核实的商业条件。
+
+## 我们的理念
+
+AI 不应该替代手艺人定义文化，而应该帮助文化被更准确地理解。
+
+AI 不应该编造传统故事，而应该基于可追溯资料组织表达。
+
+AI 不应该替商家做出价格、交期和产能承诺，而应该帮助买卖双方识别仍需确认的条件。
+
+> Culture remains human. AI builds the bridge.
+>
+> 文化属于人，AI 负责搭桥。
+
+HAHA 不是替手艺人讲故事，而是帮助不同语言和文化背景的人更准确地听懂故事。
+
+## HAHA 如何支持非遗传承
+
+### 1. 文化信息结构化
+
+项目把工艺、地域、材料、文化寓意、适用对象、礼赠场景、定制能力和来源状态整理为可搜索、可推荐、可审核的数据。来源与商品、图片和双语内容通过稳定 ID 关联。
+
+这让文化知识不只停留在长篇介绍里，也能进入真实的选品和销售流程。当前数据结构见 [Data Schema](docs/DATA_SCHEMA.md)，目录审计见 [Catalog Expansion Report](docs/CATALOG_EXPANSION_REPORT.md)。
+
+### 2. 跨文化表达
+
+双语内容 Skill 只组织本地已有的 `zh-CN` 与 `en` 内容、来源说明和审核状态。它不会在运行时机器翻译或补写未知事实，也不会把馆藏参考误写成当代商品资质。
+
+项目尝试保留文化含义，并按礼赠语境解释“为什么适合送给谁、用于什么场景”。所有 100 条双语内容目前均为 `draft`，仍需真实商家或文化审核者确认。这个边界降低了海外客户的理解门槛，也避免为了传播而牺牲准确性。
+
+### 3. 商业机会连接
+
+Agent 把自然语言需求转换为结构化条件，在 20 件正式演示商品中执行硬约束过滤和稳定排序，解释推荐理由，并在用户选品后生成包含预算、数量、定制、目的地、交期和待确认事项的 Inquiry JSON。
+
+这条路径帮助文化兴趣进入商业沟通，但仓库没有真实订单、成交、收入增长或合作商家的可验证证据。当前成果是一个销售支持原型，不是已经完成的商业验证。
+
+### 4. 可持续学习闭环
+
+用户明确授权后，系统可以匿名记录推荐结果、最终选择、场景、预算区间、排名位置和定制偏好。离线分析再聚合这些事件，用于观察产品选择、使用场景、排名位置和定制需求。
+
+隐私和分析边界写在代码里：
+
+- 未授权时零写入；
+- 默认不保存聊天原文、姓名或联系方式；
+- 数据库故障不会阻断推荐和方案生成；
+- Skill 7 只做离线按需分析，不自动修改推荐权重；
+- 样本不足时隐藏比例并显示警告，不形成强结论；
+- 合成数据会明确标注，不代表真实客户偏好。
+
+它为未来依据真实、匿名的选择信号改进产品呈现和市场策略提供了技术路径。目前尚无足够真实授权数据支持稳定的市场结论。
+
+## 从“保护”到“可持续参与”
+
+非遗传承不仅是保存一件作品或记录一段历史，也包括让工艺继续被使用、被理解、被购买，并让创作者拥有持续参与市场的机会。让传统工艺进入当代生活和真实市场，是活态传承的一部分。
+
+商业不是文化传承的唯一答案，但可持续的市场参与能够为手艺人继续创作提供更多可能。手艺人仍是工艺、文化表达和商业承诺的主体，HAHA 提供的是连接需求、资料和沟通的工具。
+
+HAHA 当前是技术原型和销售支持基础设施，不代表已经实现长期收入增长或完成规模化商业验证。现阶段的贡献是建立一条可验证的技术路径：文化事实有来源，产品数据有边界，海外礼赠需求可以被结构化，选择可以形成询盘，授权反馈可以进入匿名分析。
+
+## End-to-End Workflow｜How It Works
+
+```mermaid
+flowchart LR
+    A[用户描述礼赠需求] --> B[需求理解]
+    B --> C[受控软偏好推断]
+    C --> D[硬约束过滤与产品推荐]
+    D --> E[双语文化内容]
+    E --> F[最终礼品方案与销售询盘]
+    F --> G{用户是否授权匿名记录}
+    G -->|否| H[完成，不持久化偏好]
+    G -->|是| I[记录匿名选择]
+    I --> J[离线聚合分析]
 ```
 
-数据和隐私：50件目录中仅20件正式方案参与推荐，30件馆藏参考不进入正式结果；匿名选择默认关闭且不保存完整聊天或联系方式。
+Skills 1 至 6 位于客户主链。Skill 7 是离线分析支线，不会回写或自动改变推荐权重。用户未授权时，选择偏好不会持久化。
 
-## Wave 2 Submission
+In short: HAHA turns a natural-language gifting request into a grounded shortlist, bilingual cultural context, and a structured inquiry. Consent-aware choice analysis remains offline and separate from ranking.
 
-### Wave 2 Alignment
+## Seven Skills
 
-- 当前阶段：OPC 2026 Youth S3 第二轮 Wave 2。
-- 报名并提交截止：2026年7月20日；社区交叉评测：2026年7月21日；晋级结果公布：2026年7月22日。
-- 本轮任务：完成产品原型，跑通关键能力；当前交付不是正式商业平台。
-- Submitted Skills：
-  1. [Conversational Gift Request Understanding / 对话式礼赠需求理解](docs/wave2/skills/01-conversational-gift-request-understanding.md)
-  2. [Progressive Heritage Gift Recommendation / 渐进式非遗礼品推荐](docs/wave2/skills/02-progressive-heritage-gift-recommendation.md)
-  3. [Grounded Bilingual Heritage Content / 有事实边界的双语文化内容组织](docs/wave2/skills/03-grounded-bilingual-heritage-content.md)
-  4. [Merchant-Ready Customization Brief / 商家可执行的定制需求单生成](docs/wave2/skills/04-merchant-ready-customization-brief.md)
-- Submitted Workflow：[Conversational Heritage Gift Matching and Customization Workflow / 对话式非遗礼品匹配与定制工作流](docs/wave2/WORKFLOW.md)。
-- Prototype：使用 Streamlit 实现的“飞颐礼遇”；安装后运行 `python -m streamlit run app.py`，没有 DeepSeek API Key 时使用确定性演示回退。
-- 测试与评测入口：运行 `python -m pytest`，并查看 [测试与评测证据](docs/wave2/EVALUATION.md)。自动化测试会阻断真实外部 API 调用。
+七项正式 Skills 的 ID、代码入口和执行顺序以 [Agent Registry](src/heritagelink/agent_registry.py) 与 [Agent Manifest](docs/wave3/agent_manifest.yaml) 为准。
 
-不熟悉项目的评审人员可直接从 [Wave 2 最短评审路径](docs/wave2/README.md) 开始，无需先阅读长期商业规划。
+| Skill ID | 中文名称 / English name | 解决的问题 | 对非遗的意义 |
+|---|---|---|---|
+| `understand_gift_request` | 礼赠需求理解 / Understand Gift Request | 自然语言转为累计结构化需求 | 让文化产品进入真实使用场景 |
+| `infer_soft_preferences` | 受控软偏好推断 / Infer Soft Preferences | 只在允许字段内补充风格、寓意等软偏好 | 降低理解和选择门槛，不猜测商业事实 |
+| `recommend_heritage_gifts` | 非遗礼品硬过滤与稳定推荐 / Recommend Heritage Gifts | 执行硬过滤、固定权重与稳定排序 | 避免文化产品被随意或错误匹配 |
+| `compose_grounded_content` | 有事实边界的双语文化内容组织 / Compose Grounded Content | 从本地双语资料组织有来源边界的内容 | 支持跨文化理解并保留审核状态 |
+| `build_final_gift_plan` | 最终礼品方案生成 / Build Final Gift Plan | 将确认需求和选品转为 Inquiry JSON | 连接文化兴趣与后续商业行动 |
+| `capture_consented_choice` | 匿名授权选择记录 / Capture Consented Choice | 经授权幂等保存结构化选择 | 建立最小化、可审计的市场反馈 |
+| `analyze_gift_choice_signals` | 匿名礼品选择信号分析 / Analyze Gift Choice Signals | 离线输出漏斗、产品、排名和分群指标 | 为未来产品与市场优化提供依据 |
 
-## 当前单页面用户流程
+统一 Agent 入口：
 
-```text
-用户描述需求 → 顾问每轮提出至多一个问题 → 展示自然语言需求摘要
-→ 受控补全非关键偏好 → 同页展示最多 3 件推荐 → 用户选择产品
-→ 生成并下载专属礼品方案
+```python
+heritagelink.agent_orchestrator:run_agent_turn
 ```
 
-- 首屏直接显示欢迎语、聊天输入和四个快捷需求，不要求先选择录入模式；
-- “我想直接填写需求”保留为次级入口；
-- 信息足够、用户要求直接推荐、用户跳过、已完成最多 5 次主动追问或继续追问价值很低时停止追问；
-- 风格、文化寓意、包装语气和内容语言可以按集中策略受控补全，用户可通过“调整需求”覆盖；
-- 预算、数量、交期、运输、价格、产能、材料、尺寸和定制能力不得推断；
-- 硬约束和八维评分权重保持不变，详细评分只在“为什么推荐给我？”中展示；
-- DeepSeek 只做可选字段提取，不决定推荐结果，也不能绕过硬性条件；失败状态不在客户主流程中暴露。
+离线分析入口：
 
-页面使用 `st.session_state` 保存当前会话。只有用户主动勾选匿名授权后，系统才会通过独立 Repository 保存结构化偏好、推荐和选择事件；不保存姓名、联系方式或完整聊天原文。
+```python
+heritagelink.skills.choice_analysis_skill:run_choice_signal_analysis
+```
 
-匿名反馈闭环：`capture-consented-choice` 在明确授权后幂等保存匿名选择，`analyze-gift-choice-signals` 再读取这些事件并输出带最小样本保护的聚合信号。分析只提供未来优化依据，不自动修改推荐权重或排序。
+## 可信与边界
 
-## 非遗礼赠产品库
+对于非遗项目而言，避免错误传播与扩大传播同样重要。
 
-首页可进入“浏览完整礼品目录”。50 件记录均有本地图片、双语名称和来源状态；其中只有原有 20 件 MVP 方案进入演示推荐，新增 30 件开放馆藏记录仅用于跨品类探索，不能下单，也不会进入规则推荐引擎。
+- 不虚构非遗资质、传承人身份或政府背书；
+- 不虚构价格、库存、产能、交期或国际运输能力；
+- 未知商业条件保留为 `null`、待确认项或风险提示；
+- 参考产品不进入正式推荐；
+- DeepSeek 仅作可选字段提取，推荐资格与排序由本地确定性代码决定；
+- 模型或数据库不可用时使用安全回退，不补造产品或事实；
+- execution trace 默认隐藏并集中脱敏，不包含聊天原文、PII、API Key 或数据库地址。
 
-- 结构化资料位于 `data/catalog/heritage_products.csv`；
-- 网页使用的本地图片位于 `assets/catalog/products/`；
-- `data/demo/products.csv` 保存 20 件可推荐 Demo 方案与 30 件 inactive 馆藏参考及对应 `image_path`；
-- `data/catalog/heritage_products.csv` 的 `demo_product_id` 将图片来源资料与商品一一关联；
-- `source_url`、`image_source_url`、`source_object_number` 和 `image_license` 保存资料出处与使用许可；
-- 当前图片来自大都会艺术博物馆开放馆藏，所选页面均标记为 Public Domain，目录按 [The Met Open Access](https://www.metmuseum.org/about-the-met/policies-and-documents/open-access) 记录为 CC0；
-- 图片与历史信息作为设计依据；所有价格、数量、交期、运输和定制演示值均标记 `demo_assumption`，不得理解为馆方或商家承诺。来源、覆盖矩阵和审计结论见 [`docs/CATALOG_EXPANSION_REPORT.md`](docs/CATALOG_EXPANSION_REPORT.md)。
+目录中记录的价格、数量、交期、运输和定制字段均为 `demo_assumption`，不构成报价或履约承诺。文化内容虽然有公开来源，当前审核状态仍为草稿。
 
-未来替换为商家的正式产品图片时，应把文件放入 `assets/products/<merchant_id>/`，再由正式商品数据中的图片路径关联；不要覆盖本目录的馆藏来源图片。
+## Catalog｜当前目录
 
-## 安装
+以下数字由 `data/demo/products.csv` 和 `data/demo/product_texts.csv` 的当前内容计算，不沿用历史文档缓存值。
 
-需要 Python 3.11 或更高版本。建议在独立虚拟环境中运行：
+| 项目 | 当前值 |
+|---|---:|
+| 产品目录总数 | 50 |
+| 正式参与演示推荐 | 20 |
+| 文化或馆藏参考 | 30 |
+| 文化内容记录 | 100，中文与英文各 50 条 |
+| 类别覆盖 | 10 类 |
+| 数据质量 | 50 件均为 C 级演示数据 |
+| 已核验真实商家 | 0 |
+
+类别覆盖 `bamboo`、`calligraphy`、`ceramics`、`fan`、`jade`、`lacquer`、`seal`、`tea`、`textile` 和 `woodblock`。来源注册表保存来源网址、发布者、访问日期、支持事实和可信等级；覆盖矩阵用于审计类别、地区、价格带与标签分布。
+
+20 件 `recommendation_demo` 记录处于 `active` 状态。30 件 `catalog_reference` 记录处于 `inactive` 状态，不具备已核验的价格、产能、定制或交付信息。参考产品用于扩展文化视野和研究，不会在缺少商业可行性信息时被推荐为可购买商品。
+
+当前图片和馆藏事实来自大都会艺术博物馆开放馆藏，目录记录为 CC0 1.0 / Public Domain。馆藏来源不代表馆方参与本项目，也不证明当代商品与馆藏对象存在商业关联。
+
+## Evidence｜可验证证据
+
+| 证据 | 位置 |
+|---|---|
+| Agent 统一入口、状态机与门控 | [`agent_orchestrator.py`](src/heritagelink/agent_orchestrator.py) |
+| 七项 Skill 注册表 | [`agent_registry.py`](src/heritagelink/agent_registry.py) |
+| 机器可读 Agent 清单 | [`agent_manifest.yaml`](docs/wave3/agent_manifest.yaml) |
+| 脱敏 execution trace 与评审门控 | [`agent_trace.py`](src/heritagelink/agent_trace.py) |
+| 硬过滤、固定权重与稳定排序 | [`recommender.py`](src/heritagelink/recommender.py) |
+| 双语内容与来源边界 | [`content.py`](src/heritagelink/content.py) |
+| 未授权零写入与存储故障降级 | [`analytics_service.py`](src/heritagelink/analytics_service.py) |
+| 离线聚合、小样本保护与合成数据提示 | [`choice_analysis.py`](src/heritagelink/choice_analysis.py) |
+| 正常、API 失败、0 结果、隐私与数据库路径 | [`tests/`](tests/) |
+| 评测命令与历史结果 | [Wave 3 Evaluation](docs/wave3/EVALUATION.md) |
+
+当前测试套件共 164 项，2026-08-05 全量复跑结果为 `164 passed`。测试覆盖正常路径、DeepSeek 失败回退、硬约束 0 结果、未授权零写入、SQLite 幂等、PostgreSQL 参数化路径、数据库故障降级、双语内容、目录隔离和 Streamlit 主流程。自动化测试通过守卫阻止真实外部 API 调用。
+
+测试通过只证明仓库当前的工程行为，不代表推荐准确率、客户满意度、交易转化率或文化影响指标。
+
+## Who HAHA Serves
+
+- 非遗手艺人和希望保留文化表达主体性的创作者；
+- 需要多语言选品与询盘工具的小型文化品牌；
+- 寻找文化礼品的海外企业买家和国际礼赠采购者；
+- 高校、博物馆与文化机构；
+- 希望购买有文化意义礼品的个人用户。
+
+这些是产品面向的用户群体，不代表已经建立正式合作或客户关系。
+
+## Current Scope and Limitations
+
+- 当前是可运行的 Streamlit 技术原型；
+- 商家、价格、产能、库存、交期、运输和定制字段仍需真实接入和审核；
+- 参考产品是文化研究素材，不是可直接交易商品；
+- 尚未实现支付、订单、合同、物流、结算、账号或商家后台；
+- 当前没有已核验的真实合作商家、客户、订单、交易或收入成果；
+- 聚合分析需要真实授权数据和足够样本后，才可能形成较稳定的观察；
+- AI 内容仍需遵守来源、授权和人工审核边界；
+- 当前不使用 RAG 或语义重排，也不自动学习推荐权重。
+
+## Why I Built HAHA
+
+我最初从铁画礼品场景出发，逐渐意识到，许多传统工艺真正缺少的并不是文化内容，而是将这些内容转化为海外用户能够理解、比较和行动的数字化路径。普通海外客户很难仅靠一个商品页面理解不同工艺之间的差异，小型文化商家也未必有条件独立建设多语言销售工具。
+
+HAHA 是我对这个问题的一次技术回答。我希望探索 AI 能否成为文化与市场之间的桥梁，同时把文化事实、商业承诺和用户隐私的边界留在系统里。
+
+## International Reviewer Summary
+
+HAHA, short for Heritage Artisans, Horizons Ahead, is a working Streamlit prototype for heritage gift discovery and pre-sales inquiry generation. It combines seven gated Skills to understand buyer intent, infer only permitted soft preferences, filter a clearly separated demo catalog, present bilingual source-bounded content, and create a structured inquiry.
+
+The current evidence is engineering evidence: 50 catalog records, 20 recommendation-eligible demo products, 30 non-recommendable cultural references, two content locales, consent-aware anonymous events, offline aggregate analysis, and 164 automated tests. The repository does not claim verified merchants, customers, orders, revenue, or market impact.
+
+## Local Setup
+
+Requires Python 3.11 or later.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .[dev]
-```
-
-## 配置 DeepSeek
-
-在 [DeepSeek 开放平台](https://platform.deepseek.com/)创建 API Key。复制示例配置：
-
-```powershell
-Copy-Item .env.example .env
-notepad .env
-```
-
-把 `.env` 中的占位符替换为自己的 Key：
-
-```dotenv
-DEEPSEEK_API_KEY=your_deepseek_api_key_here
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-v4-flash
-```
-
-当前默认模型为 `deepseek-v4-flash`。程序使用 DeepSeek 官方 OpenAI 兼容接口和非思考模式，只请求 JSON 字段提取结果。
-
-安全注意事项：
-
-- 不要把真实 Key 写入代码、README、测试、日志或截图；
-- 不要提交 `.env`；仓库只保留无密钥的 `.env.example`；
-- 如果怀疑 Key 泄露，应立即在开放平台撤销并重新创建；
-- 自动化测试全部使用 Mock，不会调用真实 API 或产生费用。
-
-## 启动
-
-Windows PowerShell：
-
-```powershell
-.\.venv\Scripts\Activate.ps1
 python -m streamlit run app.py
 ```
 
-浏览器通常会打开 `http://localhost:8501`。
+The app works without a DeepSeek API key by using a deterministic fallback. To enable optional field extraction, copy `.env.example` to `.env` and configure your own key. Never commit `.env` or credentials.
 
-### DeepSeek 与安全回退
-
-- 自动模式：存在有效 `DEEPSEEK_API_KEY` 时优先调用 DeepSeek，并由本地代码重新校验、合并和判断推荐就绪状态；
-- 回退模式：使用有限的正则和关键词规则，客户主界面继续提供顾问式交互，不显示技术模式或错误细节；
-- 没有 API Key、认证失败、余额不足、超时、网络错误或空响应时，系统安全回退到演示模式；
-- API 故障不会影响详细表单和原有推荐功能；
-- 推荐、文化内容和方案生成不依赖外部模型成功。
-
-## 匿名选择分析配置
-
-默认关闭跨会话分析。启用时使用环境变量或 Streamlit Secrets：
-
-```dotenv
-ANALYTICS_ENABLED=true
-ANALYTICS_DATABASE_URL=postgresql://user:password@host:5432/database
-ANALYTICS_BACKEND=auto
-ANALYTICS_STORE_RAW_CHAT=false
-APP_VERSION=0.1.0
-```
-
-本地开发可使用 `sqlite:///var/analytics/choices.sqlite3`；SQLite 文件已由 `.gitignore` 排除，不适合作为 Streamlit Cloud 跨会话正式存储。云端使用 PostgreSQL/Supabase 兼容连接，数据库不可用时只记录内部日志，不中断推荐流程。`ANALYTICS_STORE_RAW_CHAT` 默认且建议保持 `false`，当前记录模型不包含完整聊天原文。
-
-生成并分析明确标记的本地合成演示数据：
-
-```powershell
-python scripts/generate_synthetic_choice_data.py --sessions 50
-python skills/analyze-gift-choice-signals/scripts/analyze_choices.py --format table
-python skills/analyze-gift-choice-signals/scripts/analyze_choices.py --scene anniversary --format json
-```
-
-默认数据库位于 `.local/heritagelink_analytics_demo.db`，不会提交到 Git；所有输出都会说明合成数据不代表真实客户偏好。
-
-## 测试与代码检查
+Run the full checks:
 
 ```powershell
 python -m ruff format --check .
@@ -172,29 +254,20 @@ python -m ruff check .
 python -m pytest
 ```
 
-Streamlit 冒烟启动：
+Anonymous cross-session analytics are disabled by default. Configuration and local synthetic-data commands are documented in [Wave 3 Demo](docs/wave3/DEMO.md) and [Analytics Schema](docs/ANALYTICS_SCHEMA.md).
 
-```powershell
-python -m streamlit run app.py --server.headless true
+## Future Vision｜未来计划
+
+以下内容是路线图，不是当前已上线能力：
+
+```text
+Verified artisan onboarding
+→ Merchant data verification
+→ Multilingual global catalog
+→ Buyer inquiry routing
+→ Sales follow-up
+→ Market signal dashboards
+→ Sustainable artisan participation
 ```
 
-## 演示数据
-
-`data/demo/` 包含 1 个平台演示选品主体、4 个 `unverified` 工艺分类、20 件带图商品方案、40 条双语资料和 43 条定制选项。价格、数量、交期、运输和定制能力属于当前方案数据，正式询单时仍需商家复核；仓库不声明真实传承人身份、官方认证级别或政府背书。
-
-## 当前限制
-
-- 当前商品由一个平台演示选品主体统一维护，尚未开放真实商家自助入驻；
-- DeepSeek 只提取用户明确表达的字段；对话摘要可随时查看和修改，推荐资格由本地代码决定；
-- 推荐仍是固定硬性过滤、权重和稳定排序，不是学习模型；
-- 双语文化内容来自本地资料和模板，不由 DeepSeek 编写，仍需商家审核；
-- 不提供登录、支付、库存、合同、物流、结算或商家后台；
-- 不保存客户个人身份和联系方式；
-- 当前不使用 RAG、向量数据库或 ORM；匿名选择分析可选使用 SQLite（本地）或 PostgreSQL（云端）。
-- 当前不使用 AI 语义重排，也不提供商家自助入驻。
-- 对话仅保存在当前 Streamlit session，不提供账号、跨设备同步或长期聊天历史；授权后的跨会话分析只保存匿名结构化事件。
-- 20 件推荐商品均已关联本地图片；图片来源与商品方案通过稳定 ID 关联，后续可逐件替换为商家正式产品图。
-
-## 后续大模型与 RAG 计划
-
-在真实商家和用户验证规则基线后，可以让大模型辅助整理商家资料、生成待审核双语草稿和改写沟通文本。之后再评估 RAG，用于检索经过授权、审核且可追溯的非遗资料。大模型不会替代价格、产能、交期、运输和文化事实的人工确认，也不会替代现有硬性规则。
+未来工作的前提是由手艺人和商家确认文化表达、产品事实和商业条件。技术可以缩短连接路径，但文化解释权与最终承诺仍属于人。

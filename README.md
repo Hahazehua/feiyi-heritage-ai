@@ -16,7 +16,7 @@ HAHA
 | 快速入口 | 当前状态 |
 |---|---|
 | [Live Demo](https://feiyi-haha-ai.streamlit.app/) | 已公开，2026-08-05 验证可访问 |
-| Review Mode | 默认关闭，按 [评审模式说明](docs/wave3/DEMO.md) 在本地启用 |
+| [Demo Video](https://www.bilibili.com/video/BV1rcMm64ELw/) | 2 分 50 秒完整项目演示 |
 | [Wave 3 Docs](docs/wave3/README.md) | 评审路径、Demo、证据与合规材料 |
 | [Agent Manifest](docs/wave3/agent_manifest.yaml) | 统一入口、七项 Skills 与回退配置 |
 | Tests | `164 passed`，Ruff format 与 lint 均通过（2026-08-05） |

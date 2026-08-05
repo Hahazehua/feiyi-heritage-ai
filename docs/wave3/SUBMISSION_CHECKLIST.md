@@ -36,9 +36,8 @@
 
 - [ ] Repository URL已填写
 - [ ] Pull Request URL已填写
-- [ ] Live Demo URL已填写
-- [ ] Review Mode URL已填写
-- [ ] Demo Video URL已填写
+- [x] Live Demo URL已填写
+- [x] Demo Video URL已填写
 - [x] 评测文档已准备
 - [x] 截图证据已复查
 - [x] 平台提交文本已准备

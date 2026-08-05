@@ -23,7 +23,7 @@
 | 产品 Demo | 主路径、无结果、无 API、匿名选择路径 | 已整理 |
 | Specs 证据 | 代码、自动化测试、人工检查映射 | 已整理 |
 | 在线 Demo | [公开 Streamlit 页面](https://feiyi-haha-ai.streamlit.app/) | 已部署 |
-| Demo 视频 | 录制后补充真实 URL | 待提交前完成 |
+| Demo 视频 | [HAHA Demo 2m50s](https://www.bilibili.com/video/BV1rcMm64ELw/) | 已发布 |
 | 社区交叉评审记录 | W3 评审开始后记录 | 待赛事阶段执行 |
 
 ## 产品边界

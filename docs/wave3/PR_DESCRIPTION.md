@@ -22,10 +22,8 @@
 - Skill 7 不进入客户主链，也不自动修改推荐配置。
 - 当前不包含账号、支付、订单、物流、RAG或商家后台。
 
-## Links to fill manually
+## Links
 
-- Repository: `<REPOSITORY_URL>`
-- Pull Request: `<PULL_REQUEST_URL>`
+- Repository: `https://www.synnovator.com/harrychen901/feiyi-heritage-ai`
 - Live Demo: `https://feiyi-haha-ai.streamlit.app/`
-- Review Mode: `<REVIEW_MODE_URL>`
-- Demo Video: `<DEMO_VIDEO_URL>`
+- Demo Video: `https://www.bilibili.com/video/BV1rcMm64ELw/`

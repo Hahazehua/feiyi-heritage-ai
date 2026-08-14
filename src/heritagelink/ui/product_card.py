@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from heritagelink.models import GiftRequest, Recommendation
@@ -67,39 +69,51 @@ def render_product_card(
     request: GiftRequest,
     participating: frozenset[str],
     known_customer_fields: frozenset[str],
+    *,
+    selected: bool = False,
 ) -> bool:
     """Render one product card and return whether it was selected."""
     product = recommendation.product
-    with st.container(border=True):
-        visual, detail = st.columns([1, 1.55], gap="large")
-        with visual:
-            product_image(product.image_path, product.image_alt_zh)
-        with detail:
-            st.caption(f"推荐 {rank} · {product.product_name_en}")
-            st.markdown(f"### {product.product_name_zh}")
-            st.write(recommendation_reason(recommendation, participating))
-            st.markdown(f"**{_money(product.price_min_fen)}–{_money(product.price_max_fen)} / 件**")
-            matched = [
-                DISPLAY_TAGS[tag] for tag in recommendation.matched_tags if tag in DISPLAY_TAGS
-            ]
-            if matched:
-                badges([(label, "ok") for label in matched[:4]])
-            st.caption(f"可支持的定制方向：{_customization_text(recommendation)}")
-        with st.expander("查看详情"):
+    with st.container(border=True, key=f"recommendation_card_{product.product_id}"):
+        product_image(product.image_path, product.image_alt_zh)
+        reason = recommendation_reason(recommendation, participating)
+        st.markdown(
+            '<div class="hl-product-copy">'
+            f'<span class="hl-product-rank">推荐 {rank} · '
+            f'{escape(product.product_name_en)}</span>'
+            f'<h3>{escape(product.product_name_zh)}</h3>'
+            f'<strong class="hl-product-price">{_money(product.price_min_fen)}–'
+            f'{_money(product.price_max_fen)} / 件</strong>'
+            f'<p class="hl-product-reason">{escape(reason)}</p></div>',
+            unsafe_allow_html=True,
+        )
+        matched = [DISPLAY_TAGS[tag] for tag in recommendation.matched_tags if tag in DISPLAY_TAGS]
+        badge_items = [(label, "ok") for label in matched[: (2 if selected else 3)]]
+        if selected:
+            badge_items.append(("✓ 已选择", "ok"))
+        badges(badge_items)
+        with st.expander("看看为什么适合"):
             st.write(f"适合对象或场景：{'、'.join(matched[:4]) or '通用文化礼赠'}")
             meaning_text = "、".join(label for label in matched if label in MEANINGS)
             st.write(f"文化寓意：{meaning_text or '以文化内容页为准'}")
-            st.write(f"尺寸：{product.dimensions_text}")
-            st.write(f"材料：{product.material_text}")
-            st.write(f"目录起订量：{product.min_order_qty} 件")
-            st.write(f"目录基础制作周期：{product.lead_time_days} 天")
-        with st.expander("为什么推荐给我？"):
+            st.write(f"可支持的定制方向：{_customization_text(recommendation)}")
+            st.write(f"作品资料：{product.dimensions_text} · {product.material_text}")
+            st.write(
+                f"目录起订量：{product.min_order_qty} 件；基础制作周期：{product.lead_time_days} 天"
+            )
+            st.markdown("**推荐依据**")
             for key, dimension in recommendation.score_breakdown.items():
                 if key in participating:
                     st.write(f"**{DIMENSION_LABELS[key]}**：{dimension.explanation}")
             st.caption("详细评分仅用于解释当前排序，不代表购买概率或履约承诺。")
+        if selected:
+            st.markdown(
+                '<div class="hl-card-selected-action">已加入当前方案</div>',
+                unsafe_allow_html=True,
+            )
+            return False
         return st.button(
-            "选择这件礼品",
+            "选择这件礼物",
             key=f"select_{product.product_id}",
             type="primary" if rank == 1 else "secondary",
             width="stretch",

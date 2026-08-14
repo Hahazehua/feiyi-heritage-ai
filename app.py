@@ -46,7 +46,8 @@ from heritagelink.request_parser import (
     RequestValidationError,
 )
 from heritagelink.ui.catalog_gallery import render_catalog_gallery
-from heritagelink.ui.components import badges, product_image, render_hero
+from heritagelink.ui.components import badges, product_image, render_hero, render_section_header
+from heritagelink.ui.inspiration_cards import render_inspiration_cards
 from heritagelink.ui.product_card import render_product_card
 from heritagelink.ui.requirements import (
     MEANINGS,
@@ -63,19 +64,6 @@ SOURCE_URL_RE = re.compile(r"https://[^\s；;]+")
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data" / "demo"
 REFERENCE_CATALOG_PATH = ROOT / "data" / "catalog" / "heritage_products.csv"
-
-QUICK_STARTS = (
-    "送海外合作伙伴",
-    "送教授或长辈",
-    "企业周年纪念",
-    "我还没有明确想法",
-)
-QUICK_TEXT = {
-    "送海外合作伙伴": "我想给海外合作伙伴准备一份有中国文化特色的礼物。",
-    "送教授或长辈": "我想给教授或长辈准备一份典雅、有文化故事的礼物。",
-    "企业周年纪念": "我们正在准备企业周年纪念礼品。",
-    "我还没有明确想法": "我还没有明确想法，想先听听你的建议。",
-}
 
 TAG_LABELS = {
     **{value: key for key, value in RECIPIENTS.items()},
@@ -228,7 +216,8 @@ def _process_message(message: str, *, entry_source: str = "chat") -> None:
             if entry_source == "recommend_now"
             else RequestedAction.CONTINUE_CONVERSATION
         )
-        _run_agent(action, text=message, source=entry_source)
+        with st.spinner("正在从传统工艺中寻找合适的选择…"):
+            _run_agent(action, text=message, source=entry_source)
     except (RequestValidationError, DataValidationError, ValueError) as exc:
         st.session_state["friendly_error"] = str(exc)
 
@@ -293,38 +282,67 @@ def _summary_items(parsed: ParsedCustomerRequest) -> list[tuple[str, str]]:
     return [(label, value) for label, value in rows if value]
 
 
+def _quick_replies(question: str) -> tuple[str, ...]:
+    if "预算" in question or "价" in question:
+        return ("500元以内", "500–1000元", "1000–3000元", "我还没确定")
+    if "风格" in question or "传统" in question:
+        return ("庄重典雅", "现代新中式", "更有传统特色", "你帮我决定")
+    if "数量" in question:
+        return ("1件", "10件左右", "30件左右", "还没确定")
+    return ("海外合作伙伴", "教授或老师", "长辈", "朋友")
+
+
 def _render_conversation() -> None:
-    st.markdown("## AI 礼品顾问")
     state = st.session_state["conversation_state"]
-    with st.chat_message("assistant"):
-        st.write(
-            "您好，我是 HAHA｜飞颐礼遇顾问。您可以先告诉我礼物准备送给谁，"
-            "或者描述一个大概的礼赠场景。"
-        )
-    for message in state.messages:
-        with st.chat_message(message.role):
-            st.write(message.content)
     if not state.raw_user_texts:
-        columns = st.columns(2)
-        for index, label in enumerate(QUICK_STARTS):
-            if columns[index % 2].button(label, key=f"quick_{index}", width="stretch"):
-                _process_message(QUICK_TEXT[label], entry_source=f"quick:{label}")
+        with st.container(key="landing_composer"):
+            prompt = st.chat_input(
+                "描述赠礼对象或场景…",
+                key="landing_prompt",
+            )
+            if prompt:
+                _process_message(prompt)
                 st.rerun()
-    prompt = st.chat_input("说说这次想送给谁，或输入您的礼赠场景")
+        render_inspiration_cards(ROOT, _process_message)
+        return
+    with st.container(key="conversation_thread"):
+        render_section_header(
+            "礼赠对话",
+            kicker="CONVERSATION",
+            section="conversation",
+        )
+        for message in state.messages:
+            with st.chat_message(message.role):
+                if message.role == "assistant":
+                    st.caption("HAHA")
+                st.write(message.content)
+        if state.clarification_questions:
+            st.caption("可以直接回答，也可以快速选择")
+            with st.container(key="quick_reply_grid"):
+                columns = st.columns(4)
+                for index, reply in enumerate(_quick_replies(state.clarification_questions[0])):
+                    if columns[index].button(reply, key=f"reply_{index}", width="stretch"):
+                        _process_message(reply, entry_source="quick_reply")
+                        st.rerun()
+        with st.container(key="conversation_actions"):
+            recommend, restart = st.columns(2)
+            if recommend.button("先看看推荐", type="primary", width="stretch"):
+                _process_message("请先为我推荐，我之后再调整。", entry_source="recommend_now")
+                st.rerun()
+            if restart.button("重新开始", width="stretch"):
+                _run_agent(RequestedAction.RESTART, source="restart")
+                st.session_state["show_requirement_editor"] = False
+                st.rerun()
+        if error := st.session_state.pop("friendly_error", None):
+            st.info(error)
+
+
+def _render_sticky_composer() -> None:
+    st.markdown('<div class="hl-composer-safe-space"></div>', unsafe_allow_html=True)
+    prompt = st.chat_input("继续描述你的想法…", key="conversation_prompt")
     if prompt:
         _process_message(prompt)
         st.rerun()
-    if state.raw_user_texts:
-        recommend, restart = st.columns(2)
-        if recommend.button("先为我推荐", type="primary", width="stretch"):
-            _process_message("请先为我推荐，我之后再调整。", entry_source="recommend_now")
-            st.rerun()
-        if restart.button("重新开始", width="stretch"):
-            _run_agent(RequestedAction.RESTART, source="restart")
-            st.session_state["show_requirement_editor"] = False
-            st.rerun()
-    if error := st.session_state.pop("friendly_error", None):
-        st.info(error)
 
 
 def _render_requirement_summary() -> None:
@@ -333,40 +351,46 @@ def _render_requirement_summary() -> None:
         return
     context = st.session_state.get("recommendation_context")
     display = context.effective_request if isinstance(context, RecommendationContext) else parsed
-    st.markdown("## 当前需求摘要")
-    items = _summary_items(display)
-    if items:
-        tags = "".join(f"<span>{escape(label)}：{escape(value)}</span>" for label, value in items)
-        st.markdown(f'<div class="hl-summary">{tags}</div>', unsafe_allow_html=True)
-    else:
-        st.caption("我们先从赠礼对象或场景开始，之后可以随时调整。")
-    if isinstance(context, RecommendationContext):
-        st.write(context.direction_summary)
-    edit, rematch = st.columns(2)
-    if edit.button("调整需求", width="stretch"):
-        st.session_state["show_requirement_editor"] = not st.session_state.get(
-            "show_requirement_editor", False
+    with st.container(key="requirement_summary"):
+        render_section_header(
+            "当前礼赠方向",
+            kicker="GIFT BRIEF",
+            section="requirements",
         )
-        st.rerun()
-    if rematch.button("重新匹配", width="stretch"):
-        state = st.session_state["conversation_state"]
-        st.session_state["conversation_state"] = replace(state, ready_to_recommend=True)
-        _generate_recommendations()
-        st.rerun()
-    if st.session_state.get("show_requirement_editor"):
-        with st.container(border=True):
-            st.caption("只修改您希望调整的条件，留空项目不会被当作硬性要求。")
-            if render_structured_form(
-                prefix="advisor_edit", parsed=display, submit_label="保存并重新匹配"
-            ):
-                try:
-                    updated = parsed_from_widgets("advisor_edit", display)
-                except RequestValidationError as exc:
-                    st.info(str(exc))
-                else:
-                    _accept_structured_request(updated)
-                    st.session_state["show_requirement_editor"] = False
-                    st.rerun()
+        items = _summary_items(display)
+        if items:
+            tags = "".join(f"<span>{escape(value)}</span>" for _, value in items)
+            st.markdown(f'<div class="hl-summary">{tags}</div>', unsafe_allow_html=True)
+        else:
+            st.caption("我们先从赠礼对象或场景开始，之后可以随时调整。")
+        if isinstance(context, RecommendationContext):
+            st.write(context.direction_summary)
+        with st.container(key="requirement_actions"):
+            edit, rematch = st.columns(2)
+            if edit.button("调整需求", width="stretch"):
+                st.session_state["show_requirement_editor"] = not st.session_state.get(
+                    "show_requirement_editor", False
+                )
+                st.rerun()
+            if rematch.button("重新匹配", width="stretch"):
+                state = st.session_state["conversation_state"]
+                st.session_state["conversation_state"] = replace(state, ready_to_recommend=True)
+                _generate_recommendations()
+                st.rerun()
+        if st.session_state.get("show_requirement_editor"):
+            with st.container(border=True, key="requirement_editor"):
+                st.caption("只修改您希望调整的条件，留空项目不会被当作硬性要求。")
+                if render_structured_form(
+                    prefix="advisor_edit", parsed=display, submit_label="保存并重新匹配"
+                ):
+                    try:
+                        updated = parsed_from_widgets("advisor_edit", display)
+                    except RequestValidationError as exc:
+                        st.info(str(exc))
+                    else:
+                        _accept_structured_request(updated)
+                        st.session_state["show_requirement_editor"] = False
+                        st.rerun()
 
 
 def _known_customer_fields(parsed: ParsedCustomerRequest) -> frozenset[str]:
@@ -392,33 +416,61 @@ def _render_recommendations(bundle: DataBundle) -> None:
         context, RecommendationContext
     ):
         return
-    st.markdown("## 为您挑选的文化礼品")
-    st.write("根据赠礼对象、场景和您偏好的文化方向，我为您挑选了以下作品。")
-    st.checkbox(
-        "允许匿名保存本次礼品偏好和选择，用于优化未来推荐。",
-        key="analytics_consent",
-        help="不保存姓名、联系方式或完整聊天原文；不同意也可以正常使用。",
-    )
     response = result.response
-    if not response.recommendations:
-        st.info(
-            "当前目录中暂时没有同时符合这些条件的作品。您可以调整预算、数量、交付或定制要求后重新匹配。"
-        )
-        return
+    count = len(response.recommendations)
     participating = frozenset(result.participating_dimensions)
     parsed = context.effective_request
     selected_id = st.session_state.get("selected_product_id")
-    for rank, recommendation in enumerate(response.recommendations, start=1):
-        request = result.request_by_product[recommendation.product.product_id]
-        if render_product_card(
-            rank,
-            recommendation,
-            request,
-            participating,
-            _known_customer_fields(parsed),
-        ):
-            _select_product(recommendation.product.product_id)
-            st.rerun()
+    with st.container(key="recommendation_section"):
+        result_state = "items" if response.recommendations else "no-match"
+        st.markdown(
+            f'<span class="hl-ui-marker" data-ui-result="{result_state}"></span>',
+            unsafe_allow_html=True,
+        )
+        render_section_header(
+            f"我为您挑选了 {count} 件更适合这次场景的作品",
+            kicker="CURATED FOR YOU",
+            copy="每一件都来自当前可推荐目录；您可以选择，也可以继续聊天调整方向。",
+            section="recommendations",
+        )
+        st.checkbox(
+            "允许匿名保存本次礼品偏好和选择，用于优化未来推荐。",
+            key="analytics_consent",
+            help="不保存姓名、联系方式或完整聊天原文；不同意也可以正常使用。",
+        )
+        if not response.recommendations:
+            st.info("目前还没有作品同时满足这些条件。")
+            if response.primary_conflicts:
+                st.markdown("**主要限制来自：**")
+                for conflict in response.primary_conflicts[:3]:
+                    st.write(f"• {conflict.split('（', 1)[0]}")
+            no_match_actions = (
+                ("放宽预算", "可以适当放宽预算，请按接近的方案重新推荐。"),
+                ("调整交期", "交期可以放宽，请重新为我匹配。"),
+                ("看看接近的方案", "请告诉我哪些条件最值得放宽，以便看看接近的方案。"),
+            )
+            with st.container(key="no_match_actions"):
+                actions = st.columns(3)
+                for column, (label, text) in zip(actions, no_match_actions, strict=True):
+                    if column.button(label, width="stretch"):
+                        _process_message(text, entry_source="no_match_adjustment")
+                        st.rerun()
+            return
+        with st.container(key="recommendation_grid"):
+            columns = st.columns(3)
+            for rank, recommendation in enumerate(response.recommendations, start=1):
+                request = result.request_by_product[recommendation.product.product_id]
+                with columns[(rank - 1) % 3]:
+                    if render_product_card(
+                        rank,
+                        recommendation,
+                        request,
+                        participating,
+                        _known_customer_fields(parsed),
+                        selected=recommendation.product.product_id == selected_id,
+                    ):
+                        _select_product(recommendation.product.product_id)
+                        st.rerun()
     if selected_id:
         _render_selected_plan(bundle, str(selected_id), event)
 
@@ -448,29 +500,47 @@ def _render_selected_plan(
     context = st.session_state.get("recommendation_context")
     if recommendation is None or not isinstance(context, RecommendationContext):
         return
-    st.markdown("## 您选择的礼品")
-    with st.container(border=True):
-        image, detail = st.columns([1, 1.5])
-        with image:
-            product_image(recommendation.product.image_path, recommendation.product.image_alt_zh)
-        with detail:
-            st.markdown(f"### {recommendation.product.product_name_zh}")
-            st.write(context.direction_summary)
-            budget = context.effective_request.budget_per_item
-            budget_fen = _yuan_to_fen(budget) if budget else None
-            st.write(
-                f"数量：{context.effective_request.quantity or '可后续沟通'}　·　"
-                f"单件预算：{_money(budget_fen)}"
-            )
-        change, generate = st.columns(2)
-        if change.button("更换产品", width="stretch"):
-            st.session_state.pop("selected_product_id", None)
-            st.session_state.pop("selection_event", None)
-            st.session_state.pop("customization_inquiry", None)
-            st.rerun()
-        if generate.button("生成我的礼品方案", type="primary", width="stretch"):
-            _run_agent(RequestedAction.GENERATE_PLAN, source="generate_plan")
-            st.rerun()
+    with st.container(key="selected_plan"):
+        render_section_header(
+            "已选礼物",
+            kicker="SELECTED GIFT",
+            section="selected-plan",
+        )
+        st.markdown(
+            '<div class="hl-selected-copy"><strong>HAHA</strong><br>'
+            "这件作品比较符合您目前的礼赠需求。"
+            "接下来我可以根据对象、数量和定制要求，整理一份完整的礼品方案。</div>",
+            unsafe_allow_html=True,
+        )
+        with st.container(border=True, key="selected_plan_card"):
+            image, detail = st.columns([1, 1.5])
+            with image:
+                product_image(
+                    recommendation.product.image_path,
+                    recommendation.product.image_alt_zh,
+                )
+            with detail:
+                st.markdown(f"### {recommendation.product.product_name_zh}")
+                st.write(context.direction_summary)
+                budget = context.effective_request.budget_per_item
+                budget_fen = _yuan_to_fen(budget) if budget else None
+                st.write(
+                    f"数量：{context.effective_request.quantity or '可后续沟通'}　·　"
+                    f"单件预算：{_money(budget_fen)}"
+                )
+            with st.container(key="selected_plan_actions"):
+                change, adjust, generate = st.columns(3)
+                if change.button("换一件", width="stretch"):
+                    st.session_state.pop("selected_product_id", None)
+                    st.session_state.pop("selection_event", None)
+                    st.session_state.pop("customization_inquiry", None)
+                    st.rerun()
+                if adjust.button("继续调整", width="stretch"):
+                    st.session_state["show_requirement_editor"] = True
+                    st.rerun()
+                if generate.button("生成我的礼品方案", type="primary", width="stretch"):
+                    _run_agent(RequestedAction.GENERATE_PLAN, source="generate_plan")
+                    st.rerun()
     inquiry = st.session_state.get("customization_inquiry")
     if isinstance(inquiry, dict):
         _render_final_scheme(bundle, recommendation, inquiry, context)
@@ -501,29 +571,70 @@ def _render_final_scheme(
     content = st.session_state.get("grounded_content")
     if not isinstance(content, BilingualContent):
         return
-    st.markdown("## 您的专属礼品方案")
-    badges([("礼品已选定", "ok"), ("可继续调整", "wait")])
-    st.markdown("### 推荐定制方向")
-    st.write(f"主题方向：{parsed.requested_theme or context.direction_summary}")
-    st.write(f"Logo：{'加入企业 Logo' if parsed.logo_required else '可按需要沟通'}")
-    st.write(f"题字：{parsed.requested_text or '可结合赠礼场景进一步确定'}")
-    st.write(f"包装：{parsed.packaging_requirement or '采用与当前礼赠场景相符的包装方向'}")
-    zh, en = st.tabs(("中文文化介绍", "English Cultural Story"))
-    with zh:
-        st.write(content.zh.cultural_story)
-        _render_source_note(content.zh.source_note)
-    with en:
-        st.write(content.en.cultural_story)
-        _render_source_note(content.en.source_note)
-    st.markdown("### 下一步")
-    st.write("下载方案后，可继续确认具体定制内容、正式价格、制作安排与交付方式。")
-    st.download_button(
-        "下载方案",
-        data=inquiry_to_json(inquiry),
-        file_name=f"{inquiry['inquiry_id']}.json",
-        mime="application/json",
-        width="stretch",
-    )
+    with st.container(key="final_plan"):
+        render_section_header(
+            "您的专属礼赠方案",
+            kicker="PERSONAL GIFT PLAN",
+            section="final-plan",
+        )
+        badges([("礼品已选定", "ok"), ("可继续调整", "wait")])
+        cover, summary = st.columns([1, 1.45])
+        with cover:
+            product_image(recommendation.product.image_path, recommendation.product.image_alt_zh)
+        plan_items = (
+            ("产品", recommendation.product.product_name_zh),
+            ("适合对象", _friendly_value(parsed.recipient, RECIPIENTS) or "可继续沟通"),
+            ("场景", _friendly_value(parsed.scene, SCENES) or "可继续沟通"),
+            (
+                "预算",
+                f"¥{parsed.budget_per_item:,.0f} / 件"
+                if parsed.budget_per_item
+                else "可继续沟通",
+            ),
+            (
+                "定制方向",
+                " · ".join(
+                    filter(
+                        None,
+                        (
+                            "Logo" if parsed.logo_required else None,
+                            parsed.requested_text,
+                            "双语说明卡",
+                        ),
+                    )
+                ),
+            ),
+            ("下一步", "向商家确认交期和最终报价"),
+        )
+        with summary:
+            markup = "".join(
+                '<div class="hl-plan-item">'
+                f"<small>{escape(label)}</small>"
+                f"<strong>{escape(value or '按需沟通')}</strong></div>"
+                for label, value in plan_items
+            )
+            st.markdown(f'<div class="hl-plan-grid">{markup}</div>', unsafe_allow_html=True)
+        st.markdown("### 文化表达")
+        zh, en = st.tabs(("中文文化介绍", "English Cultural Story"))
+        with zh:
+            st.write(content.zh.cultural_story)
+            _render_source_note(content.zh.source_note)
+        with en:
+            st.write(content.en.cultural_story)
+            _render_source_note(content.en.source_note)
+        with st.container(key="final_plan_actions"):
+            download, adjust = st.columns(2)
+            with download:
+                st.download_button(
+                    "下载礼品方案",
+                    data=inquiry_to_json(inquiry),
+                    file_name=f"{inquiry['inquiry_id']}.json",
+                    mime="application/json",
+                    width="stretch",
+                )
+            if adjust.button("继续调整", key="adjust_final_plan", width="stretch"):
+                st.session_state["show_requirement_editor"] = True
+                st.rerun()
 
 
 def _render_secondary_form() -> None:
@@ -600,14 +711,19 @@ def main() -> None:
     except DataValidationError:
         st.info("产品资料暂时无法加载，请稍后再试。")
         st.stop()
-    render_hero()
+    state = st.session_state["conversation_state"]
+    render_hero(compact=bool(state.raw_user_texts))
     _render_conversation()
-    _render_secondary_form()
     _render_requirement_summary()
     _render_recommendations(bundle)
-    _render_catalog()
-    _render_service_note()
+    if state.raw_user_texts:
+        with st.container(key="secondary_tools"):
+            _render_secondary_form()
+            _render_catalog()
+            _render_service_note()
     _render_agent_trace()
+    if state.raw_user_texts:
+        _render_sticky_composer()
 
 
 if __name__ == "__main__":

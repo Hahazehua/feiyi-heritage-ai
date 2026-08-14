@@ -16,6 +16,31 @@ from openai import (
 from heritagelink.config import DeepSeekConfig
 from heritagelink.dialogue_prompt import DIALOGUE_SYSTEM_PROMPT
 
+COMPARISON_SYSTEM_PROMPT = """You are explaining a structured product comparison.
+Use only facts in the supplied JSON. Do not invent price, material, customization,
+shipping, delivery, capacity, heritage status, or certification. Unknown information
+must remain unknown. Explain trade-offs briefly and never claim universal superiority.
+Return one JSON object with exactly one string field named explanation.
+"""
+
+ARTISAN_EXTRACTION_SYSTEM_PROMPT = """You structure an artisan's own product notes.
+Use only values explicitly present in the supplied JSON. Return one JSON object and
+only these optional fields: product_name_zh, product_name_en, craft_name, region,
+symbolism, suggested_gifting_contexts, customization, logo_supported, price_min_fen,
+price_max_fen, currency. Omit unknown values. Do not infer certification, artisan
+identity, material, price, MOQ, capacity, lead time, shipping, customization, or any
+commercial promise. All output is an unverified candidate for human review.
+"""
+
+ARTISAN_BILINGUAL_SYSTEM_PROMPT = """You write a grounded bilingual draft for an
+artisan to review. Use only the supplied structured facts, preserve unknowns, and do
+not invent cultural history, certification, identity, material, price, customization,
+shipping, capacity, delivery, or merchant promises. Return exactly these ten string
+fields: overview_zh, overview_en, craft_background_zh, craft_background_en,
+cultural_meaning_zh, cultural_meaning_en, gifting_contexts_zh, gifting_contexts_en,
+customization_zh, customization_en. Clearly state when information needs confirmation.
+"""
+
 
 class LLMClientError(RuntimeError):
     """Base class for safe, user-facing DeepSeek client failures."""
@@ -154,6 +179,33 @@ class DeepSeekClient:
             ensure_ascii=False,
         )
         return self._extract_json(DIALOGUE_SYSTEM_PROMPT, user_payload)
+
+    def explain_comparison(self, comparison: dict[str, object]) -> str:
+        """Render one grounded narrative from a prevalidated structured comparison."""
+        payload = self._extract_json(
+            COMPARISON_SYSTEM_PROMPT,
+            json.dumps(comparison, ensure_ascii=False),
+        )
+        if set(payload) != {"explanation"}:
+            raise LLMInvalidJSONError("比较说明必须只包含 explanation 字段。")
+        explanation = payload["explanation"]
+        if not isinstance(explanation, str) or not explanation.strip():
+            raise LLMInvalidJSONError("比较说明 explanation 必须是非空字符串。")
+        return explanation.strip()
+
+    def extract_artisan_draft(self, payload: dict[str, object]) -> dict[str, object]:
+        """Extract bounded onboarding candidates; callers keep them pending review."""
+        return self._extract_json(
+            ARTISAN_EXTRACTION_SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
+        )
+
+    def write_artisan_bilingual(self, payload: dict[str, object]) -> dict[str, object]:
+        """Create grounded bilingual copy without upgrading any fact status."""
+        return self._extract_json(
+            ARTISAN_BILINGUAL_SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
+        )
 
     def _extract_json(self, system_prompt: str, user_content: str) -> dict[str, Any]:
         """Call the compatible JSON endpoint with one bounded safe retry."""

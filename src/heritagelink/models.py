@@ -9,6 +9,8 @@ from types import MappingProxyType
 
 import pandas as pd
 
+from heritagelink.heritage_passport_models import PublicationStatus
+
 DEMO_DISCLAIMER = "MVP演示数据"
 MVP_DISCLAIMER_PREFIX = "MVP演示数据"
 
@@ -106,6 +108,7 @@ class Product:
     image_attribution: str
     data_quality_level: str
     catalog_role: str
+    publication_status: PublicationStatus
     recipient_tags: frozenset[str]
     occasion_tags: frozenset[str]
     style_tags: frozenset[str]

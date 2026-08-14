@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import streamlit as st
 
+from heritagelink.heritage_passport_models import HeritagePassport
 from heritagelink.models import GiftRequest, Recommendation
 from heritagelink.ui.components import badges, product_image
+from heritagelink.ui.heritage_passport import render_heritage_passport
 from heritagelink.ui.requirements import MEANINGS, RECIPIENTS, SCENES, STYLES
 
 DIMENSION_LABELS = {
@@ -67,8 +71,9 @@ def render_product_card(
     request: GiftRequest,
     participating: frozenset[str],
     known_customer_fields: frozenset[str],
-) -> bool:
-    """Render one product card and return whether it was selected."""
+    passport: HeritagePassport | None = None,
+) -> Literal["select", "compare"] | None:
+    """Render one product card and return the customer's chosen card action."""
     product = recommendation.product
     with st.container(border=True):
         visual, detail = st.columns([1, 1.55], gap="large")
@@ -98,9 +103,21 @@ def render_product_card(
                 if key in participating:
                     st.write(f"**{DIMENSION_LABELS[key]}**：{dimension.explanation}")
             st.caption("详细评分仅用于解释当前排序，不代表购买概率或履约承诺。")
-        return st.button(
+        if passport is not None:
+            with st.expander("文化护照"):
+                render_heritage_passport(passport, audience="buyer", compact=True)
+        select, compare = st.columns(2)
+        if select.button(
             "选择这件礼品",
             key=f"select_{product.product_id}",
             type="primary" if rank == 1 else "secondary",
             width="stretch",
-        )
+        ):
+            return "select"
+        if compare.button(
+            "和其他商品比较",
+            key=f"compare_{product.product_id}",
+            width="stretch",
+        ):
+            return "compare"
+        return None

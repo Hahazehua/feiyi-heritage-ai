@@ -1,60 +1,48 @@
-warning: in the working copy of '.env.example', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'app.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/ARCHITECTURE.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/DATA_SCHEMA.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/IMPLEMENTATION_PLAN.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/PRODUCT_SPEC.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/RECOMMENDATION_DESIGN.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/conversation_state.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/data_loader.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/dialogue_manager.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/models.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/request_parser.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/ui/catalog_gallery.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/ui/components.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/ui/product_card.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/heritagelink/ui/theme.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_app_smoke.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_catalog.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_catalog_app.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_content.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_data_loader.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_dialogue_manager.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_recommender.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'tests/test_request_parser.py', LF will be replaced by CRLF the next time Git touches it
- .env.example                           |    8 [32m+[m
- .gitignore                             |    5 [32m+[m
- README.md                              |   97 [32m++[m[31m-[m
- app.py                                 | 1126 [32m+++++++++++++[m[31m-------------------[m
- data/catalog/heritage_products.csv     |   39 [32m+[m[31m-[m
- data/demo/customization_options.csv    |   89 [32m+[m[31m--[m
- data/demo/heritage_items.csv           |    8 [32m+[m[31m-[m
- data/demo/product_texts.csv            |   62 [32m+[m[31m-[m
- data/demo/products.csv                 |   79 [32m++[m[31m-[m
- docs/ARCHITECTURE.md                   |   24 [32m+[m[31m-[m
- docs/DATA_SCHEMA.md                    |   30 [32m+[m
- docs/IMPLEMENTATION_PLAN.md            |   18 [32m+[m[31m-[m
- docs/PRODUCT_SPEC.md                   |   18 [32m+[m[31m-[m
- docs/RECOMMENDATION_DESIGN.md          |    4 [32m+[m
- pyproject.toml                         |    6 [32m+[m[31m-[m
- src/heritagelink/conversation_state.py |    2 [32m+[m[31m-[m
- src/heritagelink/data_loader.py        |   63 [32m+[m[31m-[m
- src/heritagelink/dialogue_manager.py   |   75 [32m++[m[31m-[m
- src/heritagelink/models.py             |   17 [32m+[m
- src/heritagelink/request_parser.py     |    8 [32m+[m
- src/heritagelink/ui/catalog_gallery.py |   12 [32m+[m[31m-[m
- src/heritagelink/ui/components.py      |   12 [32m+[m[31m-[m
- src/heritagelink/ui/product_card.py    |  156 [32m++[m[31m---[m
- src/heritagelink/ui/theme.py           |    9 [32m+[m[31m-[m
- tests/test_app_smoke.py                |  300 [32m++++[m[31m-----[m
- tests/test_catalog.py                  |   13 [32m+[m[31m-[m
- tests/test_catalog_app.py              |   16 [32m+[m[31m-[m
- tests/test_content.py                  |    2 [32m+[m[31m-[m
- tests/test_data_loader.py              |   12 [32m+[m[31m-[m
- tests/test_dialogue_manager.py         |   21 [32m+[m[31m-[m
- tests/test_recommender.py              |    4 [32m+[m[31m-[m
- tests/test_request_parser.py           |    7 [32m+[m[31m-[m
- 32 files changed, 1267 insertions(+), 1075 deletions(-)
+ README.md                                          | 361 [32m+++++[m[31m---[m
+ app.py                                             | 899 [32m++++++++++++++++++[m[31m-[m
+ docs/ARCHITECTURE.md                               | 145 [32m++[m[31m-[m
+ docs/DATA_SCHEMA.md                                | 112 [32m+++[m
+ docs/PRODUCT_SPEC.md                               | 162 [32m+++[m[31m-[m
+ docs/UX_SPEC.md                                    |  28 [32m+[m[31m-[m
+ docs/wave3/DEMO.md                                 |  57 [32m++[m
+ docs/wave3/PR_DESCRIPTION.md                       |  14 [32m+[m[31m-[m
+ docs/wave3/README.md                               |   9 [32m+[m[31m-[m
+ docs/wave3/SUBMISSION_CHECKLIST.md                 |   7 [32m+[m[31m-[m
+ docs/wave3/SUBMISSION_TEXT.md                      |  15 [32m+[m[31m-[m
+ docs/wave4/AI_SHOPPING.md                          | 255 [32m++++++[m
+ docs/wave4/ARTISAN_STUDIO.md                       | 162 [32m++++[m
+ docs/wave4/HERITAGE_PASSPORT.md                    | 131 [32m+++[m
+ src/heritagelink/agent_models.py                   |  20 [32m+[m
+ src/heritagelink/agent_orchestrator.py             | 253 [32m+++++[m[31m-[m
+ src/heritagelink/artisan_studio.py                 | 625 [32m+++++++++++++[m
+ src/heritagelink/catalog_eligibility.py            |  28 [32m+[m
+ src/heritagelink/comparison_models.py              | 216 [32m+++++[m
+ src/heritagelink/data_loader.py                    |   6 [32m+[m
+ src/heritagelink/heritage_passport.py              | 324 [32m+++++++[m
+ src/heritagelink/heritage_passport_models.py       | 187 [32m++++[m
+ src/heritagelink/llm_client.py                     |  52 [32m++[m
+ src/heritagelink/models.py                         |   3 [32m+[m
+ src/heritagelink/product_comparison.py             | 977 [32m+++++++++++++++++++++[m
+ src/heritagelink/repositories/__init__.py          |   8 [32m+[m
+ .../memory_artisan_draft_repository.py             |  31 [32m+[m
+ .../sqlite_artisan_draft_repository.py             | 182 [32m++++[m
+ src/heritagelink/request_parser.py                 |  12 [32m+[m
+ src/heritagelink/shopping_turn_router.py           | 263 [32m++++++[m
+ src/heritagelink/skills/recommendation_skill.py    |   3 [32m+[m[31m-[m
+ src/heritagelink/ui/artisan_studio.py              | 117 [32m+++[m
+ src/heritagelink/ui/catalog_gallery.py             |  33 [32m+[m[31m-[m
+ src/heritagelink/ui/comparison.py                  | 294 [32m+++++++[m
+ src/heritagelink/ui/heritage_passport.py           | 439 [32m+++++++++[m
+ src/heritagelink/ui/product_card.py                |  25 [32m+[m[31m-[m
+ src/heritagelink/ui/theme.py                       |  86 [32m++[m
+ tests/test_agent_orchestration.py                  | 216 [32m+++++[m
+ tests/test_app_smoke.py                            | 121 [32m+++[m
+ tests/test_artisan_app.py                          | 283 [32m++++++[m
+ tests/test_artisan_draft_repositories.py           | 148 [32m++++[m
+ tests/test_artisan_studio_domain.py                | 399 [32m+++++++++[m
+ tests/test_catalog_eligibility_and_passport.py     | 209 [32m+++++[m
+ tests/test_llm_client.py                           |  25 [32m+[m
+ tests/test_product_comparison.py                   | 373 [32m++++++++[m
+ tests/test_request_parser.py                       |   7 [32m+[m
+ tests/test_shopping_turn_router.py                 | 147 [32m++++[m
+ 47 files changed, 8221 insertions(+), 248 deletions(-)

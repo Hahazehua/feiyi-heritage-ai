@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
+from heritagelink.heritage_passport_models import PublicationStatus
 from heritagelink.models import MVP_DISCLAIMER_PREFIX, DataBundle, Product, readonly_mapping
 
 
@@ -564,6 +565,11 @@ def build_products(bundle: DataBundle) -> tuple[Product, ...]:
                 image_attribution=row["image_attribution"],
                 data_quality_level=row["data_quality_level"],
                 catalog_role=row["catalog_role"],
+                publication_status=(
+                    PublicationStatus.RECOMMENDABLE
+                    if row["catalog_role"] == "recommendation_demo"
+                    else PublicationStatus.REFERENCE_ONLY
+                ),
                 recipient_tags=row["recipient_tags"],
                 occasion_tags=row["occasion_tags"],
                 style_tags=row["style_tags"],

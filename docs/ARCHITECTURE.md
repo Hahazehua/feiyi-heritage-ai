@@ -2,7 +2,7 @@
 
 ## 1. 当前架构目标
 
-飞颐礼遇使用一个可本地运行的 Streamlit 单体应用验证交易前礼赠匹配流程。UI 只负责输入、session 写回和展示；统一 Agent 编排器负责调用顺序、门控和回退；字段校验、对话累计、推荐、内容组织和需求单构造位于七个可独立测试的薄包装 Skill 之后。
+飞颐礼遇使用一个可本地运行的 Streamlit 单体应用验证交易前礼赠匹配和手艺人资料整理流程。Buyer 是默认模式，Artisan Studio 通过顶部切换或 `?mode=artisan` 进入；两者共用应用壳层，但不共用业务 Repository。UI 只负责输入、session 写回和展示；统一 Agent 编排器负责 Buyer 路径的调用顺序、门控和回退；字段校验、对话累计、推荐、内容组织和需求单构造位于七个可独立测试的薄包装 Skill 之后。
 
 当前客户层为单页面聊天式顾问，领域层仍维持确定性推荐边界。新增 `inference_policy`/`recommendation_context` 分离用户陈述与软偏好推断，新增 `analytics`、`analytics_models` 和 `repositories` 分离 UI 与匿名事件存储。
 
@@ -12,7 +12,9 @@
 - 多轮累计、校验、问题选择和推荐就绪状态以本地代码为准；
 - 推荐硬约束、固定权重和稳定排序不可由模型或 UI 改写；
 - 产品主数据仍是本地 CSV；当前会话使用 Streamlit session；经用户授权的匿名选择事件可使用本地 SQLite 或云端 PostgreSQL；
+- Artisan 草稿使用独立的内存或 SQLite Repository，不写入 Buyer 匿名分析表，也不自动写入产品 CSV；
 - 馆藏参考事实、MVP 商品方案字段和模板表达必须保持可区分；
+- 每项 Artisan 事实分别记录来源和核验状态；AI 候选必须经逐项人工确认；
 - 未知客户字段保持未知，不得用推荐内部代理值冒充客户事实；
 - 核心流程在没有 API Key 和外部网络时仍可运行。
 - 数据库未配置或写入失败时不影响推荐、选择和方案下载。
@@ -20,10 +22,15 @@
 ### 1.1 当前单页面数据流
 
 ```text
-Streamlit UI → agent_orchestrator.run_agent_turn → AgentTurnResult
-→ Skills 1–3：需求理解、受控推断、稳定推荐
-→ Skills 4–5：选品后可靠内容与最终方案
-→ Skill 6：明确授权后匿名记录（无授权/故障不阻断）
+Streamlit UI
+→ shopping_turn_router（仅在已有推荐时识别比较/调整/选择）
+→ agent_orchestrator.run_agent_turn
+→ AgentTurnResult
+
+需求或调整 → Skills 1–3：需求理解、受控推断、稳定推荐
+当前推荐比较 → ProductComparisonService（application layer；七项 Skill 保持原合同）
+选品与方案 → Skills 4–5：可靠内容与最终方案
+授权记录 → Skill 6：明确授权后匿名记录（无授权/故障不阻断）
 
 显式离线入口 → Skill 7：匿名聚合指标（不回写推荐权重）
 ```
@@ -33,6 +40,61 @@ Streamlit UI → agent_orchestrator.run_agent_turn → AgentTurnResult
 Repository 不接收完整聊天原文。推荐事件使用会话 ID 与推荐签名生成稳定 UUID，选择事件使用推荐事件与产品 ID 生成稳定 UUID；数据库约束和 upsert 共同抵御 Streamlit rerun 重复写入。
 
 记录服务返回结构化安全状态；数据库错误被截断在分析边界内。选择信号分析由独立 CLI 或服务调用，不出现在公开客户 UI，也不自动影响线上推荐。
+
+### 1.2 AI Shopping 应用层
+
+`RequestedAction` 继续是唯一用户动作模型，并在兼容原动作的前提下支持：
+
+- `compare_recommendations`：比较当前全部正式推荐；
+- `compare_selected_products`：比较当前推荐中的指定序号范围；
+- `refine_recommendations`：把相对偏好更新送回现有 Skills 1–3；
+- `explain_difference`：解释当前推荐差异，不重新执行推荐；
+- `select_product`：自然语言选品继续复用现有 Skills 4–6 路径。
+
+`shopping_turn_router` 位于 Skill 1 之前，只解析已有推荐上下文中的序号与动作意图。它不读取商品事实、不计算分数，也不创建新的会话状态机。没有当前推荐时，消息保持 `continue_conversation`，照常进入 Skill 1。
+
+比较动作仍调用 `run_agent_turn(...)`。编排器把该动作交给 application-layer `ProductComparisonService`，并在正式七项 `execution_trace` 中明确记录各 Skill 未执行；结构化比较及其安全信息另存为 `application_trace`。因此 `AgentTurnResult.execution_trace` 的七项 Skill 合同与 Agent manifest 均未改变。
+
+比较服务的信任链为：
+
+```text
+current ProgressiveRecommendationResult allowlist
+→ full Product lookup
+→ catalog_role == recommendation_demo
+→ product / merchant / heritage status == active
+→ original recommendation order
+→ Structured ProductComparisonResult
+→ optional injected grounded narration or deterministic fallback
+```
+
+双重校验阻止被伪造的推荐快照、失效商品和 30 件 `inactive/catalog_reference` 进入正式比较。服务不创建比较分或新排名；调用方即使交换 `product_ids` 顺序，输出仍按原推荐顺序排列。
+
+每个可展示事实由 `ComparisonEvidence` 承载，并使用四态 `EvidenceState`：`verified_yes`、`verified_no`、`unknown`、`not_applicable`。价格、定制、数量、工期、便携性和国际运输都先检查相应事实状态；缺少可靠来源时保留为 `unknown`，不能从非空演示字段推断为已确认，也不能把缺失值显示为否定事实。
+
+可选语言叙述通过依赖注入进入 `ProductComparisonService`，只接收脱敏后的结构化比较。叙述异常或安全校验失败时，服务返回预先生成的 deterministic summary。当前编排器在未注入叙述客户端时自然使用该确定性回退，核心比较不依赖 API 或网络。
+
+`AgentSessionState` 保存当前 `comparison_result` 和最多最近三次 `comparison_history`。它们只存在于当前 Streamlit session；重新开始会清空，现有匿名选择 consent 不会触发比较历史持久化。
+
+### 1.3 Artisan Studio 与 Heritage Passport 应用层
+
+Artisan Studio 不经过 `run_agent_turn(...)`，也不注册新 Skill。它使用独立 application action `artisan_product_onboarding` 记录脱敏轨迹，并通过本地服务完成：草稿创建、候选字段提取、双语草稿、冲突检测、逐项人工确认、Heritage Passport 构造和提交审核。
+
+```text
+Artisan Streamlit mode
+→ ArtisanProductDraft（独立 session 草稿）
+→ optional extraction/writing client or deterministic fallback
+→ ProvenancedFact + BilingualProductDraft
+→ explicit field-level human confirmation
+→ HeritagePassport
+→ ArtisanDraftRepository
+→ pending_review
+```
+
+`FactSource` 与 `VerificationStatus` 是正交维度。`artisan_provided` 只表示输入来源，不能自动成为 `confirmed`；`ai_inferred` 永远不能直接确认。价格、材料、定制、最低起订量、运输和交期发生不一致时生成 `FactConflict`，在用户明确选择解决值之前禁止提交。
+
+发布状态为 `draft → pending_review → reference_only/recommendable/archived`。提交只进入 `pending_review`。评审模式的模拟审核不会把草稿转换成 canonical `Product`，也不会修改 CSV。生产环境还需要一条有身份、商家、来源和商业能力审核的显式发布事务。
+
+Skill 3 前的统一资格门控只接受逻辑发布状态为 `recommendable` 的 canonical 产品。为保持现有 CSV 合同不变，资格适配层把 `recommendation_demo` 且产品、商家与工艺状态均为 `active` 的记录视为 legacy `recommendable`，把 `catalog_reference/inactive` 视为 `reference_only`。因此 `draft`、`pending_review`、`reference_only`、`archived` 和所有未显式接入目录的 Artisan 记录都被排除。20 条正式演示推荐、30 条参考、50 条 canonical 总数保持不变。
 
 ## 2. 当前仓库结构
 
@@ -70,6 +132,16 @@ feiyi-heritage-ai/
 │       ├── catalog.py                # 开放馆藏参考目录和图片校验
 │       ├── recommender.py            # 硬过滤、八维基础评分和稳定排序
 │       ├── progressive_recommender.py # 渐进模式、覆盖度和已知维度归一化
+│       ├── catalog_eligibility.py      # Skill 3 与比较共享的正式资格门控
+│       ├── comparison_models.py       # 比较 schema、EvidenceState 与 Application trace
+│       ├── product_comparison.py      # application-layer 结构化比较与叙述回退
+│       ├── shopping_turn_router.py    # 推荐后的比较、调整与序号选品路由
+│       ├── heritage_passport_models.py # 事实来源、核验、发布状态与文化护照
+│       ├── heritage_passport.py      # canonical Product 到文化护照的保守适配
+│       ├── artisan_studio.py           # 草稿、AI 回退、冲突、确认和提交审核
+│       ├── repositories/
+│       │   ├── memory_artisan_draft_repository.py
+│       │   └── sqlite_artisan_draft_repository.py
 │       ├── content.py                # 本地双语内容组织
 │       ├── customization_concept.py  # 无合格方案时的独立概念对象
 │       ├── inquiry.py                # InquiryRequestContext 与需求单 JSON
@@ -79,6 +151,9 @@ feiyi-heritage-ai/
 │           ├── components.py
 │           ├── requirements.py
 │           ├── product_card.py
+│           ├── comparison.py
+│           ├── artisan_studio.py
+│           ├── heritage_passport.py
 │           ├── catalog_gallery.py
 │           └── inquiry_summary.py
 ├── tests/
@@ -106,23 +181,29 @@ feiyi-heritage-ai/
     ├── IMPLEMENTATION_PLAN.md
     ├── RECOMMENDATION_DESIGN.md
     ├── WAVE2_SKILLS.md
-    └── wave2/
-        ├── README.md
-        ├── WORKFLOW.md
-        ├── DEMO_CASE.md
-        ├── EVALUATION.md
-        ├── PR_DESCRIPTION.md
-        ├── COMPLIANCE.md
-        └── skills/
-            ├── 01-conversational-gift-request-understanding.md
-            ├── 02-progressive-heritage-gift-recommendation.md
-            ├── 03-grounded-bilingual-heritage-content.md
-            └── 04-merchant-ready-customization-brief.md
+    ├── wave2/
+    │   ├── README.md
+    │   ├── WORKFLOW.md
+    │   ├── DEMO_CASE.md
+    │   ├── EVALUATION.md
+    │   ├── PR_DESCRIPTION.md
+    │   ├── COMPLIANCE.md
+    │   └── skills/
+    │       ├── 01-conversational-gift-request-understanding.md
+    │       ├── 02-progressive-heritage-gift-recommendation.md
+    │       ├── 03-grounded-bilingual-heritage-content.md
+    │       └── 04-merchant-ready-customization-brief.md
+    └── wave4/
+        ├── AI_SHOPPING.md
+        ├── ARTISAN_STUDIO.md
+        └── HERITAGE_PASSPORT.md
 ```
 
 `CONTRIBUTING.md`、`SUBMISSIONS.md`、`submissions.json` 和 `.forgejo/` 是比赛基线或自动化文件，不属于业务模块。
 
 ## 3. 端到端数据流
+
+### 3.1 Buyer 数据流
 
 ```text
 自然语言首轮、连续补充或详细表单
@@ -151,6 +232,20 @@ feiyi-heritage-ai/
 10. `content` 只组织本地中英文资料、来源和审核状态，不在运行时机器翻译或补写事实。
 11. `InquiryRequestContext` 保存客户实际确认的信息；未知预算、数量、定制、Logo、运输和交期保持 `None`。
 12. `inquiry` 将客户上下文、一个选中方案快照、双语内容和开放问题构造为 JSON，并在下载前校验。
+13. `shopping_turn_router` 只在当前推荐存在时把比较、差异解释、相对偏好调整和序号选品映射到已有 `RequestedAction`。
+14. `product_comparison` 读取当前 `ProgressiveRecommendationResult`、`RecommendationContext` 与完整目录快照，执行 allowlist 和正式资格复核后构造结构化比较；它不调用推荐器或重排结果。
+15. `ui.comparison` 把同一结构化结果渲染为桌面列式矩阵与移动卡片；客户层不显示技术分数、内部 ID 或叙述来源。
+16. `ApplicationExecutionTrace` 只在评审模式作为独立 Application Action 展示，和固定七项 `SkillExecutionTrace` 分开。
+
+### 3.2 Artisan 数据流
+
+1. `app.py` 根据顶部模式切换或 `mode=artisan` 渲染同一 Streamlit 应用内的 Artisan Studio；默认仍为 Buyer。
+2. `ArtisanProductDraft` 保存不完整作品资料、可选图片、双语草稿、冲突与发布时间戳。
+3. `artisan_studio` 只把模型输出当作候选，经字段白名单和本地校验后写为 `ai_inferred/pending_review`；模型失败时使用确定性回退。
+4. `confirm_facts` 只升级用户本次明确选择的字段为 `artisan_confirmed/confirmed`，双语草稿单独确认。
+5. `build_passport` 分开汇总文化与商业核验状态；未知商业条件保持未知，不能显示为不支持。
+6. `submit_for_review` 拒绝未解决冲突，将草稿写入独立 `ArtisanDraftRepository` 并设为 `pending_review`。
+7. 模拟审核只演示状态变化，不向 Buyer 产品主数据或匿名分析 Repository 写入记录。
 
 ## 4. 对话理解与本地权威状态
 
@@ -238,10 +333,10 @@ DeepSeek 只提供候选结构化字段。模型返回的 `ready_to_recommend`�
 `data/demo/` 当前包含：
 
 - 1 个平台演示选品主体；
-- 4 个 `unverified` 工艺分类；
-- 20 件带图 MVP 礼赠方案；
-- 40 条中英文文化资料，全部为 `review_status=draft`；
-- 43 条 MVP 定制选项。
+- 10 个 `unverified` 工艺分类；
+- 50 件带图目录记录，其中 20 件 `recommendation_demo/active`、30 件 `catalog_reference/inactive`；
+- 100 条中英文文化资料，全部为 `review_status=draft`；
+- 44 条 MVP 定制选项。
 
 方案价格、数量、交期、运输和定制能力均为 MVP 演示字段，需要商家复核，不是正式报价或产能承诺。
 
@@ -251,12 +346,12 @@ DeepSeek 只提供候选结构化字段。模型返回的 `ready_to_recommend`�
 
 ### 6.3 双语内容
 
-`product_texts.csv` 为每件方案保存 `zh-CN` 和 `en` 两条本地资料。`content.py` 只组织这些字段和来源说明：
+`product_texts.csv` 为每件目录记录保存 `zh-CN` 和 `en` 两条本地资料。`content.py` 只组织这些字段和来源说明：
 
 - `approved` 才能表示已完成相应审核；
 - `draft` 必须显示“演示文案，待商家审核”；
 - 缺失字段显示“待商家确认 / Pending merchant confirmation”；
-- 当前 40 条资料全部为 `draft`，不得称为商家已审核内容；
+- 当前 100 条资料全部为 `draft`，不得称为商家已审核内容；
 - 当前不使用运行时机器翻译、RAG 或模型生成文化事实。
 
 ## 7. 商家需求单
@@ -297,6 +392,8 @@ DeepSeek 只提供候选结构化字段。模型返回的 `ready_to_recommend`�
 
 - 解析与对话：`test_request_parser.py`、`test_llm_client.py`、`test_dialogue_manager.py`；
 - 推荐：`test_progressive_recommender.py`、`test_recommender.py`、`evaluation_cases.json`；
+- Shopping 路由与比较：`test_shopping_turn_router.py`、`test_product_comparison.py`；
+- Artisan 领域、Repository、确认与发布门控：`test_artisan_studio_domain.py`；
 - 数据与来源：`test_data_loader.py`、`test_catalog.py`、`test_catalog_app.py`；
 - 内容与需求单：`test_content.py`、`test_inquiry.py`、`test_customization_concept.py`；
 - 端到端 UI：`test_app_smoke.py`；
@@ -308,7 +405,7 @@ DeepSeek 只提供候选结构化字段。模型返回的 `ready_to_recommend`�
 
 ## 10. 当前系统边界与未来演进
 
-本轮不包含 RAG、向量数据库、正式数据库、商家自主入驻、多商家后台、用户账号、支付、物流、税务、正式订单或生产级权限审核体系。
+本轮包含同一 Streamlit 应用中的 Artisan Studio 原型、独立草稿 Repository、逐字段来源与确认、Heritage Passport 和发布状态演示；不包含 RAG、向量数据库、生产数据库、真实身份或商家认证、多商家后台、用户账号、支付、物流、税务、正式订单或生产级权限审核体系。
 
 未来可以在真实商家和用户验证后增加正式存储、商家工作台、带来源的检索和模型辅助草稿，但必须继续保留：
 

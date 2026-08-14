@@ -22,6 +22,7 @@ from heritagelink.agent_trace import is_review_mode_enabled
 from heritagelink.conversation_state import new_conversation
 from heritagelink.data_loader import build_products, load_data
 from heritagelink.repositories.memory_choice_repository import MemoryChoiceRepository
+from heritagelink.shopping_turn_router import route_shopping_turn
 
 ROOT = Path(__file__).parents[1]
 NOW = datetime(2026, 7, 31, 8, tzinfo=UTC)
@@ -56,6 +57,8 @@ def _turn(
     *,
     text: str = "",
     product_id: str | None = None,
+    product_ids: tuple[str, ...] = (),
+    comparison_focus: tuple[str, ...] = (),
 ) -> UserTurn:
     return UserTurn(
         message_id=f"test-{action.value}",
@@ -63,6 +66,8 @@ def _turn(
         submitted_at=NOW,
         requested_action=action,
         product_id=product_id,
+        product_ids=product_ids,
+        comparison_focus=comparison_focus,
     )
 
 
@@ -238,3 +243,214 @@ def test_app_source_uses_unified_entry_without_direct_skill_orchestration() -> N
         "persist_recommendation_choice(",
     ):
         assert forbidden not in source
+
+
+def test_comparison_is_a_separate_application_action_and_skips_all_seven_skills(
+    catalog: CatalogSnapshot,
+) -> None:
+    recommendation = _run_recommendation(catalog)
+    current = tuple(
+        item.product.product_id for item in recommendation.recommendation_response.recommendations
+    )
+    original_response = recommendation.updated_session_state.recommendation_result.response
+
+    compared = run_agent_turn(
+        UserTurn(
+            message_id="compare-first-third",
+            text="第一个和第三个哪个更适合教授？",
+            submitted_at=NOW,
+            requested_action=RequestedAction.COMPARE_SELECTED_PRODUCTS,
+            product_ids=(current[0], current[2]),
+            comparison_focus=("recipient",),
+        ),
+        recommendation.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    skill_ids = {trace.skill_id for trace in compared.execution_trace}
+    assert compared.comparison_result is not None
+    assert compared.comparison_result.compared_product_ids == (current[0], current[2])
+    assert compared.recommendation_response is original_response
+    assert len(compared.execution_trace) == 7
+    assert all(trace.status is SkillStatus.SKIPPED for trace in compared.execution_trace)
+    assert compared.execution_trace[0].skill_id == "understand_gift_request"
+    assert compared.execution_trace[-1].skill_id == "analyze_gift_choice_signals"
+    assert skill_ids == {
+        "understand_gift_request",
+        "infer_soft_preferences",
+        "recommend_heritage_gifts",
+        "compose_grounded_content",
+        "build_final_gift_plan",
+        "capture_consented_choice",
+        "analyze_gift_choice_signals",
+    }
+    assert len(compared.application_trace) == 1
+    assert compared.application_trace[0].action_id == "product_comparison"
+    assert "product_comparison" not in skill_ids
+    assert compared.application_trace[0].output_summary["original_ranking_preserved"] is True
+
+
+def test_comparison_context_survives_selection_and_selection_uses_current_result(
+    catalog: CatalogSnapshot,
+) -> None:
+    recommendation = _run_recommendation(catalog)
+    first_id = recommendation.recommendation_response.recommendations[0].product.product_id
+    compared = run_agent_turn(
+        UserTurn(
+            message_id="compare-all-before-select",
+            text="帮我比较这三个",
+            submitted_at=NOW,
+            requested_action=RequestedAction.COMPARE_RECOMMENDATIONS,
+        ),
+        recommendation.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    selected = run_agent_turn(
+        _turn(RequestedAction.SELECT_PRODUCT, product_id=first_id),
+        compared.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    assert selected.updated_session_state.selected_product_id == first_id
+    assert selected.updated_session_state.comparison_result == compared.comparison_result
+    assert selected.updated_session_state.comparison_history == (compared.comparison_result,)
+    assert selected.overall_status is AgentOverallStatus.COMPLETED
+
+
+def test_comparison_follow_up_uses_the_recipient_named_in_this_turn(
+    catalog: CatalogSnapshot,
+) -> None:
+    recommendation = _run_recommendation(catalog, text=NORMAL)
+    message = "第一个和第三个哪个更适合教授？"
+    route = route_shopping_turn(message, recommendation.recommendation_response)
+
+    compared = run_agent_turn(
+        UserTurn(
+            message_id="compare-for-professor",
+            text=message,
+            submitted_at=NOW,
+            requested_action=route.action,
+            product_ids=route.product_ids,
+            comparison_focus=route.focus_dimensions,
+            focus_recipient=route.focus_recipient,
+            focus_scene=route.focus_scene,
+            focus_styles=route.focus_styles,
+            focus_symbolism=route.focus_symbolism,
+            focus_customization=route.focus_customization,
+            focus_international=route.focus_international,
+        ),
+        recommendation.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    assert compared.comparison_result is not None
+    assert all(
+        item.recipient_fit.state.value == "verified_no" for item in compared.comparison_result.items
+    )
+
+
+def test_comparison_follow_up_honors_the_explicit_dimension_focus(
+    catalog: CatalogSnapshot,
+) -> None:
+    recommendation = _run_recommendation(catalog, text=NORMAL)
+    message = "第一个和第三个哪个文化故事更好讲？"
+    route = route_shopping_turn(message, recommendation.recommendation_response)
+
+    compared = run_agent_turn(
+        UserTurn(
+            message_id="compare-culture-focus",
+            text=message,
+            submitted_at=NOW,
+            requested_action=route.action,
+            product_ids=route.product_ids,
+            comparison_focus=route.focus_dimensions,
+            focus_recipient=route.focus_recipient,
+            focus_scene=route.focus_scene,
+            focus_styles=route.focus_styles,
+            focus_symbolism=route.focus_symbolism,
+            focus_customization=route.focus_customization,
+            focus_international=route.focus_international,
+        ),
+        recommendation.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    assert compared.comparison_result is not None
+    assert compared.comparison_result.comparison_dimensions[0].value == "culture"
+
+
+def test_refinement_clears_stale_comparison_and_overrides_traditional_with_modern(
+    catalog: CatalogSnapshot,
+) -> None:
+    recommendation = _run_recommendation(
+        catalog,
+        text="送给合作伙伴的周年礼物，希望风格传统",
+    )
+    compared = run_agent_turn(
+        UserTurn(
+            message_id="compare-before-refine",
+            text="帮我比较这三个",
+            submitted_at=NOW,
+            requested_action=RequestedAction.COMPARE_RECOMMENDATIONS,
+        ),
+        recommendation.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    refined = run_agent_turn(
+        UserTurn(
+            message_id="refine-modern",
+            text="再现代一点",
+            submitted_at=NOW,
+            requested_action=RequestedAction.REFINE_RECOMMENDATIONS,
+        ),
+        compared.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    parsed = refined.updated_session_state.accumulated_request
+    assert parsed is not None
+    assert parsed.style_preferences == ("modern",)
+    assert "traditional" not in parsed.style_preferences
+    assert "style_preferences" in refined.updated_session_state.user_overrides
+    assert refined.updated_session_state.comparison_result is None
+    assert refined.recommendation_response is not None
+    assert refined.recommendation_response.recommendations
+
+
+def test_restart_clears_comparison_result_and_session_only_history(
+    catalog: CatalogSnapshot,
+) -> None:
+    recommendation = _run_recommendation(catalog)
+    compared = run_agent_turn(
+        UserTurn(
+            message_id="compare-before-restart",
+            text="帮我比较这三个",
+            submitted_at=NOW,
+            requested_action=RequestedAction.COMPARE_RECOMMENDATIONS,
+        ),
+        recommendation.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+    assert compared.updated_session_state.comparison_history
+
+    restarted = run_agent_turn(
+        _turn(RequestedAction.RESTART),
+        compared.updated_session_state,
+        catalog,
+        AgentRuntimeConfig(llm_enabled=False),
+    )
+
+    assert restarted.updated_session_state.comparison_result is None
+    assert restarted.updated_session_state.comparison_history == ()
+    assert restarted.updated_session_state.recommendation_result is None
+    assert restarted.updated_session_state.selected_product_id is None

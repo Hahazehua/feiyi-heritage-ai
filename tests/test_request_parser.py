@@ -155,6 +155,13 @@ def test_unstated_fields_are_not_invented() -> None:
     assert "packaging_requirement" in parsed.missing_fields
 
 
+def test_negative_traditional_preference_is_not_parsed_as_positive_traditional() -> None:
+    parsed = demo_parse_request("希望有中国文化特色，但不要太传统")
+
+    assert "traditional" not in parsed.style_preferences
+    assert "modern" in parsed.style_preferences
+
+
 def test_missing_fields_are_computed_locally() -> None:
     parsed = demo_parse_request("想准备一批礼物")
 

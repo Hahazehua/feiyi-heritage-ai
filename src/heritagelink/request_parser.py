@@ -358,9 +358,21 @@ def demo_parse_request(text: str) -> ParsedCustomerRequest:
     }.items():
         if keyword in text:
             payload["style_preferences"].append(tag)
+    # “不要太传统” expresses a modern-leaning preference, not a positive
+    # traditional requirement.  Keep the correction local to the deterministic
+    # parser so the global controlled vocabulary and merge rules stay unchanged.
+    if re.search(r"不要太传统|不太传统|太传统", text):
+        payload["style_preferences"] = [
+            tag for tag in payload["style_preferences"] if tag != "traditional"
+        ]
+        if "modern" not in payload["style_preferences"]:
+            payload["style_preferences"].append("modern")
     for keyword, tag in {
         "安徽文化": "heritage",
         "文化传承": "heritage",
+        "文化特色": "heritage",
+        "文化故事": "heritage",
+        "文化表达": "heritage",
         "繁荣": "prosperity",
         "祝福": "blessing",
         "和谐": "harmony",

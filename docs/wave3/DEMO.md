@@ -67,6 +67,63 @@ python skills/analyze-gift-choice-signals/scripts/analyze_choices.py --scene ann
 
 可直接运行 `python -m pytest tests/test_agent_orchestration.py -q` 复现这些门控结果。
 
+## Demo H：AI Shopping 连续比较与缩小选择
+
+1. 输入：`给美国教授选一件1000元左右的中国文化礼物，希望有文化特色但不要太传统。`
+2. 推荐出现后确认标题为“我为您挑选了3件更适合这次赠礼的作品”，并点击“比较这3件”。
+3. 观察同页出现“这三件礼物怎么选？”：桌面端为列式比较，窄屏为逐商品卡片；两种布局使用同一结构化结果。
+4. 在原聊天输入中继续问：`第一个和第三个哪个更适合教授？`。确认只缩小比较范围，没有重新发明分数或改变原推荐顺序。
+5. 输入：`再现代一点。`。确认该消息更新当前偏好并重新进入现有 Skills 1–3，返回新的 0–3 件正式推荐。
+6. 输入：`那我选第一个。`。确认序号被解析为当前推荐中的产品，并继续既有 Skill 4/5 最终方案路径。
+
+客户页面预期只显示礼赠差异、取舍和“待确认”信息，不显示动作枚举、application trace、叙述来源、API 错误或内部商品 ID。
+
+## AI Shopping 真实浏览器验收步骤
+
+以下清单已于 2026-08-12 在 Codex in-app Chromium 与本地 Streamlit 页面执行。
+
+### Scenario A：教授
+
+```text
+给美国教授选一件1000元左右的中国文化礼物，希望有文化特色但不要太传统。
+→ 比较这3件
+→ 第一个和第三个哪个更适合教授？
+→ 再现代一点。
+→ 那我选第一个。
+→ 生成最终方案
+```
+
+核对：比较继承教授、预算、文化与现代风格上下文；相对偏好触发重新推荐；自然语言选品继续原有最终方案链。
+
+### Scenario B：商务
+
+输入：`给30位海外合作伙伴准备企业周年礼品，每件预算1200元，希望可以加Logo。`
+
+核对：比较重点优先覆盖收礼人/场景、定制、批量与运输、预算、文化表达和风格；Logo、批量、运输等未验证能力仍显示待确认，不能从演示字段推断为商家承诺。
+
+### Scenario C：Unknown
+
+在当前正式推荐中选择带有未验证商业字段的组合并比较。
+
+核对：价格、运输、交期、产能、便携和定制分别按四态证据显示；`unknown` 使用“待确认”或“暂无可靠信息”，不显示成“不支持”，也不使用单独的叉号代表缺失。
+
+### Scenario D：叙述回退
+
+保持 comparison narrative client 未注入，或在受控测试中让注入客户端抛出异常/返回非法内容，然后执行同一比较。
+
+核对：结构化比较与 deterministic summary 正常显示；客户界面不出现 API、异常或回退术语。在启用评审模式后，独立 `Application Action：product_comparison` 显示 `comparison_explanation_source=deterministic_fallback`，七项 Skill 轨迹数量不变。
+
+### 验收记录模板
+
+| 场景 | 视口/浏览器 | 结果 | 证据 |
+|---|---|---|---|
+| A 教授 | 1440×1000 / Codex in-app Chromium | 通过：推荐 3 件、比较第 1/3 件、现代偏好重算、序号选品、最终方案下载均正常 | 浏览器 DOM、状态与无异常检查 |
+| B 商务 | 1440×1000 / Codex in-app Chromium | 通过：上下文包含 30 件、周年、1200 元、Logo；比较保留批量、定制、预算、海外维度 | 浏览器 DOM 与结构化上下文检查 |
+| C Unknown | 390×844 / Codex in-app Chromium | 通过：移动卡片显示“待确认”，无“不支持”误判，`scrollWidth == clientWidth` | 响应式 DOM 与尺寸检查 |
+| D 叙述回退 | 390×844 / Codex in-app Chromium | 通过：未配置 Key 时比较正常；客户页无 API、DeepSeek、fallback、Application trace 等技术文本 | 客户可见文本与控制台检查 |
+
+完整架构与事实边界见 [`../wave4/AI_SHOPPING.md`](../wave4/AI_SHOPPING.md)。
+
 ## 录屏建议
 
 - 0:00–0:30：用户问题与一句话价值。

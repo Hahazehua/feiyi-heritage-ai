@@ -8,6 +8,10 @@ from enum import StrEnum
 from typing import Any
 
 from heritagelink.analytics_models import RecommendationEvent, SelectionEvent
+from heritagelink.comparison_models import (
+    ApplicationExecutionTrace,
+    ProductComparisonResult,
+)
 from heritagelink.content import BilingualContent
 from heritagelink.conversation_state import ConversationMessage, ConversationState
 from heritagelink.models import DataBundle, Product, RecommendationResponse
@@ -22,6 +26,10 @@ class RequestedAction(StrEnum):
     RECOMMEND_NOW = "recommend_now"
     ADJUST_REQUIREMENT = "adjust_requirement"
     SELECT_PRODUCT = "select_product"
+    COMPARE_RECOMMENDATIONS = "compare_recommendations"
+    COMPARE_SELECTED_PRODUCTS = "compare_selected_products"
+    REFINE_RECOMMENDATIONS = "refine_recommendations"
+    EXPLAIN_DIFFERENCE = "explain_difference"
     GENERATE_PLAN = "generate_plan"
     RESTART = "restart"
 
@@ -51,6 +59,14 @@ class UserTurn:
     requested_action: RequestedAction
     source: str = "chat"
     product_id: str | None = None
+    product_ids: tuple[str, ...] = ()
+    comparison_focus: tuple[str, ...] = ()
+    focus_recipient: str | None = None
+    focus_scene: str | None = None
+    focus_styles: tuple[str, ...] = ()
+    focus_symbolism: tuple[str, ...] = ()
+    focus_customization: tuple[str, ...] = ()
+    focus_international: bool | None = None
     structured_request: ParsedCustomerRequest | None = None
 
     def __post_init__(self) -> None:
@@ -128,6 +144,8 @@ class AgentSessionState:
     grounded_content: BilingualContent | None = None
     final_plan: dict[str, Any] | None = None
     consent_state: bool = False
+    comparison_result: ProductComparisonResult | None = None
+    comparison_history: tuple[ProductComparisonResult, ...] = ()
 
     @property
     def messages(self) -> tuple[ConversationMessage, ...]:
@@ -166,3 +184,5 @@ class AgentTurnResult:
     available_actions: tuple[RequestedAction, ...]
     execution_trace: tuple[SkillExecutionTrace, ...]
     overall_status: AgentOverallStatus
+    comparison_result: ProductComparisonResult | None = None
+    application_trace: tuple[ApplicationExecutionTrace, ...] = ()

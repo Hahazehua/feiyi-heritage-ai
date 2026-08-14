@@ -86,6 +86,31 @@ def test_dialogue_client_uses_json_envelope_prompt() -> None:
     assert "recommended_action" in call["messages"][0]["content"]  # type: ignore[index]
 
 
+def test_comparison_client_returns_only_grounded_explanation_field() -> None:
+    client, completions = _client([_response('{"explanation":"两件作品各有侧重。"}')])
+
+    result = client.explain_comparison(
+        {"products": ({"name": "作品甲", "price_fit": "价格待确认"},)}
+    )
+
+    assert result == "两件作品各有侧重。"
+    call = completions.calls[0]
+    system = call["messages"][0]["content"]  # type: ignore[index]
+    assert "Unknown information\nmust remain unknown" in system
+    assert call["response_format"] == {"type": "json_object"}
+
+
+@pytest.mark.parametrize(
+    "content",
+    ('{"explanation":"可比较","extra":true}', '{"explanation":42}'),
+)
+def test_comparison_client_rejects_unexpected_or_non_text_payload(content: str) -> None:
+    client, _ = _client([_response(content)])
+
+    with pytest.raises(LLMInvalidJSONError):
+        client.explain_comparison({"products": ()})
+
+
 def test_invalid_json_is_rejected_without_retry() -> None:
     client, completions = _client([_response("not-json")])
 

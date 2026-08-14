@@ -2,15 +2,15 @@
 
 ## Project Title
 
-HAHA｜飞颐礼遇
+HAHA｜Heritage Artisans, Horizons Ahead
 
 ## One-line Description
 
-HAHA 意为 Help Artisan Happy Again：连接非遗手艺人与全球礼赠及商业机会，让中国手艺被世界理解、选择与珍藏的七 Skills AI 出海平台。
+连接非遗手艺人、文化礼品与全球买家的 AI 出海智能体。An AI agent connecting heritage artisans, culturally meaningful gifts, and global buyers through grounded recommendations and bilingual sales workflows.
 
 ## Project Description
 
-HAHA 代表 Help Artisan Happy Again——让手艺人因被看见、被尊重、获得持续机会而再次绽放笑容。中国非遗拥有深厚的文化价值，却常因语言、文化解释和商业需求沟通之间的断层，难以进入全球礼赠场景。HAHA｜飞颐礼遇以连接全国 20 万件非遗产品资源为长期愿景，从一份真实需求开始，连接非遗手艺人与全球礼赠及商业机会。平台通过单页对话逐步理解对象、场景、预算、数量、文化寓意、定制与交付边界，每轮最多提出一个高价值问题，并允许用户随时要求立即推荐或修改条件。
+HAHA 代表 Heritage Artisans, Horizons Ahead。飞颐礼遇 AI 礼赠顾问是 HAHA 当前的产品原型。中国非遗拥有深厚的文化价值，却常因语言、文化解释和商业需求沟通之间的断层，难以进入全球礼赠场景。项目从一份真实需求出发，通过单页对话逐步理解对象、场景、预算、数量、文化寓意、定制与交付边界，每轮最多提出一个高价值问题，并允许用户随时要求立即推荐或修改条件。
 
 Agent 将七项 Skills 按门控链执行：礼赠需求理解、受控软偏好推断、非遗礼品硬过滤与稳定推荐、有事实边界的双语内容、最终礼品方案、匿名授权选择记录，以及离线匿名选择信号分析。推荐严格保留硬过滤、固定八维权重和稳定排序；20件正式 Demo 商品可进入推荐，30件馆藏参考不会被补入正式结果。
 
@@ -48,8 +48,7 @@ DeepSeek 只用于可选字段提取，失败时安全回退到确定性解析�
 
 ## Links
 
-- Repository: `<REPOSITORY_URL>`
-- Pull Request: `<PULL_REQUEST_URL>`
-- Live Demo: `<LIVE_DEMO_URL>`
-- Review Mode: `<REVIEW_MODE_URL>`
-- Demo Video: `<DEMO_VIDEO_URL>`
+- Repository: `https://www.synnovator.com/harrychen901/feiyi-heritage-ai`
+- Pull Request: `https://www.synnovator.com/opc-2026-youth-w3/track-108/pulls/2`
+- Live Demo: `https://feiyi-haha-ai.streamlit.app/`
+- Demo Video: `https://www.bilibili.com/video/BV1rcMm64ELw/`

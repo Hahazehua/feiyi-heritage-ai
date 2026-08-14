@@ -165,6 +165,9 @@ def test_mobile_css_prevents_horizontal_overflow() -> None:
 
     assert "@media(max-width:760px)" in theme
     assert "overflow-x:hidden" in theme
+    assert ".hl-comparison-desktop" in theme
+    assert ".hl-comparison-mobile {display:none" in theme
+    assert ".hl-comparison-desktop{display:none}.hl-comparison-mobile{display:block}" in theme
 
 
 def test_review_trace_is_hidden_by_default_and_requires_both_gates(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -197,4 +200,122 @@ def test_customer_can_restart_through_existing_agent_action() -> None:
     assert (
         "recommendation_response" not in app.session_state
         or app.session_state["recommendation_response"] is None
+    )
+
+
+def test_catalog_snapshot_keeps_twenty_formal_and_thirty_reference_only_products() -> None:
+    app = _open_recommendations("送给合作伙伴的周年礼物")
+    recommendation_trace = next(
+        trace
+        for trace in app.session_state["agent_execution_trace"]
+        if trace.skill_id == "recommend_heritage_gifts"
+    )
+
+    assert not app.exception
+    assert recommendation_trace.input_summary["catalog_total"] == 50
+    assert recommendation_trace.input_summary["formally_recommendable"] == 20
+    assert recommendation_trace.input_summary["reference_only"] == 30
+
+
+def test_comparison_button_renders_shopping_guide_and_keeps_chat_available() -> None:
+    app = _open_recommendations("送给合作伙伴的周年礼物")
+    count = len(app.session_state["recommendation_response"].recommendations)
+
+    _button(app, f"比较这{count}件").click().run(timeout=30)
+
+    text = _all_customer_text(app)
+    assert not app.exception
+    assert app.session_state["comparison_result"] is not None
+    assert app.session_state["recommendation_response"].recommendations
+    assert app.chat_input
+    assert any("件礼物怎么选" in str(item.value) for item in app.markdown)
+    assert {"选择推荐款", "继续比较", "调整需求"}.issubset({button.label for button in app.button})
+    for forbidden in (
+        "comparison_score",
+        "overall_comparison_score",
+        "comparison_explanation_source",
+        "deterministic_fallback",
+        "Application Action",
+        "API",
+        "DataFrame",
+    ):
+        assert forbidden not in text
+
+
+def test_two_recommendations_use_correct_comparison_count_copy() -> None:
+    app = _open_recommendations("需要5件礼物，每件预算380元")
+    if app.session_state["recommendation_response"] is None:
+        _button(app, "先为我推荐").click().run(timeout=30)
+
+    assert len(app.session_state["recommendation_response"].recommendations) == 2
+    _button(app, "比较这2件").click().run(timeout=30)
+
+    assert not app.exception
+    assert len(app.session_state["comparison_result"].items) == 2
+    assert any("这两件礼物怎么选" in str(item.value) for item in app.markdown)
+
+
+def test_natural_language_comparison_then_selection_remain_in_one_session() -> None:
+    app = _open_recommendations("送给合作伙伴的周年礼物")
+    app.chat_input[-1].set_value("第一个和第三个哪个更适合商务伙伴？").run(timeout=30)
+
+    assert not app.exception
+    assert app.session_state["comparison_result"] is not None
+    compared_ids = app.session_state["comparison_result"].compared_product_ids
+    assert len(compared_ids) == 2
+    assert app.chat_input
+
+    app.chat_input[-1].set_value("那我选第一个").run(timeout=30)
+
+    assert not app.exception
+    assert app.session_state["selected_product_id"] == compared_ids[0]
+    assert app.session_state["comparison_result"] is not None
+    assert app.chat_input
+
+
+def test_natural_language_modern_refinement_replaces_old_style_and_clears_comparison() -> None:
+    app = _open_recommendations("送给合作伙伴的周年礼物，希望风格传统")
+    _button(
+        app,
+        f"比较这{len(app.session_state['recommendation_response'].recommendations)}件",
+    ).click().run(timeout=30)
+    assert app.session_state["comparison_result"] is not None
+
+    app.chat_input[-1].set_value("再现代一点").run(timeout=30)
+
+    parsed = app.session_state["pending_request"]
+    assert not app.exception
+    assert parsed.style_preferences == ("modern",)
+    assert "traditional" not in parsed.style_preferences
+    assert app.session_state["comparison_result"] is None
+    assert app.session_state["recommendation_response"].recommendations
+
+
+def test_review_mode_shows_application_trace_only_behind_existing_double_gate(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("AGENT_REVIEW_MODE_ENABLED", "true")
+    customer = _open_recommendations("送给合作伙伴的周年礼物")
+    _button(
+        customer,
+        f"比较这{len(customer.session_state['recommendation_response'].recommendations)}件",
+    ).click().run(timeout=30)
+    assert "Application Action" not in _all_customer_text(customer)
+
+    review = AppTest.from_file("app.py")
+    review.query_params["review_mode"] = "1"
+    review.run(timeout=30)
+    review.chat_input[0].set_value("送给合作伙伴的周年礼物").run(timeout=30)
+    if "recommendation_response" not in review.session_state:
+        _button(review, "先为我推荐").click().run(timeout=30)
+    _button(
+        review,
+        f"比较这{len(review.session_state['recommendation_response'].recommendations)}件",
+    ).click().run(timeout=30)
+
+    assert any("Application Actions" in str(item.value) for item in review.markdown)
+    assert any("Application Action：product_comparison" in item.label for item in review.expander)
+    assert len(review.session_state["agent_execution_trace"]) == 7
+    assert all(
+        trace.status.value == "skipped" for trace in review.session_state["agent_execution_trace"]
     )

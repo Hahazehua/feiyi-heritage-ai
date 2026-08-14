@@ -1,4 +1,6 @@
-# HAHA｜飞颐礼遇
+# HAHA｜Heritage Artisans, Horizons Ahead
+
+飞颐礼遇 AI 礼赠顾问与 Artisan Studio 共同构成 HAHA 当前的 Streamlit 产品原型。
 
 ## 当前产品规格（保留 Wave 2 合规基线）
 
@@ -10,9 +12,63 @@
 
 用户最终选择可以在明确匿名授权后写入 Repository。SQLite 只服务本地开发，PostgreSQL/Supabase 用于云端；失败不影响推荐，完整聊天原文默认且当前不会保存。详见 [`ANALYTICS_SCHEMA.md`](ANALYTICS_SCHEMA.md)。
 
+### 0.1 2026-08-12 AI Shopping 与商品比较
+
+当前单页面顾问在正式推荐后继续支持比较、追问、调整和选品：
+
+```text
+Recommendation
+→ Structured Comparison
+→ Conversational Refinement
+→ Selection
+→ Final Plan
+```
+
+商品比较是 application-layer capability，不是第八项 Skill。现有七项 Skills、硬过滤、八维固定权重、正式推荐资格和稳定排序保持不变。`RequestedAction` 在原动作系统中增加 `compare_recommendations`、`compare_selected_products`、`refine_recommendations` 和 `explain_difference`；所有客户操作仍通过 `run_agent_turn(...)` 返回 `AgentTurnResult`。
+
+有当前推荐时，Shopping router 在 Skill 1 之前识别“比较第一和第三”“再现代一点”“那我选第一个”等连续意图。比较问题直接使用当前推荐和当前 `RecommendationContext`；偏好调整才重新进入现有 Skills 1–3；选品继续进入既有 Skills 4–6 门控。路由不解析商品事实、不建立第二套动作枚举，也不修改正式推荐顺序。
+
+`ProductComparisonService` 只接受当前正式推荐的 1–3 件商品。服务先按当前推荐 allowlist 校验产品 ID，再使用完整 `Product` 记录重新确认 `catalog_role=recommendation_demo` 以及产品、演示主体和工艺分类均为 `active`。当前 20 件正式演示商品与 30 件 `inactive/catalog_reference` 的边界不变，reference-only 记录不能进入正式比较或购买路径。
+
+比较结果是结构化对象，覆盖适合谁、适用场景、风格、文化表达、预算、定制和实用考虑。每项事实使用 `verified_yes`、`verified_no`、`unknown`、`not_applicable` 四态证据模型；缺少来源时保持 `unknown`，不得把空值解释为“不支持”。服务不生成 `comparison_score`，不重排推荐；所谓“当前会先考虑”始终沿用被比较商品中的原正式推荐顺序，并结合结构化差异解释取舍。
+
+结构化结果可选择注入受约束的语言叙述客户端。客户端只接收脱敏后的比较上下文，不能添加价格、材料、认证、运输、交付、产能或定制事实；调用失败或输出校验失败时使用确定性摘要。客户页面不显示叙述来源或技术错误，评审模式则使用独立的 `ApplicationExecutionTrace` 显示 application action、叙述来源与事实安全检查，不把它伪装成第八项 Skill。
+
+比较结果和最近比较历史只保存在当前 Streamlit session。现有匿名选择授权不会自动扩展为比较行为采集；本阶段不新增比较事件持久化。
+
+### 0.2 2026-08-12 Artisan Studio 与 Heritage Passport
+
+同一 Streamlit 应用新增 Buyer/Artisan 双入口。Buyer 是默认模式，继续使用当前 AI Shopping 主流程；顶部模式切换或 `?mode=artisan` 进入 Artisan Studio。两者共用品牌外壳，不建立第二个应用，也不混用 Repository。
+
+Artisan Studio 使用三步渐进录入：
+
+1. 作品名称、工艺、地域、可选图片和手艺人自由描述；
+2. 可选商业资料，包括价格、币种、起订量、交期、材料、尺寸、定制、Logo、包装、运输和产能；
+3. 文化背景、寓意、制作流程、礼赠场景和来源 URL。
+
+所有字段都允许暂时不完整。未知商业能力显示为待确认，不能解释为“不支持”。AI 只提取候选字段并生成双语草稿；候选标记为 `ai_inferred/pending_review`，模型失败或结果未通过本地校验时使用确定性回退。AI 不确认文化事实、价格、产能、交期、运输、定制、非遗资质或传承人身份。
+
+审核步骤允许手艺人逐项修改和确认。只有本次明确选择的字段才能升级为 `artisan_confirmed/confirmed`；双语草稿单独确认。价格、材料、定制、最低起订量、运输和交期出现新旧冲突时保留两边值，未明确解决前不能提交。
+
+确认视图生成 Heritage Passport，分开呈现作品身份、文化背景、文化来源、商业事实、文化核验状态、商业核验状态、发布时间和双语内容。Buyer 商品卡也可用客户友好方式展示文化护照；参考目录只能展示文化资料，不得被描述为具有价格、定制、运输或交付能力的商品。
+
+Artisan 草稿使用独立 Repository，不写入 Buyer 匿名行为分析，也不自动写入产品 CSV。提交仅转换为 `pending_review`。发布生命周期为：
+
+```text
+draft → pending_review → reference_only / recommendable / archived
+```
+
+即使评审模式模拟得到 `recommendable`，也不会自动创建 canonical `Product`。Skill 3 只接受逻辑发布状态为 `recommendable` 且通过统一资格门控的 canonical 产品；兼容适配层把现有 20 条 `recommendation_demo/active` 视为 legacy `recommendable`，把 30 条 `catalog_reference/inactive` 视为 `reference_only`。所有待审核草稿和仅参考记录都被排除，50 条 canonical 目录边界保持不变。
+
+Artisan Studio 使用独立 application action `artisan_product_onboarding`，不是第八项 Skill。现有七项 Skills、Agent manifest、硬过滤、八维固定权重、稳定排序和 Buyer `AgentTurnResult` 合同均不改变。Application trace 和模拟审核继续受已有环境开关与 `review_mode=1` 双门控制。
+
+完整设计见 [`wave4/ARTISAN_STUDIO.md`](wave4/ARTISAN_STUDIO.md) 与 [`wave4/HERITAGE_PASSPORT.md`](wave4/HERITAGE_PASSPORT.md)。
+
 ## 1. 产品定位
 
-HAHA 代表 Help Artisan Happy Again，其品牌使命是让手艺人因被看见、被尊重、获得持续机会而再次绽放笑容。HAHA｜飞颐礼遇的长期目标，是建立连接非遗手艺人与全球礼赠及商业机会的 AI 出海平台，并逐步形成面向全国 20 万件非遗产品资源的数字化连接能力。当前 Demo 验证需求理解、可信推荐、文化表达与商业询单闭环，不代表已经收录或可交易 20 万件产品。
+HAHA 代表 Heritage Artisans, Horizons Ahead，中文定位是“连接非遗手艺人、文化礼品与全球买家的 AI 出海智能体”。当前 Demo 同时验证 Buyer 侧需求理解、可信推荐、双语文化表达与商业询单闭环，以及 Artisan 侧资料整理、来源追溯与人工审核闭环。目录共 50 件，其中 20 件正式演示商品参与推荐，30 件馆藏或文化参考不参与推荐；Artisan 草稿不计入目录，全部商业字段仍需真实商家确认。
+
+当前 Agent 统一入口编排七项正式 Skills：礼赠需求理解、受控软偏好推断、非遗礼品硬过滤与稳定推荐、有事实边界的双语文化内容组织、最终礼品方案生成、匿名授权选择记录和匿名礼品选择信号分析。Wave 2 的四项 Submitted Skills 继续作为历史评审基线保留。
 
 平台帮助客户将模糊的文化礼赠需求转化为：
 
@@ -20,6 +76,13 @@ HAHA 代表 Help Artisan Happy Again，其品牌使命是让手艺人因被看�
 2. 符合已知商业约束的非遗产品推荐；
 3. 有事实依据的中英文文化说明；
 4. 商家可以直接确认、补充或报价的定制需求单。
+
+平台帮助手艺人将非结构化作品资料转化为：
+
+1. 逐字段保存来源和核验状态的作品草稿；
+2. 可修改、可逐项确认的中英文表达；
+3. 分开文化与商业核验状态的 Heritage Passport；
+4. 不自动上架的 `pending_review` 审核申请。
 
 本 MVP 重点验证：
 
@@ -50,6 +113,8 @@ HAHA 代表 Help Artisan Happy Again，其品牌使命是让手艺人因被看�
 标准化的客户需求和定制需求单能够减少商家重复询问预算、数量、交期、定制内容和目的地等基础信息的成本。
 
 即使用户没有一次性提供完整信息，系统也能够将已知信息和待确认事项清楚区分，方便商家继续沟通。
+
+Artisan Studio 的补充假设是：手艺人可以先用自己的语言描述作品，再在 AI 候选的帮助下逐项校正和确认；降低资料整理成本不应以牺牲文化解释权、事实来源或商业承诺边界为代价。
 
 ### 2.3 技术侧假设
 
@@ -104,9 +169,9 @@ MVP 可以生成英文文化介绍并识别海外运输需求，但不对以下�
 
 ---
 
-## 4. Wave 2 Submitted Skills 与唯一 Workflow
+## 4. Wave 2 Submitted Skills 与唯一 Workflow（历史基线）
 
-本轮只提交以下四个 Skills。每个 Skill 的输入、输出、运行方式、代码、测试、回退和限制见 [`docs/wave2/skills/`](wave2/skills/)。
+Wave 2 当时提交以下四个 Skills。每个 Skill 的输入、输出、运行方式、代码、测试、回退和限制见 [`docs/wave2/skills/`](wave2/skills/)。当前 Wave 3 的七项 Skills 以 [`docs/wave3/SKILLS.md`](wave3/SKILLS.md) 和 Agent manifest 为准。
 
 ### Skill 1：Conversational Gift Request Understanding / 对话式礼赠需求理解
 
@@ -164,19 +229,23 @@ MVP 可以生成英文文化介绍并识别海外运输需求，但不对以下�
 7. 用户可以：
 
    * 直接查看当前推荐；
+   * 比较当前 2–3 件正式推荐，或用序号缩小比较范围；
+   * 追问某一差异更适合当前收礼人或场景的原因；
+   * 用“再现代一点”等自然语言更新偏好并重新推荐；
    * 回答补充问题；
    * 修改结构化需求；
    * 要求重新推荐；
    * 切换到详细表单。
-8. 用户补充或修改信息后，系统重新执行过滤、评分和排序。
-9. 系统返回最多 3 件满足全部明确硬约束的目录方案。
-10. 如果没有方案满足全部明确硬约束，系统展示：
+8. 比较只解释当前正式推荐之间的差异，不新建分数、不改变原推荐顺序。
+9. 用户补充或修改信息后，系统重新执行原有过滤、评分和排序。
+10. 系统返回最多 3 件满足全部明确硬约束的目录方案。
+11. 如果没有方案满足全部明确硬约束，系统展示：
 
     * 无完全匹配方案；
     * 冲突条件；
     * 接近条件的替代方案；
     * 可选的定制概念方案。
-11. 用户选择一件合格目录方案后，系统生成商家需求单。无合格方案时可以生成独立定制概念，但该概念当前不进入“选中产品需求单”路径。
+12. 用户可以在比较后直接选择当前推荐中的一件合格目录方案；系统继续生成商家需求单。无合格方案时可以生成独立定制概念，但该概念当前不进入“选中产品需求单”路径。
 
 ---
 
@@ -461,7 +530,11 @@ DeepSeek 不参与：
 * 补写未经验证的文化事实；
 * 作出商家履约承诺。
 
+在 Artisan Studio 中，DeepSeek 还不得自动确认、发布或覆盖手艺人的事实。模型输出只能写入 `ai_inferred/pending_review` 候选；调用失败时使用确定性提取和双语模板，且回退内容仍需人工确认。
+
 AI 表达可以用于整理定制概念，但概念对象由本地确定性代码构造，且不得把它伪装为现有产品、目录方案或选中产品需求单。
+
+商品比较中的可选语言叙述同样不参与候选、资格、分数、排序或结构化事实判断。它只能改写 `ProductComparisonService` 已生成的安全上下文；异常、非法数字、内部 ID、无依据认证/材料/履约说法，或把未知信息写成肯定事实时，叙述会被丢弃并回退到确定性摘要。
 
 ---
 
@@ -504,7 +577,11 @@ AI 表达可以用于整理定制概念，但概念对象由本地确定性代�
 * 审核状态；
 * 待商家确认标记。
 
-当前 20 件方案对应 40 条本地中英文文化资料，全部为 `review_status=draft`。运行时不调用 DeepSeek、机器翻译或 RAG 生成文化事实；页面必须把这些内容标为演示文案、待商家审核。
+当前 50 件目录记录对应 100 条本地中英文文化资料，全部为 `review_status=draft`。Buyer 正式内容组织不调用 DeepSeek、机器翻译或 RAG 生成文化事实；页面必须把这些内容标为演示文案、待商家审核，并区分 20 件正式演示推荐与 30 件文化参考。
+
+### E. Artisan 草稿与确认事实
+
+Artisan Studio 将 `artisan_provided`、`ai_inferred` 与 `artisan_confirmed` 分开记录。表单录入不等于显式确认，AI 候选更不等于事实。每项字段还保存 `confirmed/pending_review/unknown/not_applicable` 四态核验状态；文化和商业核验分别汇总。草稿位于独立 Repository，不进入 Buyer 匿名分析，也不改变 canonical 目录计数。
 
 ---
 
@@ -606,18 +683,26 @@ AI 表达可以用于整理定制概念，但概念对象由本地确定性代�
 
 ## 14. MVP 系统边界
 
-### 14.1 本次 Wave 2 范围
+### 14.1 当前原型范围（含 Wave 2 基线与 Wave 4 扩展）
 
 * 1 个平台演示选品主体，不代表真实商家入驻；
-* 4 个 `unverified` 工艺分类；
-* 20 件带图 MVP 礼赠方案；
-* 40 条 `review_status=draft` 的本地双语资料；
-* 43 条 MVP 定制选项；
+* 10 个 `unverified` 工艺分类；
+* 50 件带图目录记录，其中 20 件正式演示推荐、30 件参考；
+* 100 条 `review_status=draft` 的本地双语资料；
+* 44 条 MVP 定制选项；
 * 支持多商家和多品类扩展的数据模型；
 * CSV 和 JSON 数据；
 * pandas 加载及校验；
 * Streamlit 页面；
 * 对话式礼品顾问；
+* 推荐后的 AI Shopping 动作路由；
+* application-layer 结构化商品比较；
+* 桌面列式与移动卡片式比较展示；
+* 同一 Streamlit 应用内的 Buyer/Artisan 模式切换；
+* Artisan 三步渐进式资料录入；
+* 独立内存与 SQLite 草稿 Repository；
+* 逐字段来源、冲突保护和人工确认；
+* Heritage Passport 与发布状态演示；
 * DeepSeek 可选需求解析；
 * 确定性回退解析；
 * 渐进式推荐；
@@ -634,8 +719,9 @@ AI 表达可以用于整理定制概念，但概念对象由本地确定性代�
 * 合同、支付和结算；
 * 物流及税务；
 * 用户和商家账号；
-* 权限和审核后台；
-* 商家在线自主入驻；
+* 生产级权限和审核后台；
+* 真实身份、商家主体与授权关系认证；
+* 无人工复核的自动上架或自动推荐准入；
 * 在线订单状态；
 * 正式数据持久化；
 * RAG 和向量数据库；
@@ -646,6 +732,22 @@ AI 表达可以用于整理定制概念，但概念对象由本地确定性代�
 ---
 
 ## 15. 页面与状态
+
+### 模式入口
+
+同一品牌头部下提供 Buyer 与 Artisan 两个模式按钮。默认 Buyer；`?mode=artisan` 可直接进入 Artisan Studio。模式参数只决定当前体验入口，不授予评审权限，也不改变 `review_mode` 的环境加 URL 双门控制。
+
+### Artisan Studio
+
+包括：
+
+* 作品故事、商业资料、文化资料与来源的三步录入；
+* 可选图片上传；
+* AI 候选字段和双语草稿的来源/待审核提示；
+* 逐项修改、确认与冲突解决；
+* Heritage Passport 预览；
+* 提交审核后的友好 `pending_review` 状态；
+* 仅评审模式可见的 application trace 与模拟审核。
 
 ### 页面一：AI 礼品顾问
 
@@ -681,6 +783,8 @@ AI 表达可以用于整理定制概念，但概念对象由本地确定性代�
 * 风险和待确认项；
 * 中文和英文文化介绍。
 
+当存在 2–3 件正式推荐时，该区块还包括比较入口、结构化差异、当前需求下的条件化建议、“为什么这样比较？”以及继续比较、调整需求和选择推荐款。比较未知项使用“待确认”，不展示技术证据状态或新评分。
+
 ### 页面三：定制需求单
 
 包括：
@@ -695,13 +799,13 @@ AI 表达可以用于整理定制概念，但概念对象由本地确定性代�
 * 联系商家确认提示；
 * 演示数据声明。
 
-Streamlit session state 用于保存当前会话的累计需求、连续补充记录、推荐和选择。刷新页面可以清空数据，MVP 不提供正式持久化。
+Streamlit session state 用于保存当前会话的累计需求、连续补充记录、推荐、当前比较、最近三次比较历史和选择。刷新页面可以清空数据，MVP 不提供正式比较历史持久化。
 
 ---
 
-## 16. Wave 2 验收口径与证据状态
+## 16. 验收口径与证据状态
 
-以下条目是可由自动化测试或人工走查判定的验收断言，不是已经取得的百分比或排行榜成绩。实际命令、退出状态和人工观察统一记录在 [`docs/wave2/EVALUATION.md`](wave2/EVALUATION.md)，未执行前不得写成“已通过”。
+以下条目是可由自动化测试或人工走查判定的验收断言，不是已经取得的百分比或排行榜成绩。历史 Wave 2 结果记录在 [`docs/wave2/EVALUATION.md`](wave2/EVALUATION.md)；新增能力必须以本轮实际命令、退出状态和人工观察为准，未执行前不得写成“已通过”。
 
 ### 16.1 Conversational Gift Request Understanding
 
@@ -724,7 +828,8 @@ Streamlit session state 用于保存当前会话的累计需求、连续补充�
 * 每个 active 目录方案必须有本地中文和英文记录；
 * 内容模块只组织存储字段，不在运行时调用模型、机器翻译或 RAG 补写事实；
 * 来源说明、`review_status` 和待确认字段随内容展示；
-* 当前 40 条 `draft` 资料必须标为 MVP 演示文案、待商家审核。
+* 当前 100 条 `draft` 资料必须标为 MVP 演示文案、待商家审核；
+* 30 件 `catalog_reference/inactive` 只能展示文化参考，不得进入推荐、比较或购买路径。
 
 ### 16.4 Merchant-Ready Customization Brief
 
@@ -741,7 +846,20 @@ Streamlit session state 用于保存当前会话的累计需求、连续补充�
 * 自动化测试使用占位 Key 和网络守卫，不调用真实外部 API；
 * 没有 API Key 时仍可完成本地核心 Workflow。
 
-### 16.6 当前未评测的业务指标
+### 16.6 Artisan Studio 与 Heritage Passport
+
+* 默认 URL 进入 Buyer，顶部按钮与 `?mode=artisan` 进入同一应用内的 Artisan 模式；
+* 三步流程允许商业字段为空或未知，并能从自由描述生成可编辑候选与双语草稿；
+* AI 缺失、抛错或返回非法字段时使用确定性回退，不崩溃、不补造事实；
+* AI 候选保持 `ai_inferred/pending_review`，只有显式勾选的字段升级为 `artisan_confirmed/confirmed`；
+* 受保护商业字段冲突不会静默覆盖，未解决冲突阻止提交；
+* 提交后只保存到独立 Artisan Repository 并设为 `pending_review`，不写 Buyer 分析库或 canonical 产品目录；
+* Buyer 文化护照把未知显示为待确认，并且不为 reference-only 记录展示商业能力；
+* `draft/pending_review/reference_only/archived` 与未显式发布的 `recommendable` 草稿都不能进入 Skill 3；
+* 模拟审核和 `artisan_product_onboarding` trace 只在既有双门评审模式可见，且模拟审核不自动上架；
+* 桌面与窄屏均能完成主要输入、审核、护照和提交路径。
+
+### 16.7 当前未评测的业务指标
 
 `tests/evaluation_cases.json` 当前是确定性回归案例集合，不包含商家或领域专家标注人、独立盲评或满意度证据。因此当前不报告自然语言解析准确率、Top-1/Top-3 命中率、商家满意度、转化率或履约成功率。未来若开展人工评测，必须先记录标注来源、计算方法和可复现结果，且不得把测试通过比例改写为业务指标。
 
@@ -782,7 +900,7 @@ Streamlit session state 用于保存当前会话的累计需求、连续补充�
 
 ### 后续版本
 
-1. 导入经真实商家确认的正式产品资料；
+1. 建立生产级身份、商家主体、授权关系和正式产品审核流程；
 2. 建立带来源的文化知识库；
 3. 使用 RAG 支持有依据的文化内容生成；
 4. 增加 AI 语义重排，但保留明确硬约束过滤；

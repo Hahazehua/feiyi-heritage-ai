@@ -365,3 +365,115 @@ recommended_action 和 confidence_by_field。所有未知字段、非法动作�
 - 固定的 `museum_reference_not_for_sale` 商业状态。
 
 `src/heritagelink/catalog.py` 校验必填字段、重复目录 ID、重复商品关联、HTTPS 来源、本地图片路径和图片文件。`data_loader.py` 同时强制每件推荐商品关联可读取图片。正式商家产品图片应进入独立的 `assets/products/<merchant_id>/`，不得覆盖可追溯的开放馆藏文件。
+
+## 12. Artisan Studio 草稿模型
+
+Artisan Studio 不直接构造严格的 canonical `Product`。不完整资料先进入独立 `ArtisanProductDraft`：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| draft_id | string | `draft_` 前缀的随机稳定 ID |
+| session_id | string | 当前 Artisan 会话 ID；不是 Buyer 分析 session |
+| created_at | datetime | 含时区的创建时间 |
+| updated_at | datetime | 含时区的最后更新时间 |
+| facts | ProvenancedFact[] | 逐字段来源与核验状态；字段名不可重复 |
+| publication_status | PublicationStatus | 默认 `draft` |
+| image_name | string/null | 可选上传文件名；不得用于任意路径拼接 |
+| image_bytes | bytes/null | 可选会话或草稿图片；SQLite 中使用 Base64 包装 |
+| bilingual_draft | BilingualProductDraft/null | AI 或确定性模板生成的待审核双语草稿 |
+| conflicts | FactConflict[] | 受保护字段的新旧值冲突 |
+| submitted_at | datetime/null | `pending_review` 时必填 |
+| reviewed_at | datetime/null | 独立审核产生的时间；模拟审核不等于生产认证 |
+
+第一阶段可以保存作品名、工艺、地域、自由描述和图片。第二阶段商业字段均可为空或未知，包括价格区间、币种、起订量、交期、定制、Logo、包装、尺寸、材料、国内/国际运输和产能。第三阶段保存文化背景、寓意、制作流程、礼赠场景和来源 URL。
+
+空字符串、空集合和 `unknown` 不覆盖已有值。价格、材料、定制、最低起订量、运输和交期发生不一致时必须创建 `FactConflict`，保留 `current_value`、`incoming_value` 和可选 `resolved_value`；存在未解决冲突时不得提交。
+
+## 13. `ProvenancedFact`
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| field_name | string | 稳定 snake_case 字段名 |
+| value | JSON-compatible value | 未知可为 null，不得用 false 替代未知 |
+| group | FactGroup | `identity/cultural/commercial/content` |
+| source | FactSource | 事实或候选的来源 |
+| verification_status | VerificationStatus | 当前核验状态 |
+| source_note | string/null | 面向审核的简短来源说明 |
+| confirmed_at | datetime/null | `artisan_confirmed` 的显式确认时间 |
+
+`FactSource` 允许：
+
+- `artisan_provided`：手艺人录入，但尚未显式确认；
+- `artisan_confirmed`：手艺人在审核步骤中逐项确认；
+- `merchant_confirmed`：未来由经过认证的商家确认；
+- `public_source`：有可追溯公开来源，仍需判断来源是否支持对应断言；
+- `ai_inferred`：模型提取或生成的候选；
+- `unknown`：没有可依赖来源。
+
+`VerificationStatus` 允许 `confirmed`、`pending_review`、`unknown`、`not_applicable`。约束如下：
+
+- `ai_inferred` 不能与 `confirmed` 组合；
+- `confirmed` 只允许来自 `artisan_confirmed`、`merchant_confirmed` 或经过审核的 `public_source`；
+- 人工确认按字段升级，不能通过确认一个字段升级整份草稿；
+- `unknown` 不能解释为否定能力，`not_applicable` 需要明确适用性依据。
+
+## 14. `BilingualProductDraft`
+
+双语草稿包含以下十个文本字段：
+
+- `overview_zh` / `overview_en`；
+- `craft_background_zh` / `craft_background_en`；
+- `cultural_meaning_zh` / `cultural_meaning_en`；
+- `gifting_contexts_zh` / `gifting_contexts_en`；
+- `customization_zh` / `customization_en`。
+
+另含独立的 `source` 与 `verification_status`。默认组合为 `ai_inferred/pending_review`；即使事实字段已由手艺人确认，双语表达也不会自动升级。模型调用或输出校验失败时使用基于当前已知值的确定性模板，并继续保留待确认状态。
+
+## 15. `HeritagePassport`
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| passport_id | string | 稳定文化护照 ID |
+| product_id | string | 草稿使用 pending ID；canonical 商品使用原 product ID |
+| artisan_or_merchant_name | string/null | 未核验时不得展示为认证主体 |
+| product_name_zh / product_name_en | string / string/null | 中英文作品名 |
+| craft_name | string | 工艺名称 |
+| region | string/null | 地域或文化语境，不自动等于产地 |
+| cultural_background_zh/en | string/null | 有来源边界的文化背景 |
+| symbolism | string[] | 文化寓意 |
+| cultural_sources | SourceReference[] | 名称、HTTPS URL、来源类型与来源自身的核验状态 |
+| commercial_facts | ProvenancedFact[] | 商业字段保持逐项状态 |
+| cultural_verification_status | VerificationStatus | 文化事实汇总状态 |
+| commercial_verification_status | VerificationStatus | 商业事实汇总状态 |
+| publication_status | PublicationStatus | 发布生命周期状态 |
+| reviewed_at | datetime/null | 独立审核时间 |
+| bilingual_content | BilingualProductDraft/null | 可选双语内容 |
+
+Buyer 视图必须把内部枚举转换为客户可读文案。`catalog_reference` 可以展示文化来源，但其价格、起订量、交期、定制、运输和产能不能显示为已具备的商业能力。
+
+## 16. 发布生命周期与推荐资格
+
+`PublicationStatus` 允许：
+
+```text
+draft → pending_review → reference_only / recommendable / archived
+```
+
+- `draft`：填写中；
+- `pending_review`：已提交，等待审核；
+- `reference_only`：仅作文化参考；
+- `recommendable`：满足独立审核门槛，可进入显式目录发布步骤；
+- `archived`：撤回或停用。
+
+`recommendable` 不触发自动目录写入。当前 Skill 3 候选仍由 canonical `Product` 的统一资格门控制，并且只接受逻辑发布状态 `recommendable`。为避免修改现有 CSV 合同，适配层把 `catalog_role=recommendation_demo` 且产品、商家和工艺状态全部为 `active` 的记录视为 legacy `recommendable`；`catalog_reference/inactive` 视为 `reference_only`。因此 20 条正式演示记录、30 条参考和 50 条总目录边界不因 Artisan 草稿而改变。
+
+当前模拟审核要求规定的身份、文化与商业字段逐项为非空 `confirmed`，至少一个 `_source_url` 字段为 `confirmed`，并且存在图片；任一条件不足时结果为 `reference_only`。该规则只用于原型状态演示，不替代生产级身份、来源与商家审核。
+
+## 17. Artisan 草稿持久化隔离
+
+`ArtisanDraftRepository` 协议提供 `save`、`get` 和 `list_for_session`。当前有：
+
+- 内存实现：用于当前 Streamlit 原型和隔离测试；
+- SQLite 实现：表 `artisan_drafts` 保存 `draft_id`、`session_id`、`publication_status`、`payload_json`、`created_at` 和 `updated_at`。
+
+该表不属于 [`ANALYTICS_SCHEMA.md`](ANALYTICS_SCHEMA.md) 中的 Buyer 匿名事件。Artisan 草稿不得写入 `sessions`、`recommendation_events` 或 `selection_events`，Buyer 的匿名授权也不覆盖手艺人资料。生产环境需要另行定义身份、商家主体、角色权限、加密、保留、删除和审计策略。

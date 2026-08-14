@@ -8,6 +8,7 @@ from pathlib import Path
 import streamlit as st
 
 from heritagelink.catalog import HeritageReferenceItem
+from heritagelink.catalog_eligibility import is_recommendation_eligible
 from heritagelink.models import Product
 
 
@@ -65,6 +66,7 @@ def render_catalog_gallery(
         for column, item in zip(columns, visible_items[start : start + 3], strict=False):
             with column, st.container(border=True):
                 product = products_by_id[item.demo_product_id]
+                recommendable = is_recommendation_eligible(product)
                 st.image(
                     str(item.image_file(project_root)),
                     caption=product.image_alt_zh,
@@ -76,29 +78,32 @@ def render_catalog_gallery(
                     f'<span class="hl-catalog-pill">{item.craft_category_zh}</span>'
                     + (
                         '<span class="hl-catalog-pill muted">可参与智能推荐 · Demo 商业参数</span>'
-                        if product.catalog_role == "recommendation_demo"
+                        if recommendable
                         else '<span class="hl-catalog-pill muted">馆藏探索参考 · 不参与推荐</span>'
                     ),
                     unsafe_allow_html=True,
                 )
-                st.markdown(
-                    f"**{_money(product.price_min_fen)}–{_money(product.price_max_fen)} / 件**"
-                )
-                if product.commercial_data_status == "demo_assumption":
+                if recommendable:
+                    st.markdown(
+                        f"**{_money(product.price_min_fen)}–{_money(product.price_max_fen)} / 件**"
+                    )
                     st.caption("以上为推荐流程演示预算带，不是商家公开报价")
-                st.caption(
-                    f"起订 {product.min_order_qty} 件 · 基础制作周期 {product.lead_time_days} 天"
-                )
+                    st.caption(
+                        f"起订 {product.min_order_qty} 件 · "
+                        f"基础制作周期 {product.lead_time_days} 天"
+                    )
+                else:
+                    st.caption("仅作文化与馆藏探索参考 · 商业条件待核实")
                 st.write(item.introduction_zh)
                 with st.expander("商品详情与图片出处"):
-                    st.write(f"方案规格：{product.dimensions_text}")
-                    st.write(f"方案材料：{product.material_text}")
+                    if recommendable:
+                        st.write(f"方案规格：{product.dimensions_text}")
+                        st.write(f"方案材料：{product.material_text}")
+                    else:
+                        st.write(f"馆藏材质参考：{item.material_text}")
                     st.write(f"年代：{item.period_text}")
                     st.write(f"地区：{item.region_text}")
                     st.write(f"馆藏编号：{item.source_object_number}")
                     st.caption(f"图片许可：{item.image_license}")
-                    st.caption(
-                        f"数据质量：Level {product.data_quality_level} · "
-                        f"商业数据：{product.commercial_data_status}"
-                    )
+                    st.caption("图片与文化资料来自下方馆藏原页")
                     st.link_button("查看馆藏原页", item.source_url, width="stretch")

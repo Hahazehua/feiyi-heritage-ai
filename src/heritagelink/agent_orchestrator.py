@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from time import perf_counter
 
 from heritagelink.agent_models import (
     AgentOverallStatus,
@@ -18,9 +19,21 @@ from heritagelink.agent_models import (
 from heritagelink.agent_trace import TraceTimer, safety, skipped_trace
 from heritagelink.analytics import build_recommendation_event, build_selection_event
 from heritagelink.choice_analysis import ChoiceAnalysisRequest, ChoiceAnalysisResult
-from heritagelink.conversation_state import ConversationMessage, new_conversation
+from heritagelink.comparison_models import (
+    ApplicationExecutionTrace,
+    ApplicationTraceStatus,
+    ComparisonDimension,
+    ProductComparisonRequest,
+)
+from heritagelink.conversation_state import ConversationMessage, ConversationStage, new_conversation
 from heritagelink.dialogue_manager import mark_recommendations_shown
+from heritagelink.llm_client import DeepSeekClient, LLMClientError
+from heritagelink.product_comparison import ProductComparisonError, ProductComparisonService
 from heritagelink.request_parser import ParsedCustomerRequest
+from heritagelink.shopping_turn_router import (
+    apply_relative_refinement,
+    asks_for_unspecified_lower_budget,
+)
 from heritagelink.skills import (
     choice_analysis_skill,
     choice_capture_skill,
@@ -157,7 +170,200 @@ def _recommend(
         selection_event=None,
         grounded_content=None,
         final_plan=None,
+        comparison_result=None,
     )
+
+
+def _append_application_turn(
+    state: AgentSessionState,
+    user_text: str,
+    assistant_text: str,
+) -> AgentSessionState:
+    """Append a shopping action without asking Skill 1 to reinterpret it as a need."""
+    conversation = state.conversation_state
+    updated = replace(
+        conversation,
+        messages=(
+            *conversation.messages,
+            ConversationMessage("user", user_text or "比较当前推荐"),
+            ConversationMessage("assistant", assistant_text),
+        ),
+        raw_user_texts=(*conversation.raw_user_texts, user_text or "比较当前推荐"),
+        current_stage=ConversationStage.REFINING,
+    )
+    return replace(state, conversation_state=updated)
+
+
+def _replace_last_assistant_message(
+    conversation,
+    assistant_text: str,
+):
+    """Keep the display transcript aligned with the orchestrator's final response."""
+    if not conversation.messages or conversation.messages[-1].role != "assistant":
+        return conversation
+    return replace(
+        conversation,
+        messages=(
+            *conversation.messages[:-1],
+            ConversationMessage("assistant", assistant_text),
+        ),
+    )
+
+
+def _comparison_turn(
+    user_turn: UserTurn,
+    state: AgentSessionState,
+    catalog: CatalogSnapshot,
+    runtime: AgentRuntimeConfig,
+) -> AgentTurnResult:
+    """Run one application-layer comparison while all formal Skills stay untouched."""
+    traces = tuple(
+        skipped_trace(skill_id, "商品比较是应用层动作，沿用当前正式推荐")
+        for skill_id in (
+            "understand_gift_request",
+            "infer_soft_preferences",
+            "recommend_heritage_gifts",
+            "compose_grounded_content",
+            "build_final_gift_plan",
+            "capture_consented_choice",
+            "analyze_gift_choice_signals",
+        )
+    )
+    started = perf_counter()
+    if state.recommendation_result is None or state.recommendation_context is None:
+        assistant = "请先生成推荐，我再帮您比较其中的作品。"
+        updated = _append_application_turn(state, user_turn.text, assistant)
+        application_trace = ApplicationExecutionTrace(
+            action_id="product_comparison",
+            status=ApplicationTraceStatus.BLOCKED,
+            input_summary={"requested_product_count": len(user_turn.product_ids)},
+            output_summary={"structured_comparison": "blocked_no_current_recommendation"},
+            safety_checks=("formal_recommendations_only", "no_ranking_change", "no_pii_in_trace"),
+            duration_ms=(perf_counter() - started) * 1000,
+        )
+        return AgentTurnResult(
+            assistant,
+            updated,
+            None,
+            None,
+            None,
+            (RequestedAction.RECOMMEND_NOW,),
+            traces,
+            AgentOverallStatus.FAILED_SAFE,
+            None,
+            (application_trace,),
+        )
+
+    request = ProductComparisonRequest(
+        product_ids=user_turn.product_ids or None,
+        comparison_dimensions=_comparison_dimensions_from_focus(user_turn.comparison_focus),
+        focus_recipient=user_turn.focus_recipient,
+        focus_scene=user_turn.focus_scene,
+        focus_styles=user_turn.focus_styles,
+        focus_symbolism=user_turn.focus_symbolism,
+        focus_customization=user_turn.focus_customization,
+        focus_international=user_turn.focus_international,
+    )
+    explanation_client = None
+    if runtime.llm_enabled:
+        try:
+            explanation_client = DeepSeekClient.from_env()
+        except LLMClientError:
+            explanation_client = None
+    try:
+        comparison = ProductComparisonService(explanation_client=explanation_client).compare(
+            request,
+            state.recommendation_result,
+            state.recommendation_context,
+            catalog,
+        )
+    except (ProductComparisonError, ValueError):
+        assistant = "这次比较范围已经失效，请从当前推荐中重新选择要比较的作品。"
+        updated = _append_application_turn(state, user_turn.text, assistant)
+        application_trace = ApplicationExecutionTrace(
+            action_id="product_comparison",
+            status=ApplicationTraceStatus.FAILED_SAFE,
+            input_summary={"requested_product_count": len(user_turn.product_ids)},
+            output_summary={"structured_comparison": "failed_safe"},
+            safety_checks=("formal_recommendations_only", "no_ranking_change", "no_pii_in_trace"),
+            duration_ms=(perf_counter() - started) * 1000,
+        )
+        return AgentTurnResult(
+            assistant,
+            updated,
+            state.recommendation_result.response,
+            None,
+            None,
+            (RequestedAction.COMPARE_RECOMMENDATIONS, RequestedAction.ADJUST_REQUIREMENT),
+            traces,
+            AgentOverallStatus.FAILED_SAFE,
+            None,
+            (application_trace,),
+        )
+
+    assistant = comparison.customer_summary
+    history = (*state.comparison_history, comparison)[-3:]
+    updated = replace(state, comparison_result=comparison, comparison_history=history)
+    updated = _append_application_turn(updated, user_turn.text, assistant)
+    application_trace = ApplicationExecutionTrace(
+        action_id="product_comparison",
+        status=(
+            ApplicationTraceStatus.FALLBACK
+            if comparison.explanation_source.value == "deterministic_fallback"
+            else ApplicationTraceStatus.SUCCESS
+        ),
+        input_summary={
+            "requested_product_count": len(user_turn.product_ids),
+            "focus_dimensions": user_turn.comparison_focus,
+        },
+        output_summary={
+            "structured_comparison": "success",
+            "compared_product_count": len(comparison.items),
+            "original_ranking_preserved": comparison.original_ranking_preserved,
+            "unknown_preserved": bool(comparison.unknown_or_unverified),
+        },
+        narrative_source=comparison.explanation_source,
+        safety_checks=(
+            "formal_recommendations_only",
+            "original_ranking_unchanged",
+            "unknown_preserved",
+            "no_pii_in_trace",
+        ),
+        duration_ms=(perf_counter() - started) * 1000,
+    )
+    return AgentTurnResult(
+        assistant,
+        updated,
+        state.recommendation_result.response,
+        None,
+        None,
+        (
+            RequestedAction.SELECT_PRODUCT,
+            RequestedAction.COMPARE_RECOMMENDATIONS,
+            RequestedAction.REFINE_RECOMMENDATIONS,
+        ),
+        traces,
+        AgentOverallStatus.COMPLETED,
+        comparison,
+        (application_trace,),
+    )
+
+
+def _comparison_dimensions_from_focus(
+    focus: tuple[str, ...],
+) -> tuple[ComparisonDimension, ...]:
+    mapped = {
+        "recipient": ComparisonDimension.RECIPIENT,
+        "scene": ComparisonDimension.SCENE,
+        "culture": ComparisonDimension.CULTURE,
+        "budget": ComparisonDimension.BUDGET,
+        "style": ComparisonDimension.STYLE,
+        "customization": ComparisonDimension.CUSTOMIZATION,
+        "shipping": ComparisonDimension.PRACTICAL,
+        "quantity": ComparisonDimension.PRACTICAL,
+        "lead_time": ComparisonDimension.PRACTICAL,
+    }
+    return tuple(dict.fromkeys(mapped[item] for item in focus if item in mapped))
 
 
 def _capture(
@@ -241,6 +447,13 @@ def run_agent_turn(
     )
     action = user_turn.requested_action
 
+    if action in {
+        RequestedAction.COMPARE_RECOMMENDATIONS,
+        RequestedAction.COMPARE_SELECTED_PRODUCTS,
+        RequestedAction.EXPLAIN_DIFFERENCE,
+    }:
+        return _comparison_turn(user_turn, state, catalog, runtime_config)
+
     if action is RequestedAction.RESTART:
         state = replace(
             state,
@@ -252,6 +465,8 @@ def run_agent_turn(
             selection_event=None,
             grounded_content=None,
             final_plan=None,
+            comparison_result=None,
+            comparison_history=(),
         )
         traces = [
             skipped_trace(item, "用户重新开始会话")
@@ -280,6 +495,7 @@ def run_agent_turn(
         RequestedAction.CONTINUE_CONVERSATION,
         RequestedAction.RECOMMEND_NOW,
         RequestedAction.ADJUST_REQUIREMENT,
+        RequestedAction.REFINE_RECOMMENDATIONS,
     }:
         timer = TraceTimer("understand_gift_request", "收到新的需求输入或用户修改")
         if user_turn.structured_request is not None:
@@ -306,6 +522,20 @@ def run_agent_turn(
                 if turn.used_parser_mode == "deterministic_demo"
                 else SkillStatus.SUCCESS
             )
+            if action is RequestedAction.REFINE_RECOMMENDATIONS:
+                if asks_for_unspecified_lower_budget(user_turn.text):
+                    assistant = "可以，请告诉我新的单件预算上限，我会按新预算重新匹配。"
+                    conversation = _replace_last_assistant_message(conversation, assistant)
+                    should_recommend = False
+                elif conversation.accumulated_request is not None:
+                    refined, overrides = apply_relative_refinement(
+                        conversation.accumulated_request, user_turn.text
+                    )
+                    conversation = replace(conversation, accumulated_request=refined)
+                    state = replace(state, user_overrides=state.user_overrides | overrides)
+                    assistant = "好的，我已按您刚才的偏好调整，并重新整理推荐。"
+                    conversation = _replace_last_assistant_message(conversation, assistant)
+                    should_recommend = True
         state = replace(
             state,
             conversation_state=conversation,
@@ -316,6 +546,7 @@ def run_agent_turn(
             selection_event=None,
             grounded_content=None,
             final_plan=None,
+            comparison_result=None,
         )
         parsed = conversation.accumulated_request
         known_fields = parsed and tuple(
@@ -347,7 +578,12 @@ def run_agent_turn(
         force = action in {
             RequestedAction.RECOMMEND_NOW,
             RequestedAction.ADJUST_REQUIREMENT,
+            RequestedAction.REFINE_RECOMMENDATIONS,
         }
+        if action is RequestedAction.REFINE_RECOMMENDATIONS and asks_for_unspecified_lower_budget(
+            user_turn.text
+        ):
+            force = False
         if conversation.clarification_rounds >= runtime_config.maximum_clarification_turns:
             force = True
         if force or should_recommend:
@@ -411,7 +647,20 @@ def run_agent_turn(
                 tuple(traces),
                 AgentOverallStatus.FAILED_SAFE,
             )
-        selection = build_selection_event(state.recommendation_event, user_turn.product_id)
+        try:
+            selection = build_selection_event(state.recommendation_event, user_turn.product_id)
+        except ValueError:
+            traces.extend(_trace_tail("选择不在当前正式推荐中"))
+            return AgentTurnResult(
+                "这件作品不在当前推荐中，请从现有推荐里重新选择。",
+                state,
+                state.recommendation_result.response,
+                None,
+                None,
+                (RequestedAction.SELECT_PRODUCT, RequestedAction.RECOMMEND_NOW),
+                tuple(traces),
+                AgentOverallStatus.FAILED_SAFE,
+            )
         state = replace(state, selected_product_id=user_turn.product_id, selection_event=selection)
         recommendation = _find_selected(state)
         timer = TraceTimer("compose_grounded_content", "用户选择了正式推荐产品")

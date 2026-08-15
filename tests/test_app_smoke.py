@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sqlite3
 from pathlib import Path
 
@@ -158,16 +159,53 @@ def test_consent_controls_idempotent_ui_persistence(tmp_path: Path, monkeypatch)
         assert connection.execute("SELECT COUNT(*) FROM selection_events").fetchone()[0] == 2
 
 
-def test_mobile_css_prevents_horizontal_overflow() -> None:
-    theme = (Path(__file__).parents[1] / "src" / "heritagelink" / "ui" / "theme.py").read_text(
+def _theme_css() -> str:
+    """Theme source with whitespace collapsed, so assertions describe rules
+    rather than formatting."""
+    source = (Path(__file__).parents[1] / "src" / "heritagelink" / "ui" / "theme.py").read_text(
         encoding="utf-8"
     )
+    return re.sub(r"\s+", "", source)
 
-    assert "@media(max-width:760px)" in theme
-    assert "overflow-x:hidden" in theme
-    assert ".hl-comparison-desktop" in theme
-    assert ".hl-comparison-mobile {display:none" in theme
-    assert ".hl-comparison-desktop{display:none}.hl-comparison-mobile{display:block}" in theme
+
+def test_mobile_css_prevents_horizontal_overflow() -> None:
+    css = _theme_css()
+
+    assert "@media(max-width:760px)" in css
+    assert "overflow-x:hidden" in css
+    # The wide comparison table is replaced by stacked cards on narrow
+    # screens; both halves of that swap have to exist or one layout leaks.
+    assert ".hl-comparison-mobile{display:none" in css
+    assert ".hl-comparison-desktop{display:none}" in css
+    assert ".hl-comparison-mobile{display:block}" in css
+
+
+def test_theme_exposes_design_tokens() -> None:
+    """Every page has to draw from one token set rather than local values."""
+    css = _theme_css()
+
+    for token in (
+        "--paper:",
+        "--ink-900:",
+        "--ink-500:",
+        "--bronze:",
+        "--line:",
+        "--text-base:",
+        "--sp-4:",
+        "--r-md:",
+        "--shadow-md:",
+        "--font-ui:",
+        "--font-display:",
+    ):
+        assert token in css, f"missing design token {token}"
+
+
+def test_theme_defines_visible_focus_styles() -> None:
+    """Keyboard users need a visible focus indicator on interactive elements."""
+    css = _theme_css()
+
+    assert ":focus-visible" in css
+    assert "outline:2pxsolidvar(--focus)" in css
 
 
 def test_review_trace_is_hidden_by_default_and_requires_both_gates(monkeypatch) -> None:  # type: ignore[no-untyped-def]

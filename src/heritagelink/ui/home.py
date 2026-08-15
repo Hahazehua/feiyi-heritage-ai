@@ -74,10 +74,15 @@ def render_about_page() -> None:
         t("home.story_campaign"),
         t("home.story_demand"),
     )
-    flow = '<span class="hl-story-arrow">→</span>'.join(
-        f'<div class="hl-story-node">{escape(label)}</div>' for label in labels
+    # The arrows carry no meaning a list does not already convey, so they are
+    # hidden from assistive tech rather than read out between every step.
+    flow = '<span class="hl-story-arrow" aria-hidden="true">→</span>'.join(
+        f'<li class="hl-story-node">{escape(label)}</li>' for label in labels
     )
-    st.markdown(f'<div class="hl-platform-flow">{flow}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<ol class="hl-platform-flow" aria-label="{escape(t("home.how_title"))}">{flow}</ol>',
+        unsafe_allow_html=True,
+    )
 
 
 __all__ = [

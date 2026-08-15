@@ -87,15 +87,19 @@ def render_artisan_progress(stage: str) -> None:
     for index, title in enumerate(progress_steps):
         state = "active" if index == current else "done" if index < current else ""
         marker = "✓" if index < current else f"{index + 1:02d}"
+        # The check glyph and colour are the only visual completion cues, so
+        # state has to reach assistive tech through aria-current and text.
+        current_attr = ' aria-current="step"' if index == current else ""
         items.append(
-            f'<div class="hl-artisan-progress-step {state}">'
+            f'<li class="hl-artisan-progress-step {state}"{current_attr}>'
             f'<span aria-hidden="true">{marker}</span>'
             f"<strong>{escape(title)}</strong>"
-            "</div>"
+            "</li>"
         )
     st.markdown(
         f'<nav class="hl-artisan-progress" '
-        f'aria-label="{escape(t("artisan.progress_aria"))}">{"".join(items)}</nav>',
+        f'aria-label="{escape(t("artisan.progress_aria"))}">'
+        f'<ol class="hl-artisan-progress-list">{"".join(items)}</ol></nav>',
         unsafe_allow_html=True,
     )
 

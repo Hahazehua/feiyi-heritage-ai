@@ -1,8 +1,15 @@
+# Streamlit's built-in widgets (selectbox, chat input, sliders) read this
+# theme rather than the CSS in heritagelink.ui.theme, so the values here are
+# the same design tokens by another name.  Keep them in sync:
+#   primaryColor            = --bronze      (white on it: 5.82:1)
+#   backgroundColor         = --paper
+#   secondaryBackgroundColor = --line-soft
+#   textColor               = --ink-900     (on paper: 15.21:1)
 [theme]
-primaryColor = "#A45F35"
-backgroundColor = "#F7F6F2"
-secondaryBackgroundColor = "#EFECE5"
-textColor = "#202521"
+primaryColor = "#8A5A3B"
+backgroundColor = "#F7F4EE"
+secondaryBackgroundColor = "#EFE9DF"
+textColor = "#1B1F1A"
 font = "sans serif"
 
 [browser]

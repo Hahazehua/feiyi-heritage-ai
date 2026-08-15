@@ -36,8 +36,15 @@ def render_progress(stage: str) -> None:
     parts = []
     for index, (_, label) in enumerate(STEPS):
         state = "active" if index == current else "done" if index < current else ""
-        parts.append(f'<div class="hl-step {state}">{escape(label)}</div>')
-    st.markdown(f'<nav class="hl-stepper">{"".join(parts)}</nav>', unsafe_allow_html=True)
+        # aria-current tells a screen reader which step is live; the visual
+        # cue is colour and border weight alone, which it cannot perceive.
+        marker = ' aria-current="step"' if index == current else ""
+        parts.append(f'<li class="hl-step {state}"{marker}>{escape(label)}</li>')
+    st.markdown(
+        f'<nav class="hl-stepper" aria-label="需求收集进度">'
+        f'<ol class="hl-stepper-list">{"".join(parts)}</ol></nav>',
+        unsafe_allow_html=True,
+    )
 
 
 def section_intro(kicker: str, title: str, copy: str) -> None:

@@ -97,8 +97,10 @@ def apply_theme() -> None:
         /* Setting the UI stack on the container makes every descendant inherit
            it, which covers the many small labels Streamlit does not style
            directly.  Display type is reasserted explicitly further down. */
+        /* z-index keeps page content above the entry screen's fixed backdrop,
+           which is the only thing that ever paints behind it. */
         .block-container {max-width:1120px;padding:var(--sp-5) var(--sp-5) var(--sp-8);
-          font-family:var(--font-ui);}
+          font-family:var(--font-ui);position:relative;z-index:1;}
 
         /* ================= Base typography =================
            Streamlit emits hashed, class-scoped rules like
@@ -302,23 +304,68 @@ def apply_theme() -> None:
         .hl-app-positioning {font-size:var(--text-xs);color:var(--ink-500);white-space:nowrap;}
 
         /* ================= Entry screen =================
-           Shown once per session before either side is revealed.  The cards
-           rise in with a short stagger; the reduced-motion guard above
-           collapses it for anyone who asked for stillness. */
+           The one place the brand introduces itself, so the wordmark leads and
+           the acronym is spelled out under it.  Everything rises in on a short
+           stagger; the reduced-motion guard above freezes all of it. */
         @keyframes hl-rise {
           from {opacity:0;transform:translateY(var(--sp-4));}
           to {opacity:1;transform:none;}
         }
-        .hl-entry {padding:var(--sp-8) var(--sp-5) var(--sp-6);text-align:center;
-          animation:hl-rise .5s ease-out both;}
-        [data-testid="stMarkdownContainer"][data-testid] h1.hl-entry-brand {
-          margin:var(--sp-3) auto var(--sp-2);max-width:20ch;}
-        .hl-entry-sub {margin:0 auto;max-width:44ch;}
+        @keyframes hl-drift {
+          0%   {transform:translate3d(0,0,0) scale(1);}
+          50%  {transform:translate3d(4vw,-3vh,0) scale(1.14);}
+          100% {transform:translate3d(0,0,0) scale(1);}
+        }
+        @keyframes hl-widen {from {width:0;} to {width:3.5rem;}}
+
+        /* Decorative colour fields. Kept far below text contrast thresholds —
+           they tint the paper, they never sit behind a glyph at strength. */
+        .hl-entry-bg {position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+        .hl-entry-orb {position:absolute;border-radius:50%;filter:blur(70px);
+          will-change:transform;animation:hl-drift 26s ease-in-out infinite;}
+        /* .16 rather than .20: at peak the bronze field tints the paper enough
+           to drop secondary ink to 4.48:1, just under the 4.5 threshold. */
+        .hl-entry-orb-1 {top:-12vh;left:-6vw;width:46vw;height:46vw;
+          background:radial-gradient(circle,rgba(138,90,59,.16),transparent 68%);}
+        .hl-entry-orb-2 {bottom:-18vh;right:-8vw;width:52vw;height:52vw;
+          background:radial-gradient(circle,rgba(79,97,87,.18),transparent 68%);
+          animation-duration:34s;animation-delay:-8s;}
+        .hl-entry-orb-3 {top:22vh;right:18vw;width:30vw;height:30vw;
+          background:radial-gradient(circle,rgba(92,58,37,.13),transparent 70%);
+          animation-duration:42s;animation-delay:-16s;}
+
+        .hl-entry {display:flex;flex-direction:column;align-items:center;
+          padding:var(--sp-8) var(--sp-4) var(--sp-6);text-align:center;
+          animation:hl-rise .6s ease-out both;}
+        [data-testid="stMarkdownContainer"][data-testid] p.hl-entry-wordmark {
+          margin:0;font-family:var(--font-display);
+          font-size:clamp(3.6rem,11vw,7rem);line-height:.9;color:var(--ink);
+          letter-spacing:.06em;font-weight:var(--w-semi);}
+        [data-testid="stMarkdownContainer"][data-testid] p.hl-entry-expansion {
+          margin:var(--sp-3) 0 0;color:var(--bronze-deep);
+          font-size:var(--text-xs);font-weight:var(--w-bold);line-height:1.4;
+          letter-spacing:var(--tracking-wide);text-transform:uppercase;}
+        [data-testid="stMarkdownContainer"][data-testid] p.hl-entry-mission {
+          margin:var(--sp-4) auto 0;max-width:34ch;font-family:var(--font-display);
+          font-size:var(--text-lg);line-height:1.6;color:var(--ink-700);}
+        .hl-entry-divider {display:block;height:2px;margin:var(--sp-6) 0 var(--sp-5);
+          background:var(--bronze);animation:hl-widen .7s ease-out .35s both;}
+        [data-testid="stMarkdownContainer"][data-testid] h1.hl-entry-prompt {
+          margin:0;font-size:var(--display-sm);}
+        /* This line sits straight on the tinted paper with no card behind it,
+           so it takes the darker ink rather than the secondary tone. */
+        [data-testid="stMarkdownContainer"][data-testid] p.hl-entry-sub {
+          margin:var(--sp-2) auto 0;max-width:56ch;font-size:var(--text-sm);
+          color:var(--ink-700);}
+
         .hl-entry-card {min-height:11rem;padding:var(--sp-5);border:1px solid var(--line);
           border-radius:var(--r-xl);background:var(--surface-veil);
-          box-shadow:var(--shadow-md);animation:hl-rise .5s ease-out both;}
-        .hl-entry-card-1 {animation-delay:.08s;}
-        .hl-entry-card-2 {animation-delay:.18s;}
+          box-shadow:var(--shadow-md);animation:hl-rise .5s ease-out both;
+          transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;}
+        .hl-entry-card:hover {transform:translateY(-3px);box-shadow:var(--shadow-lg);
+          border-color:var(--line-strong);}
+        .hl-entry-card-1 {animation-delay:.30s;}
+        .hl-entry-card-2 {animation-delay:.42s;}
         .hl-entry-card-index {display:block;margin-bottom:var(--sp-2);color:var(--bronze);
           font-size:var(--text-2xs);font-weight:var(--w-bold);
           letter-spacing:var(--tracking-wide);}
@@ -551,8 +598,12 @@ def apply_theme() -> None:
             gap:var(--sp-3);padding:var(--sp-4) var(--sp-1) var(--sp-3)}
           .hl-app-meta{align-items:flex-start;text-align:left}
           .hl-app-positioning{white-space:normal}
-          .hl-entry{padding:var(--sp-6) var(--sp-2) var(--sp-4)}
+          .hl-entry{padding:var(--sp-6) var(--sp-1) var(--sp-4)}
           .hl-entry-card{min-height:0;padding:var(--sp-4)}
+          .hl-entry-divider{margin:var(--sp-5) 0 var(--sp-4)}
+          /* Blur is the expensive part of the backdrop; ease it on phones. */
+          .hl-entry-orb{filter:blur(48px)}
+          .hl-entry-orb-3{display:none}
           .hl-stepper-list{grid-template-columns:1fr}
           .hl-step{display:none}.hl-step.active{display:block}
           .hl-status-grid{grid-template-columns:1fr}

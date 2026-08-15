@@ -42,7 +42,12 @@ systemctl restart ssh
 | 协议 | 端口 | 源地址 | 用途 |
 |---|---|---|---|
 | TCP | 22 | 建议限制为你的 IP | SSH |
-| TCP | 80 | 0.0.0.0/0 | 网站访问 |
+| TCP | 8000 | 0.0.0.0/0 | 网站访问 |
+
+> **为什么是 8000 而不是 80**：赛事发放的服务器封禁了 80/443/8080/8443，实测 8000 放行。
+> Nginx 在**容器内**仍然监听 80，只是宿主机的发布端口改成了 8000，`nginx.conf` 无需改动。
+> 换端口用 `HOST_PORT=xxxx bash deploy.sh`，`docker-compose.yml`、`deploy.sh`、
+> `bootstrap-ecs.sh` 三处都读这个变量。
 
 服务器内部的 `ufw` 由下一步的脚本自动配置。
 
@@ -102,8 +107,8 @@ bash /opt/haha/deploy/deploy.sh
 
 完成后访问：
 
-- 客户模式：`http://<你的服务器IP>/`
-- 评审模式：`http://<你的服务器IP>/?review_mode=1`（需服务端 `AGENT_REVIEW_MODE_ENABLED=true`；若设了 Token 还要带 `&review_token=<TOKEN>`）
+- 客户模式：`http://<你的服务器IP>:8000/`
+- 评审模式：`http://<你的服务器IP>:8000/?review_mode=1`（需服务端 `AGENT_REVIEW_MODE_ENABLED=true`；若设了 Token 还要带 `&review_token=<TOKEN>`）
 
 **以后每次更新代码，只需重新跑一遍 `deploy.sh`。**
 
@@ -119,7 +124,7 @@ docker compose -f /opt/haha/deploy/docker-compose.yml ps
 docker compose -f /opt/haha/deploy/docker-compose.yml logs -f app
 
 # 健康检查
-curl -I http://localhost/_stcore/health
+curl -I http://localhost:8000/_stcore/health
 
 # 确认 8501 只监听回环，没有直接暴露到公网
 ss -tlnp | grep 8501     # 应显示 127.0.0.1:8501
@@ -141,19 +146,53 @@ ss -tlnp | grep 8501     # 应显示 127.0.0.1:8501
 
 | 现象 | 排查方向 |
 |---|---|
-| 浏览器一直转圈打不开 | 九成是安全组没放行 80。先在服务器上 `curl -I http://localhost/`，本地通=安全组问题，本地也不通=看容器日志 |
+| 浏览器一直转圈打不开 | 九成是安全组没放行 8000。先在服务器上 `curl -I http://localhost:8000/`，本地通=安全组问题，本地也不通=看容器日志。注意「超时」和「连接被拒绝」的区别：超时=包被上游丢弃（安全组），拒绝=包到了服务器但没程序监听 |
 | 页面能开但每分钟断线重连 | Nginx 少了 websocket 头。确认用的是 `deploy/nginx.conf`，`Upgrade`/`Connection` 两行都在 |
 | `ModuleNotFoundError: heritagelink` | 构建日志里 `-e .` 没跑成功；确认 `pyproject.toml` 与 `src/` 都被 COPY 进镜像 |
 | 图片 404 | `assets/` 未提交到 Git，或 CSV 里的文件名大小写与实际不符（Linux 区分大小写，Windows 不区分） |
 | 构建时磁盘满 | `docker system prune -af` 清理旧镜像；`assets/` 约 46MB，镜像总体约 1.2GB |
 | 改了 `.env` 但不生效 | `.env` 在容器启动时读取，需要 `docker compose ... up -d` 重启容器 |
+| `git clone` 龟速或 `early EOF` | GitHub 在国内云服务器被限速（实测 22 KB/s）。走 Gitee 镜像：`BRANCH=feat/latest-complete-mvp REPO_URL=https://gitee.com/<用户名>/feiyi-heritage-ai.git bash bootstrap-ecs.sh` |
+| `failed to resolve reference "docker.io/..."` | Docker Hub 在国内被封。配置镜像加速见下方「国内网络环境」 |
 | 需要重启 | `docker compose -f /opt/haha/deploy/docker-compose.yml restart` |
+
+---
+
+## 6.5 国内网络环境（重建服务器时必看）
+
+赛事服务器在国内，GitHub 与 Docker Hub 都不可直连。全新机器上按顺序处理：
+
+**Docker Hub 被封** —— 装完 Docker 后先配镜像加速，否则拉不到 `nginx` 和 `python` 基础镜像：
+
+```bash
+mkdir -p /etc/docker && cat > /etc/docker/daemon.json <<'EOF'
+{
+  "registry-mirrors": [
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.m.daocloud.io"
+  ]
+}
+EOF
+systemctl daemon-reload && systemctl restart docker
+docker pull nginx:1.27-alpine    # 验证
+```
+
+第一个是腾讯云内网源（本机是腾讯云 ECM，走内网最快），第二个是公共源兜底。
+
+**GitHub 被限速** —— 用 Gitee 导入镜像后从 Gitee 克隆，见上方故障表。
+更新流程变成：本地 `git push` 到 GitHub 和 Gitee 两个远端，服务器上再 `deploy.sh`。
+
+> 不要用来路不明的第三方 GitHub 加速代理。这份代码要在服务器上以 root 权限构建运行，
+> 走中间人拿代码等于把供应链交给对方。Gitee 是仓库在自己账号下的正规托管，性质不同。
 
 ---
 
 ## 7. 关于 HTTPS
 
-裸 IP 无法申请 Let's Encrypt 证书。如果之后拿到域名：
+**本次赛事服务器封禁了 443，无法部署 HTTPS。** 演示与评审用 HTTP 即可，
+但**不要在这个站点上收集任何真实密码或个人敏感信息**。
+
+以下方案仅供服务器解封 443 或迁移到其他主机后参考。裸 IP 无法申请 Let's Encrypt 证书，需要域名：
 
 ```bash
 # 域名 A 记录指向服务器 IP 之后

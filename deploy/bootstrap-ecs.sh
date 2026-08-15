@@ -7,6 +7,8 @@ REPO_URL="${REPO_URL:-https://github.com/Hahazehua/feiyi-heritage-ai.git}"
 APP_DIR="${APP_DIR:-/opt/haha}"
 # Wave 4 lives on a feature branch, not on main.
 BRANCH="${BRANCH:-feat/latest-complete-mvp}"
+# 80/443/8080/8443 are blocked on the competition host; 8000 is open.
+HOST_PORT="${HOST_PORT:-8000}"
 
 log() { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
 
@@ -34,9 +36,9 @@ systemctl enable --now docker
 docker --version
 docker compose version
 
-log "3/6 Configuring firewall (allow 22, 80; deny everything else inbound)"
+log "3/6 Configuring firewall (allow 22, ${HOST_PORT}; deny everything else inbound)"
 ufw allow 22/tcp
-ufw allow 80/tcp
+ufw allow "${HOST_PORT}/tcp"
 ufw --force enable
 ufw status verbose
 
@@ -67,6 +69,6 @@ Next:
   1. nano ${APP_DIR}/.env          # set DEEPSEEK_API_KEY
   2. bash ${APP_DIR}/deploy/deploy.sh
 
-Also make sure your cloud console security group allows inbound TCP 80 and 22.
-The host firewall alone is not enough on most ECS providers.
+Also make sure your cloud console security group allows inbound TCP ${HOST_PORT}
+and 22. The host firewall alone is not enough on most ECS providers.
 EOF

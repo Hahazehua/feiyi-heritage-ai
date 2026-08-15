@@ -5,6 +5,9 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/haha}"
+# 80/443/8080/8443 are blocked on the competition host; 8000 is open.
+HOST_PORT="${HOST_PORT:-8000}"
+export HOST_PORT
 cd "${APP_DIR}"
 
 log() { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
@@ -19,7 +22,7 @@ docker compose -f deploy/docker-compose.yml up -d --build
 
 log "Waiting for the app to report healthy"
 for i in $(seq 1 40); do
-    if curl -fsS http://localhost/_stcore/health >/dev/null 2>&1; then
+    if curl -fsS "http://localhost:${HOST_PORT}/_stcore/health" >/dev/null 2>&1; then
         echo "Healthy after ${i}0s."
         break
     fi
@@ -36,7 +39,12 @@ docker image prune -f >/dev/null
 
 log "Status"
 docker compose -f deploy/docker-compose.yml ps
-PUBLIC_IP="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo 'YOUR_SERVER_IP')"
+# api.ipify.org is unreachable from mainland China, so try a domestic
+# endpoint before falling back to a placeholder.
+PUBLIC_IP="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null \
+    || curl -fsS --max-time 5 https://myip.ipip.net 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+){3}' | head -1 \
+    || echo 'YOUR_SERVER_IP')"
+[ -n "${PUBLIC_IP}" ] || PUBLIC_IP='YOUR_SERVER_IP'
 echo
-echo "Live at: http://${PUBLIC_IP}/"
-echo "Review mode (only if AGENT_REVIEW_MODE_ENABLED=true): http://${PUBLIC_IP}/?review_mode=1"
+echo "Live at: http://${PUBLIC_IP}:${HOST_PORT}/"
+echo "Review mode (only if AGENT_REVIEW_MODE_ENABLED=true): http://${PUBLIC_IP}:${HOST_PORT}/?review_mode=1"

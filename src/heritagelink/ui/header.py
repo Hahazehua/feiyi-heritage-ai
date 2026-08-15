@@ -1,4 +1,10 @@
-"""Global product header, navigation, language selector, and demo guide."""
+"""Global product header, language selector, and competition demo guide.
+
+Role navigation is deliberately absent: the entry screen picks a side and the
+footer switches it.  What remains is identity — a masthead large enough to read
+as a site rather than a toolbar — plus the two controls a visitor may need at
+any moment, language and the competition demo.
+"""
 
 from __future__ import annotations
 
@@ -12,45 +18,30 @@ from heritagelink.i18n import Language, get_language, set_language, t
 
 @dataclass(frozen=True, slots=True)
 class HeaderAction:
-    destination: str | None = None
     toggle_demo: bool = False
     reset_demo: bool = False
 
 
-def render_global_header(*, destination: str, demo_active: bool) -> HeaderAction:
+def render_global_header(*, role: str, demo_active: bool) -> HeaderAction:
+    """Render the masthead for the active role and report demo controls."""
+    role_label = t("entry.artisan_title") if role == "artisan" else t("entry.buyer_title")
     st.markdown(
         '<header class="hl-app-header">'
-        '<div class="hl-app-brand"><strong>HAHA</strong>'
-        f"<span>{t('brand.full')}</span></div>"
-        f'<div class="hl-app-positioning">{t("brand.positioning")}</div>'
+        '<div class="hl-app-brand">'
+        f"<strong>{escape(t('brand.name'))}</strong>"
+        f'<span class="hl-app-tagline">{escape(t("brand.full"))}</span>'
+        "</div>"
+        '<div class="hl-app-meta">'
+        f'<span class="hl-app-role">{escape(role_label)}</span>'
+        f'<span class="hl-app-positioning">{escape(t("brand.positioning"))}</span>'
+        "</div>"
         "</header>",
         unsafe_allow_html=True,
     )
-    buyer, artisan, about, language = st.columns([1, 1, 1, 0.85])
-    selected_destination: str | None = None
-    if buyer.button(
-        t("nav.buyer"),
-        key="switch_to_buyer",
-        type="primary" if destination == "buyer" else "secondary",
-        width="stretch",
-    ):
-        selected_destination = "buyer"
-    if artisan.button(
-        t("nav.artisan"),
-        key="switch_to_artisan",
-        type="primary" if destination == "artisan" else "secondary",
-        width="stretch",
-    ):
-        selected_destination = "artisan"
-    if about.button(
-        t("nav.about"),
-        key="switch_to_about",
-        type="primary" if destination == "about" else "secondary",
-        width="stretch",
-    ):
-        selected_destination = "about"
+
+    language_column, demo_column, reset_column = st.columns([1.2, 1, 1])
     current = get_language()
-    selected_language = language.selectbox(
+    selected_language = language_column.selectbox(
         t("nav.language"),
         (Language.ZH_CN, Language.EN_US),
         index=0 if current == Language.ZH_CN else 1,
@@ -65,7 +56,6 @@ def render_global_header(*, destination: str, demo_active: bool) -> HeaderAction
         set_language(selected_language, st.session_state)
         st.rerun()
 
-    demo_column, reset_column = st.columns([1, 1])
     toggle_demo = demo_column.button(
         t("nav.demo_active") if demo_active else t("nav.competition_demo"),
         key="toggle_competition_demo",
@@ -79,7 +69,7 @@ def render_global_header(*, destination: str, demo_active: bool) -> HeaderAction
             key="reset_competition_demo",
             width="stretch",
         )
-    return HeaderAction(selected_destination, toggle_demo, reset_demo)
+    return HeaderAction(toggle_demo=toggle_demo, reset_demo=reset_demo)
 
 
 def render_demo_guide(step: int) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import ROUND_FLOOR, Decimal
@@ -14,6 +15,7 @@ from typing import Any
 
 import streamlit as st
 
+from heritagelink import recommendation_narrative
 from heritagelink.agent_models import (
     AgentRuntimeConfig,
     AgentSessionState,
@@ -50,6 +52,7 @@ from heritagelink.conversation_state import (
     new_conversation,
 )
 from heritagelink.data_loader import DataValidationError, build_products, load_data
+from heritagelink.dialogue_manager import recommendation_signature
 from heritagelink.growth_grounding import (
     build_catalog_growth_context,
     build_draft_growth_context,
@@ -93,6 +96,8 @@ from heritagelink.ui.artisan_studio import (
 from heritagelink.ui.catalog_gallery import render_catalog_gallery
 from heritagelink.ui.comparison import render_product_comparison
 from heritagelink.ui.components import badges, product_image
+from heritagelink.ui.entry import render_entry_screen
+from heritagelink.ui.footer import render_footer
 from heritagelink.ui.growth_studio import render_growth_studio_app
 from heritagelink.ui.header import render_demo_guide, render_global_header
 from heritagelink.ui.heritage_passport import render_heritage_passport
@@ -220,6 +225,11 @@ def _init_state() -> None:
     st.session_state.setdefault("comparison_history", ())
     st.session_state.setdefault("artisan_session_id", new_anonymous_session_id())
     requested_mode = str(st.query_params.get("mode", "")).casefold()
+    # A mode in the URL is a deep link straight into one side; reviewers and the
+    # demo script rely on it, so it also settles the entry choice.
+    if requested_mode in {"artisan", "buyer"}:
+        st.session_state.setdefault("entry_role", requested_mode)
+    st.session_state.setdefault("entry_role", None)
     st.session_state["app_mode"] = "artisan" if requested_mode == "artisan" else "buyer"
     requested_page = str(st.query_params.get("page", "")).casefold()
     st.session_state.setdefault("app_page", "about" if requested_page == "about" else "buyer")
@@ -309,39 +319,46 @@ def _catalog_snapshot() -> CatalogSnapshot:
     )
 
 
-def _render_mode_switcher() -> None:
-    """Render global product navigation while preserving both application branches."""
-    destination = st.session_state.get("app_page", st.session_state["app_mode"])
-    action = render_global_header(
-        destination=destination,
-        demo_active=bool(st.session_state.get("competition_demo")),
-    )
-    if action.destination == "buyer":
-        if "mode" in st.query_params:
-            del st.query_params["mode"]
-        if "page" in st.query_params:
-            del st.query_params["page"]
-        st.session_state["app_mode"] = "buyer"
-        st.session_state["app_page"] = "buyer"
-        if st.session_state.get("competition_demo"):
-            st.session_state["competition_demo_step"] = 1
-        st.rerun()
-    if action.destination == "artisan":
-        st.query_params["mode"] = "artisan"
-        if "page" in st.query_params:
-            del st.query_params["page"]
-        st.session_state["app_mode"] = "artisan"
-        st.session_state["app_page"] = "artisan"
-        if st.session_state.get("competition_demo"):
-            st.session_state["competition_demo_step"] = 3
-        st.rerun()
-    if action.destination == "about":
-        if "mode" in st.query_params:
-            del st.query_params["mode"]
+def _enter_role(role: str) -> None:
+    """Commit an entry choice to both session state and the URL.
+
+    The mode query parameter is what survives a refresh and what makes the
+    chosen side shareable as a link, so it is written alongside the state.
+    """
+    st.session_state["entry_role"] = role
+    st.session_state["app_mode"] = role
+    st.session_state["app_page"] = role
+    st.query_params["mode"] = role
+    if "page" in st.query_params:
+        del st.query_params["page"]
+    if st.session_state.get("competition_demo"):
+        st.session_state["competition_demo_step"] = 3 if role == "artisan" else 1
+
+
+def _render_footer_navigation() -> None:
+    """Render the footer and act on its two secondary destinations."""
+    action = render_footer(on_about=st.session_state.get("app_page") == "about")
+    if action.show_about:
         st.query_params["page"] = "about"
         st.session_state["app_page"] = "about"
-        st.session_state["app_mode"] = "buyer"
         st.rerun()
+    if action.switch_role:
+        # Returning to the chooser must also clear the deep link, or the next
+        # rerun would immediately re-enter the side just left.
+        st.session_state["entry_role"] = None
+        st.session_state["app_page"] = "buyer"
+        for key in ("mode", "page"):
+            if key in st.query_params:
+                del st.query_params[key]
+        st.rerun()
+
+
+def _render_mode_switcher() -> None:
+    """Render the masthead and act on the competition demo controls."""
+    action = render_global_header(
+        role=str(st.session_state.get("entry_role") or st.session_state["app_mode"]),
+        demo_active=bool(st.session_state.get("competition_demo")),
+    )
     if action.toggle_demo:
         enabled = not bool(st.session_state.get("competition_demo"))
         st.session_state["competition_demo"] = enabled
@@ -1399,6 +1416,44 @@ def _known_customer_fields(parsed: ParsedCustomerRequest) -> frozenset[str]:
     )
 
 
+def _recommendation_explanations(
+    recommendations: Sequence[Recommendation],
+    context: RecommendationContext,
+    participating: frozenset[str],
+) -> dict[str, str]:
+    """Phrase the top recommendations once per distinct result set.
+
+    Streamlit reruns the whole script on every interaction, so without the
+    session cache each checkbox tick would pay for another LLM call.
+    """
+    if not recommendations:
+        return {}
+    language = get_language().value
+    signature = "|".join(
+        (
+            recommendation_signature(context.effective_request),
+            language,
+            *(item.product.product_id for item in recommendations),
+        )
+    )
+    cached = st.session_state.get("recommendation_explanations")
+    if isinstance(cached, dict) and cached.get("signature") == signature:
+        return dict(cached.get("explanations", {}))
+
+    explanations, source = recommendation_narrative.explain(
+        recommendations,
+        request_summary=_direction_summary(context),
+        language=language,
+        participating=participating,
+    )
+    st.session_state["recommendation_explanations"] = {
+        "signature": signature,
+        "explanations": explanations,
+        "source": source.value,
+    }
+    return explanations
+
+
 def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -> None:
     result = st.session_state.get("progressive_result")
     context = st.session_state.get("recommendation_context")
@@ -1437,6 +1492,7 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
     parsed = context.effective_request
     selected_id = st.session_state.get("selected_product_id")
     passports = build_catalog_passports(products, bundle)
+    explanations = _recommendation_explanations(response.recommendations, context, participating)
     for rank, recommendation in enumerate(response.recommendations, start=1):
         request = result.request_by_product[recommendation.product.product_id]
         card_action = render_product_card(
@@ -1446,6 +1502,7 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
             participating,
             _known_customer_fields(parsed),
             passports.get(recommendation.product.product_id),
+            explanations.get(recommendation.product.product_id),
         )
         if card_action == "select":
             _select_product(recommendation.product.product_id)
@@ -1719,6 +1776,17 @@ def main() -> None:
     )
     apply_theme()
     _init_state()
+
+    # Nothing else renders until a side is chosen: the two audiences use
+    # different products, and mixing their navigation is what made the earlier
+    # single surface read as a demo rather than a site.
+    if not st.session_state.get("entry_role"):
+        chosen = render_entry_screen()
+        if chosen:
+            _enter_role(chosen)
+            st.rerun()
+        return
+
     _render_mode_switcher()
     if st.session_state.get("competition_demo"):
         render_demo_guide(int(st.session_state.get("competition_demo_step", 1)))
@@ -1743,6 +1811,7 @@ def main() -> None:
         _render_catalog()
         _render_service_note()
     _render_agent_trace()
+    _render_footer_navigation()
 
 
 if __name__ == "__main__":

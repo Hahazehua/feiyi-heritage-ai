@@ -23,6 +23,18 @@ must remain unknown. Explain trade-offs briefly and never claim universal superi
 Return one JSON object with exactly one string field named explanation.
 """
 
+RECOMMENDATION_SYSTEM_PROMPT = """You are phrasing why each recommended gift fits a
+buyer's stated request. The ranking and scoring are already decided; your task is
+wording, not judgement. Use only facts in the supplied JSON, including its matched
+tags and dimension explanations. Do not invent price, material, dimensions, lead
+time, capacity, heritage status, certification, symbolism, or history, and do not
+add cultural claims of any kind. Do not re-rank, compare against products that are
+not supplied, or contradict the supplied scores. Unknown information must remain
+unknown. Write at most three sentences per product, in the language named by the
+language field. Return one JSON object with exactly one field named explanations,
+whose value maps each supplied product_id to its paragraph.
+"""
+
 ARTISAN_EXTRACTION_SYSTEM_PROMPT = """You structure an artisan's own product notes.
 Use only values explicitly present in the supplied JSON. Return one JSON object and
 only these optional fields: product_name_zh, product_name_en, craft_name, region,
@@ -218,6 +230,28 @@ class DeepSeekClient:
         if not isinstance(explanation, str) or not explanation.strip():
             raise LLMInvalidJSONError("比较说明 explanation 必须是非空字符串。")
         return explanation.strip()
+
+    def explain_recommendations(self, payload: dict[str, object]) -> dict[str, str]:
+        """Phrase prescored recommendations, one paragraph per product id.
+
+        Every shown product is explained in a single call: one round trip keeps
+        the buyer screen responsive where per-card calls would stall it.
+        """
+        decoded = self._extract_json(
+            RECOMMENDATION_SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
+        )
+        if set(decoded) != {"explanations"}:
+            raise LLMInvalidJSONError("推荐解释必须只包含 explanations 字段。")
+        explanations = decoded["explanations"]
+        if not isinstance(explanations, dict) or not explanations:
+            raise LLMInvalidJSONError("推荐解释 explanations 必须是非空对象。")
+        resolved: dict[str, str] = {}
+        for product_id, text in explanations.items():
+            if not isinstance(text, str) or not text.strip():
+                raise LLMInvalidJSONError("每条推荐解释必须是非空字符串。")
+            resolved[str(product_id)] = text.strip()
+        return resolved
 
     def extract_artisan_draft(self, payload: dict[str, object]) -> dict[str, object]:
         """Extract bounded onboarding candidates; callers keep them pending review."""

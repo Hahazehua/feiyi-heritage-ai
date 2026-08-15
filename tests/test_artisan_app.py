@@ -15,6 +15,16 @@ from heritagelink.repositories.memory_artisan_draft_repository import (
 ROOT = Path(__file__).parents[1]
 
 
+def _buyer_app() -> AppTest:
+    """Open the buyer side directly, past the entry chooser.
+
+    Tests that want the artisan side overwrite the mode after calling this.
+    """
+    app = AppTest.from_file("app.py")
+    app.query_params["mode"] = "buyer"
+    return app
+
+
 def _by_label(elements, label: str):  # type: ignore[no-untyped-def]
     matches = [element for element in elements if element.label == label]
     assert len(matches) == 1, f"expected one {label!r} widget, found {len(matches)}"
@@ -50,7 +60,7 @@ def _customer_text(app: AppTest) -> str:
 
 
 def _artisan_app(*, review_mode: bool = False) -> AppTest:
-    app = AppTest.from_file("app.py")
+    app = _buyer_app()
     app.query_params["mode"] = "artisan"
     if review_mode:
         app.query_params["review_mode"] = "1"
@@ -110,7 +120,7 @@ def _advance_to_submitted(app: AppTest) -> AppTest:
 
 
 def _open_recommendations() -> AppTest:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
     app.chat_input[0].set_value("送给海外合作伙伴的周年纪念礼物").run(timeout=30)
     if (
         "recommendation_response" not in app.session_state
@@ -148,12 +158,17 @@ def _render_submitted_review_state(
     return app.run(timeout=30)
 
 
-def test_default_buyer_has_two_mode_entries_and_one_chat_input() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+def test_buyer_side_hides_the_artisan_entry_and_keeps_one_chat_input() -> None:
+    """Each side should read as its own site once a role has been chosen."""
+    app = _buyer_app().run(timeout=30)
+    labels = {button.label for button in app.button}
 
     assert not app.exception
     assert app.session_state["app_mode"] == "buyer"
-    assert {"我是买家", "我是手艺人"}.issubset({button.label for button in app.button})
+    # The role choice belongs to the entry screen, and the way back is the
+    # footer — neither should reappear as primary navigation.
+    assert "我是手艺人" not in labels
+    assert "切换身份" in labels
     assert len(app.chat_input) == 1
 
 
@@ -238,7 +253,7 @@ def test_buyer_recommendations_include_customer_safe_heritage_passports() -> Non
 
 
 def test_reference_only_category_hides_demo_commercial_terms() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
     _selectbox(app, "按工艺筛选").set_value("中国书法馆藏参考").run(timeout=30)
     text = _customer_text(app)
 

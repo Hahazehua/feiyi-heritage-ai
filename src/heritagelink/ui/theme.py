@@ -280,19 +280,62 @@ def apply_theme() -> None:
           background:var(--bronze-tint);color:var(--bronze-deep);
           font-size:var(--text-sm);border:1px solid var(--line);}
 
-        /* ================= App header ================= */
+        /* ================= App header =================
+           A masthead rather than a toolbar: role navigation moved to the entry
+           screen and the footer, so what is left can afford real presence. */
         .hl-mode-label {margin:var(--sp-1) 0 var(--sp-3);text-align:center;color:var(--sage);
           font-size:var(--text-2xs);font-weight:var(--w-bold);
           letter-spacing:var(--tracking-wide);text-transform:uppercase;}
         .hl-app-header {display:flex;align-items:flex-end;justify-content:space-between;
-          gap:var(--sp-4);padding:var(--sp-2) var(--sp-1) var(--sp-3);
-          border-bottom:1px solid var(--line);margin-bottom:var(--sp-3);}
-        .hl-app-brand {display:flex;align-items:baseline;gap:var(--sp-3);min-width:0;}
-        .hl-app-brand strong {font-size:var(--text-lg);letter-spacing:var(--tracking-tight);
-          color:var(--ink);font-family:var(--font-display);}
-        .hl-app-brand span {font-size:var(--text-2xs);letter-spacing:var(--tracking-wide);
-          color:var(--sage);font-weight:var(--w-bold);}
+          gap:var(--sp-4);padding:var(--sp-5) var(--sp-1) var(--sp-4);
+          border-bottom:2px solid var(--line);margin-bottom:var(--sp-4);}
+        .hl-app-brand {display:flex;flex-direction:column;gap:var(--sp-1);min-width:0;}
+        .hl-app-brand strong {font-size:var(--text-2xl);line-height:1;
+          letter-spacing:var(--tracking-tight);color:var(--ink);font-family:var(--font-display);}
+        .hl-app-tagline {font-size:var(--text-xs);letter-spacing:var(--tracking-wide);
+          color:var(--sage);font-weight:var(--w-bold);text-transform:uppercase;}
+        .hl-app-meta {display:flex;flex-direction:column;align-items:flex-end;
+          gap:var(--sp-1);min-width:0;text-align:right;}
+        .hl-app-role {display:inline-flex;padding:var(--sp-1) var(--sp-3);
+          border-radius:var(--r-pill);background:var(--bronze-tint);
+          color:var(--bronze-deep);font-size:var(--text-2xs);font-weight:var(--w-bold);}
         .hl-app-positioning {font-size:var(--text-xs);color:var(--ink-500);white-space:nowrap;}
+
+        /* ================= Entry screen =================
+           Shown once per session before either side is revealed.  The cards
+           rise in with a short stagger; the reduced-motion guard above
+           collapses it for anyone who asked for stillness. */
+        @keyframes hl-rise {
+          from {opacity:0;transform:translateY(var(--sp-4));}
+          to {opacity:1;transform:none;}
+        }
+        .hl-entry {padding:var(--sp-8) var(--sp-5) var(--sp-6);text-align:center;
+          animation:hl-rise .5s ease-out both;}
+        [data-testid="stMarkdownContainer"][data-testid] h1.hl-entry-brand {
+          margin:var(--sp-3) auto var(--sp-2);max-width:20ch;}
+        .hl-entry-sub {margin:0 auto;max-width:44ch;}
+        .hl-entry-card {min-height:11rem;padding:var(--sp-5);border:1px solid var(--line);
+          border-radius:var(--r-xl);background:var(--surface-veil);
+          box-shadow:var(--shadow-md);animation:hl-rise .5s ease-out both;}
+        .hl-entry-card-1 {animation-delay:.08s;}
+        .hl-entry-card-2 {animation-delay:.18s;}
+        .hl-entry-card-index {display:block;margin-bottom:var(--sp-2);color:var(--bronze);
+          font-size:var(--text-2xs);font-weight:var(--w-bold);
+          letter-spacing:var(--tracking-wide);}
+        [data-testid="stMarkdownContainer"][data-testid] .hl-entry-card h2 {
+          margin:0 0 var(--sp-2);font-size:var(--text-lg);}
+        .hl-entry-card p {margin:0;font-size:var(--text-sm);line-height:1.7;}
+
+        /* ================= Footer ================= */
+        .hl-footer-rule {margin:var(--sp-7) 0 var(--sp-4);border:0;
+          border-top:1px solid var(--line);}
+        .hl-footer {display:flex;flex-direction:column;gap:var(--sp-1);
+          padding:var(--sp-4) 0 var(--sp-6);}
+        .hl-footer-brand {font-family:var(--font-display);font-size:var(--text-md);
+          color:var(--ink);letter-spacing:var(--tracking-tight);}
+        .hl-footer-tagline {font-size:var(--text-2xs);color:var(--sage);
+          font-weight:var(--w-bold);letter-spacing:var(--tracking-wide);text-transform:uppercase;}
+        .hl-footer-note {margin-top:var(--sp-2);font-size:var(--text-xs);color:var(--ink-500);}
 
         /* ================= Home story ================= */
         .hl-story-grid,.hl-value-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
@@ -504,8 +547,12 @@ def apply_theme() -> None:
         @media(max-width:760px){
           .block-container{padding:var(--sp-3) var(--sp-3) var(--sp-7);overflow-x:hidden}
           .hl-hero{padding:var(--sp-5) var(--sp-4);border-radius:var(--r-lg)}
-          .hl-app-header{align-items:flex-start;flex-direction:column}
+          .hl-app-header{align-items:flex-start;flex-direction:column;
+            gap:var(--sp-3);padding:var(--sp-4) var(--sp-1) var(--sp-3)}
+          .hl-app-meta{align-items:flex-start;text-align:left}
           .hl-app-positioning{white-space:normal}
+          .hl-entry{padding:var(--sp-6) var(--sp-2) var(--sp-4)}
+          .hl-entry-card{min-height:0;padding:var(--sp-4)}
           .hl-stepper-list{grid-template-columns:1fr}
           .hl-step{display:none}.hl-step.active{display:block}
           .hl-status-grid{grid-template-columns:1fr}

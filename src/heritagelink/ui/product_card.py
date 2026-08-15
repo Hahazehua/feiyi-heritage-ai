@@ -148,6 +148,7 @@ def render_product_card(
     participating: frozenset[str],
     known_customer_fields: frozenset[str],
     passport: HeritagePassport | None = None,
+    ai_explanation: str | None = None,
 ) -> Literal["select", "compare"] | None:
     """Render one product card and return the customer's chosen card action."""
     product = recommendation.product
@@ -197,6 +198,12 @@ def render_product_card(
             st.write(f"{t('buyer.moq')}: {product.min_order_qty}")
             st.write(f"{t('buyer.lead_time')}: {product.lead_time_days}")
         with st.expander(t("buyer.recommendation_why")):
+            # The prose reads better but the scoreboard is what is actually
+            # verifiable, so both are shown and the source of each is labelled.
+            if ai_explanation:
+                st.markdown(f"**{t('buyer.why_ai_label')}**")
+                st.write(ai_explanation)
+                st.markdown(f"**{t('buyer.why_rule_label')}**")
             dimension_labels = DIMENSION_LABELS_EN if english else DIMENSION_LABELS
             for key, dimension in recommendation.score_breakdown.items():
                 if key in participating:

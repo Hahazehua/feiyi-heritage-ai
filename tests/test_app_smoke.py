@@ -7,6 +7,19 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 
+def _buyer_app() -> AppTest:
+    """Open the buyer side directly.
+
+    The app now asks which side you are here for before rendering either one.
+    These tests exercise what happens after that choice, so they arrive by the
+    same deep link a returning visitor or a reviewer would use; the chooser
+    itself is covered in test_entry_screen.py.
+    """
+    app = AppTest.from_file("app.py")
+    app.query_params["mode"] = "buyer"
+    return app
+
+
 def _button(app: AppTest, label: str):  # type: ignore[no-untyped-def]
     return [button for button in app.button if button.label == label][-1]
 
@@ -31,7 +44,7 @@ def _all_customer_text(app: AppTest) -> str:
 
 
 def _open_recommendations(text: str = "送给合作伙伴的周年礼物") -> AppTest:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
     app.chat_input[0].set_value(text).run(timeout=30)
     if "recommendation_response" not in app.session_state:
         _button(app, "先为我推荐").click().run(timeout=30)
@@ -39,7 +52,7 @@ def _open_recommendations(text: str = "送给合作伙伴的周年礼物") -> Ap
 
 
 def test_app_opens_directly_as_single_page_advisor() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
 
     assert not app.exception
     assert app.session_state["ui_stage"] == "advisor"
@@ -53,7 +66,7 @@ def test_app_opens_directly_as_single_page_advisor() -> None:
 
 
 def test_customer_flow_hides_technical_and_competition_language() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
     text = _all_customer_text(app)
 
     for forbidden in (
@@ -71,7 +84,7 @@ def test_customer_flow_hides_technical_and_competition_language() -> None:
 
 
 def test_chat_asks_one_natural_question_and_can_recommend_early() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
     app.chat_input[0].set_value("我想给外国朋友准备一件有中国特色的礼物").run(timeout=30)
 
     state = app.session_state["conversation_state"]
@@ -128,7 +141,7 @@ def test_product_selection_and_final_plan_remain_on_same_page() -> None:
 
 
 def test_no_result_does_not_force_a_product() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
     _text_input(app, "单件预算（元）").set_value("100")
     _text_input(app, "采购数量").set_value("1")
     _button(app, "填写完成，开始匹配").click().run(timeout=30)
@@ -210,26 +223,26 @@ def test_theme_defines_visible_focus_styles() -> None:
 
 def test_review_trace_is_hidden_by_default_and_requires_both_gates(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.delenv("AGENT_REVIEW_MODE_ENABLED", raising=False)
-    customer = AppTest.from_file("app.py").run(timeout=30)
+    customer = _buyer_app().run(timeout=30)
     assert not any("Agent 执行轨迹" in str(item.value) for item in customer.markdown)
 
-    query_only = AppTest.from_file("app.py")
+    query_only = _buyer_app()
     query_only.query_params["review_mode"] = "1"
     query_only.run(timeout=30)
     assert not any("Agent 执行轨迹" in str(item.value) for item in query_only.markdown)
 
     monkeypatch.setenv("AGENT_REVIEW_MODE_ENABLED", "true")
-    env_only = AppTest.from_file("app.py").run(timeout=30)
+    env_only = _buyer_app().run(timeout=30)
     assert not any("Agent 执行轨迹" in str(item.value) for item in env_only.markdown)
 
-    review = AppTest.from_file("app.py")
+    review = _buyer_app()
     review.query_params["review_mode"] = "1"
     review.run(timeout=30)
     assert any("Agent 执行轨迹" in str(item.value) for item in review.markdown)
 
 
 def test_customer_can_restart_through_existing_agent_action() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
     app.chat_input[0].set_value("我想准备一份礼物").run(timeout=30)
 
     _button(app, "重新开始").click().run(timeout=30)
@@ -340,7 +353,7 @@ def test_review_mode_shows_application_trace_only_behind_existing_double_gate(
     ).click().run(timeout=30)
     assert "Application Action" not in _all_customer_text(customer)
 
-    review = AppTest.from_file("app.py")
+    review = _buyer_app()
     review.query_params["review_mode"] = "1"
     review.run(timeout=30)
     review.chat_input[0].set_value("送给合作伙伴的周年礼物").run(timeout=30)

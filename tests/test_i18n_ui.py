@@ -5,6 +5,13 @@ from __future__ import annotations
 from streamlit.testing.v1 import AppTest
 
 
+def _buyer_app() -> AppTest:
+    """Open the buyer side directly, past the entry chooser."""
+    app = AppTest.from_file("app.py")
+    app.query_params["mode"] = "buyer"
+    return app
+
+
 def _customer_text(app: AppTest) -> str:
     values = [
         str(item.value)
@@ -15,15 +22,14 @@ def _customer_text(app: AppTest) -> str:
 
 
 def test_buyer_page_renders_in_english() -> None:
-    app = AppTest.from_file("app.py")
+    app = _buyer_app()
     app.query_params["lang"] = "en"
     app.run(timeout=30)
 
     assert not app.exception
     assert app.session_state["interface_language"] == "en-US"
-    assert {"I'm a Buyer", "I'm an Artisan", "How HAHA Works"}.issubset(
-        {button.label for button in app.button}
-    )
+    # Secondary navigation lives in the footer now, and it has to translate.
+    assert {"How HAHA Works", "Switch role"}.issubset({button.label for button in app.button})
     assert "AI Gift Advisor" in _customer_text(app)
     assert app.chat_input[0].placeholder.startswith("Example:")
 
@@ -38,7 +44,7 @@ def test_buyer_page_renders_in_english() -> None:
 
 
 def test_artisan_and_growth_pages_render_in_english() -> None:
-    app = AppTest.from_file("app.py")
+    app = _buyer_app()
     app.query_params["lang"] = "en"
     app.query_params["mode"] = "artisan"
     app.run(timeout=30)
@@ -55,10 +61,10 @@ def test_artisan_and_growth_pages_render_in_english() -> None:
 
 
 def test_chinese_defaults_remain_compatible() -> None:
-    app = AppTest.from_file("app.py").run(timeout=30)
+    app = _buyer_app().run(timeout=30)
 
     assert not app.exception
     assert app.session_state["interface_language"] == "zh-CN"
-    assert {"我是买家", "我是手艺人", "了解 HAHA"}.issubset({button.label for button in app.button})
+    assert {"了解 HAHA", "切换身份"}.issubset({button.label for button in app.button})
     assert "AI 礼赠顾问" in _customer_text(app)
     assert app.chat_input[0].placeholder.startswith("例如")

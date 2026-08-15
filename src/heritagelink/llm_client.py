@@ -41,6 +41,32 @@ cultural_meaning_zh, cultural_meaning_en, gifting_contexts_zh, gifting_contexts_
 customization_zh, customization_en. Clearly state when information needs confirmation.
 """
 
+GROWTH_MARKET_SYSTEM_PROMPT = """You are HAHA's Market Intelligence specialist.
+Return a product-grounded opportunity assessment, not market research. Use only the
+verified_facts supplied in JSON. Never invent market size, growth, demand, buyer
+statistics, competitors, sales, conversion benchmarks, certification, commercial
+capacity, or logistics. Return one JSON object with opportunities (a list of objects
+containing segment, fit_score 0-100, reasons, risks), recommended_segment, and summary.
+Generate two to four opportunities. Unknown facts must appear as risks, not claims.
+"""
+
+GROWTH_STRATEGY_SYSTEM_PROMPT = """You are HAHA's Marketing Strategist. Strategy is
+downstream from the supplied market analysis. Use only verified_facts. Return one JSON
+object with campaign_goal, target_audience, positioning, value_proposition,
+key_messages, content_angles, recommended_channels, cta, risks, things_to_avoid, and
+reasoning_summary. Never invent certification, artisan identity, price, inventory,
+capacity, lead time, customization, shipping, endorsement, or cultural history.
+"""
+
+GROWTH_CREATIVE_SYSTEM_PROMPT = """You are HAHA's Creative specialist. Execute the
+supplied strategy without changing its positioning. Use only verified_facts and source
+URLs. Return one JSON object with an assets list. Each asset must contain asset_id,
+channel, asset_type, content, cta, and claims. Each claim must contain claim_text and
+field_name mapped to a supplied verified fact. Never invent certification, artisan
+identity, price, inventory, capacity, lead time, customization, shipping, endorsement,
+historical age, or superlatives. Unknown facts must be omitted from public copy.
+"""
+
 
 class LLMClientError(RuntimeError):
     """Base class for safe, user-facing DeepSeek client failures."""
@@ -204,6 +230,27 @@ class DeepSeekClient:
         """Create grounded bilingual copy without upgrading any fact status."""
         return self._extract_json(
             ARTISAN_BILINGUAL_SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
+        )
+
+    def analyze_growth_market(self, payload: dict[str, object]) -> dict[str, object]:
+        """Return a bounded, product-grounded opportunity assessment."""
+        return self._extract_json(
+            GROWTH_MARKET_SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
+        )
+
+    def build_growth_strategy(self, payload: dict[str, object]) -> dict[str, object]:
+        """Return a strategy that cannot upgrade missing product facts."""
+        return self._extract_json(
+            GROWTH_STRATEGY_SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
+        )
+
+    def generate_growth_campaign(self, payload: dict[str, object]) -> dict[str, object]:
+        """Generate multi-channel copy from verified facts and an approved strategy."""
+        return self._extract_json(
+            GROWTH_CREATIVE_SYSTEM_PROMPT,
             json.dumps(payload, ensure_ascii=False),
         )
 

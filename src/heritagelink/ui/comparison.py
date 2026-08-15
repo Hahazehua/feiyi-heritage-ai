@@ -12,21 +12,18 @@ from typing import TYPE_CHECKING, Any
 
 import streamlit as st
 
+from heritagelink.i18n import t
+
 if TYPE_CHECKING:
     from heritagelink.comparison_models import ProductComparisonResult
 
 
-_SAFE_STATE_LABELS = {
-    "unknown": "待确认",
-    "verified_yes": "已确认支持",
-    "verified_no": "已确认不支持",
-    "not_applicable": "不适用",
-}
 _UNKNOWN_VALUES = frozenset(
     {
         "",
         "unknown",
         "待确认",
+        "needs confirmation",
         "暂无可靠信息",
         "暂时无可靠信息",
         "价格待确认",
@@ -44,7 +41,19 @@ def _attribute(value: object, *names: str) -> Any:
     return None
 
 
-def _display(value: object, *, fallback: str = "待确认") -> str:
+def _state_label(value: str) -> str | None:
+    key = {
+        "unknown": "comparison.unknown",
+        "待确认": "comparison.unknown",
+        "verified_yes": "comparison.verified_yes",
+        "verified_no": "comparison.verified_no",
+        "not_applicable": "comparison.not_applicable",
+    }.get(value.strip().lower())
+    return t(key) if key else None
+
+
+def _display(value: object, *, fallback: str | None = None) -> str:
+    fallback = fallback if fallback is not None else t("comparison.unknown")
     if value is None:
         return fallback
     if isinstance(value, Mapping):
@@ -59,8 +68,8 @@ def _display(value: object, *, fallback: str = "待确认") -> str:
         return _display(evidence_display, fallback=fallback)
     if isinstance(value, str):
         normalized = value.strip()
-        if normalized.lower() in _SAFE_STATE_LABELS:
-            return _SAFE_STATE_LABELS[normalized.lower()]
+        if state_label := _state_label(normalized):
+            return state_label
         return normalized or fallback
     if isinstance(value, Iterable) and not isinstance(value, (bytes, bytearray)):
         parts = [_display(item, fallback="") for item in value]
@@ -72,14 +81,15 @@ def _display(value: object, *, fallback: str = "待确认") -> str:
     return str(value).strip() or fallback
 
 
-def _combine(*values: object, fallback: str = "待确认") -> str:
+def _combine(*values: object, fallback: str | None = None) -> str:
+    fallback = fallback if fallback is not None else t("comparison.unknown")
     parts = [_display(value, fallback="") for value in values if value is not None]
     visible = [part for part in parts if part]
     return " · ".join(dict.fromkeys(visible)) if visible else fallback
 
 
 def _is_unknown(text: str) -> bool:
-    return text.strip().lower() in _UNKNOWN_VALUES
+    return text.strip().lower() in _UNKNOWN_VALUES or text == t("comparison.unknown")
 
 
 def _safe(text: object) -> str:
@@ -89,7 +99,7 @@ def _safe(text: object) -> str:
 def _cell(value: object, *, css_class: str = "hl-comparison-cell") -> str:
     text = _display(value)
     if _is_unknown(text):
-        content = '<span class="hl-comparison-unknown">待确认</span>'
+        content = f'<span class="hl-comparison-unknown">{_safe(t("comparison.unknown"))}</span>'
     else:
         content = _safe(text)
     return f'<div class="{css_class}" role="cell">{content}</div>'
@@ -103,60 +113,72 @@ def _best_for(result: object, item: object) -> str:
     product_id = str(_attribute(item, "product_id") or "")
     if isinstance(values, Mapping):
         labels = [_display(label) for label, value in values.items() if str(value) == product_id]
-        return "、".join(labels) if labels else "待确认"
-    return "待确认"
+        return " · ".join(labels) if labels else t("comparison.unknown")
+    return t("comparison.unknown")
 
 
 def _item_rows(result: object, item: object) -> tuple[tuple[str, str], ...]:
     return (
-        ("更适合", _combine(_best_for(result, item), _attribute(item, "recipient_fit"))),
-        ("适用场景", _display(_attribute(item, "scene_fit"))),
-        ("整体风格", _display(_attribute(item, "style_fit"))),
-        ("文化表达", _display(_attribute(item, "symbolism_fit"))),
         (
-            "预算",
+            t("comparison.best_for"),
+            _combine(_best_for(result, item), _attribute(item, "recipient_fit")),
+        ),
+        (t("comparison.occasion"), _display(_attribute(item, "scene_fit"))),
+        (t("comparison.style"), _display(_attribute(item, "style_fit"))),
+        (t("comparison.cultural"), _display(_attribute(item, "symbolism_fit"))),
+        (
+            t("comparison.budget"),
             _combine(
                 _attribute(item, "price", "price_display"),
                 _attribute(item, "price_fit"),
             ),
         ),
         (
-            "定制",
+            t("comparison.customization"),
             _display(_attribute(item, "customization", "customization_summary")),
         ),
         (
-            "国际礼赠",
+            t("comparison.international"),
             _combine(
                 _attribute(item, "shipping", "international_relevance"),
                 _attribute(item, "portability_summary"),
             ),
         ),
         (
-            "数量",
+            t("comparison.quantity"),
             _display(_attribute(item, "quantity", "quantity_summary", "quantity_fit")),
         ),
-        ("交付", _display(_attribute(item, "lead_time", "lead_time_summary"))),
         (
-            "主要特点",
+            t("comparison.delivery"),
+            _display(_attribute(item, "lead_time", "lead_time_summary")),
+        ),
+        (
+            t("comparison.highlights"),
             _combine(
                 _attribute(item, "strengths", "cultural_strengths"),
                 _attribute(item, "practical_strengths"),
-                fallback="待确认",
+                fallback=t("comparison.unknown"),
             ),
         ),
-        ("需要留意", _display(_attribute(item, "limitations"), fallback="暂无特别限制")),
+        (
+            t("comparison.watch"),
+            _display(_attribute(item, "limitations"), fallback=t("comparison.no_limits")),
+        ),
     )
 
 
 def _desktop_markup(result: object, items: tuple[object, ...]) -> str:
     count = len(items)
-    header_cells = ['<div class="hl-comparison-label" role="columnheader">比较重点</div>']
+    header_cells = [
+        f'<div class="hl-comparison-label" role="columnheader">{_safe(t("comparison.focus"))}</div>'
+    ]
     for index, item in enumerate(items, start=1):
         rank = _attribute(item, "rank_position") or index
         name = _attribute(item, "product_name", "product_name_zh") or _attribute(item, "product_id")
         header_cells.append(
             '<div class="hl-comparison-product" role="columnheader">'
-            f"<span>推荐 {_safe(rank)}</span><strong>{_safe(_display(name))}</strong></div>"
+            f"<span>{_safe(t('comparison.rank', rank=rank))}</span>"
+            f"<strong>{_safe(_display(name))}</strong></div>"
         )
     rows = [
         '<div class="hl-comparison-row hl-comparison-row-head" role="row">'
@@ -170,7 +192,8 @@ def _desktop_markup(result: object, items: tuple[object, ...]) -> str:
         rows.append('<div class="hl-comparison-row" role="row">' + "".join(cells) + "</div>")
     return (
         '<div class="hl-comparison-desktop" role="table" '
-        f'aria-label="礼品比较" style="--hl-comparison-count:{count}">' + "".join(rows) + "</div>"
+        f'aria-label="{_safe(t("comparison.table_label"))}" '
+        f'style="--hl-comparison-count:{count}">' + "".join(rows) + "</div>"
     )
 
 
@@ -183,7 +206,7 @@ def _mobile_markup(result: object, items: tuple[object, ...]) -> str:
         for label, value in _item_rows(result, item):
             text = _display(value)
             content = (
-                '<span class="hl-comparison-unknown">待确认</span>'
+                f'<span class="hl-comparison-unknown">{_safe(t("comparison.unknown"))}</span>'
                 if _is_unknown(text)
                 else _safe(text)
             )
@@ -193,7 +216,8 @@ def _mobile_markup(result: object, items: tuple[object, ...]) -> str:
             )
         cards.append(
             '<article class="hl-comparison-card">'
-            f'<div class="hl-comparison-card-rank">推荐 {_safe(rank)}</div>'
+            f'<div class="hl-comparison-card-rank">'
+            f"{_safe(t('comparison.rank', rank=rank))}</div>"
             f"<h3>{_safe(_display(name))}</h3>{''.join(facts)}</article>"
         )
     return '<div class="hl-comparison-mobile">' + "".join(cards) + "</div>"
@@ -227,19 +251,19 @@ def _summary_markup(result: object) -> str:
                 recommended_name = _attribute(item, "product_name", "product_name_zh")
                 break
         recommendation_text = _combine(
-            f"我会优先考虑「{_display(recommended_name)}」"
+            t("comparison.prefer", name=_display(recommended_name))
             if recommended_name is not None
             else None,
             reason,
         )
         recommendation_markup = (
             '<div class="hl-comparison-recommendation">'
-            "<span>结合这次需求</span>"
+            f"<span>{_safe(t('comparison.for_this_need'))}</span>"
             f"<strong>{_safe(recommendation_text)}</strong></div>"
         )
-    tradeoffs = _list_markup("选择时可以这样权衡", _attribute(result, "tradeoffs"))
+    tradeoffs = _list_markup(t("comparison.tradeoffs"), _attribute(result, "tradeoffs"))
     unknowns = _list_markup(
-        "仍需确认",
+        t("comparison.unknowns"),
         _attribute(result, "unknowns", "unknown_or_unverified"),
         css_class="hl-comparison-notes-unknown",
     )
@@ -259,7 +283,8 @@ def _summary_markup(result: object) -> str:
             if value is not None
         )
         details = (
-            '<details class="hl-comparison-why"><summary>为什么这样比较？</summary>'
+            '<details class="hl-comparison-why"><summary>'
+            f"{_safe(t('comparison.why'))}</summary>"
             f"{paragraphs}</details>"
         )
     return recommendation_markup + tradeoffs + unknowns + details
@@ -273,18 +298,19 @@ def render_product_comparison(result: ProductComparisonResult) -> None:
     items = tuple(raw_items)
     if not items:
         return
-    count_label = {1: "一", 2: "两", 3: "三"}.get(len(items), str(len(items)))
     context = _attribute(result, "context_summary")
     context_markup = (
-        f'<p class="hl-comparison-context">这次比较主要参考：{_safe(_display(context))}</p>'
+        f'<p class="hl-comparison-context">'
+        f"{_safe(t('comparison.context', context=_display(context)))}</p>"
         if context is not None
         else ""
     )
     markup = (
         '<section class="hl-comparison-shell" aria-labelledby="hl-comparison-title">'
         '<div class="hl-comparison-heading">'
-        '<span class="hl-comparison-kicker">HAHA SHOPPING GUIDE</span>'
-        f'<h2 id="hl-comparison-title">这{_safe(count_label)}件礼物怎么选？</h2>'
+        f'<span class="hl-comparison-kicker">{_safe(t("comparison.kicker"))}</span>'
+        f'<h2 id="hl-comparison-title">'
+        f"{_safe(t(f'comparison.title_{len(items)}', count=len(items)))}</h2>"
         f"{context_markup}</div>"
         f"{_desktop_markup(result, items)}"
         f"{_mobile_markup(result, items)}"

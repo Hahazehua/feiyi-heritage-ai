@@ -18,6 +18,8 @@ from heritagelink.heritage_passport_models import (
     SourceReference,
     VerificationStatus,
 )
+from heritagelink.i18n import Language, get_language, t
+from heritagelink.ui.system import status_label
 
 PassportAudience = Literal["artisan", "buyer"]
 
@@ -36,52 +38,42 @@ _UNKNOWN_TEXT = frozenset(
     }
 )
 
-_COMMERCIAL_LABELS = {
-    "moq": "最低起订量",
-    "lead_time_days": "预计制作周期",
-    "customization": "定制能力",
-    "logo_supported": "企业 Logo 定制",
-    "packaging": "包装",
-    "dimensions": "尺寸",
-    "materials": "材料",
-    "domestic_shipping": "境内运输",
-    "international_shipping": "国际运输",
-    "quantity_capacity": "可承接数量",
-}
 
-_CUSTOMIZATION_LABELS = {
-    "logo": "企业 Logo",
-    "inscription": "题字",
-    "pattern": "图案",
-    "size": "尺寸",
-    "packaging": "包装",
-    "color": "色彩",
-    "other": "其他定制",
-}
+def _commercial_labels() -> dict[str, str]:
+    return {
+        "moq": t("passport.moq"),
+        "lead_time_days": t("passport.lead_time"),
+        "customization": t("passport.customization"),
+        "logo_supported": t("passport.logo"),
+        "packaging": t("passport.packaging"),
+        "dimensions": t("passport.dimensions"),
+        "materials": t("passport.materials"),
+        "domestic_shipping": t("passport.domestic_shipping"),
+        "international_shipping": t("passport.international_shipping"),
+        "quantity_capacity": t("passport.capacity"),
+    }
 
-_STATUS_LABELS = {
-    VerificationStatus.CONFIRMED: "已确认",
-    VerificationStatus.PENDING_REVIEW: "待确认",
-    VerificationStatus.UNKNOWN: "需进一步确认",
-    VerificationStatus.NOT_APPLICABLE: "不适用",
-}
 
-_PUBLICATION_LABELS = {
-    PublicationStatus.DRAFT: "资料整理中",
-    PublicationStatus.PENDING_REVIEW: "已提交审核",
-    PublicationStatus.REFERENCE_ONLY: "文化资料展示",
-    PublicationStatus.RECOMMENDABLE: "可参与正式推荐",
-    PublicationStatus.ARCHIVED: "已停止展示",
-}
-
-_SOURCE_LABELS = {
-    FactSource.ARTISAN_PROVIDED: "您提供 · 待确认",
-    FactSource.ARTISAN_CONFIRMED: "您已确认",
-    FactSource.MERCHANT_CONFIRMED: "商家已确认",
-    FactSource.PUBLIC_SOURCE: "公开资料",
-    FactSource.AI_INFERRED: "AI 整理 · 请确认",
-    FactSource.UNKNOWN: "尚未提供",
-}
+def _customization_labels() -> dict[str, str]:
+    if get_language() == Language.EN_US:
+        return {
+            "logo": "Logo",
+            "inscription": "Inscription",
+            "pattern": "Pattern",
+            "size": "Size",
+            "packaging": "Packaging",
+            "color": "Colour",
+            "other": "Other",
+        }
+    return {
+        "logo": "企业 Logo",
+        "inscription": "题字",
+        "pattern": "图案",
+        "size": "尺寸",
+        "packaging": "包装",
+        "color": "色彩",
+        "other": "其他定制",
+    }
 
 
 def render_heritage_passport(
@@ -110,12 +102,17 @@ def render_heritage_passport(
 
 
 def _render_header(passport: HeritagePassport, *, audience: PassportAudience) -> None:
-    english_name = (
-        f'<p class="hl-passport-en">{escape(passport.product_name_en)}</p>'
-        if passport.product_name_en
-        else ""
+    english_interface = get_language() == Language.EN_US
+    primary_name = (
+        passport.product_name_en
+        if english_interface and passport.product_name_en
+        else passport.product_name_zh
     )
-    publication = _PUBLICATION_LABELS[passport.publication_status]
+    secondary_name = passport.product_name_zh if english_interface else passport.product_name_en
+    english_name = (
+        f'<p class="hl-passport-en">{escape(secondary_name)}</p>' if secondary_name else ""
+    )
+    publication = status_label(passport.publication_status)
     publication_markup = (
         f'<span class="hl-passport-status">{escape(publication)}</span>'
         if audience == "artisan" or passport.publication_status is PublicationStatus.RECOMMENDABLE
@@ -123,22 +120,28 @@ def _render_header(passport: HeritagePassport, *, audience: PassportAudience) ->
     )
     st.markdown(
         '<section class="hl-passport-shell">'
-        '<div class="hl-passport-kicker">HERITAGE PASSPORT · 非遗文化护照</div>'
-        f"<h3>{escape(passport.product_name_zh)}</h3>"
+        f'<div class="hl-passport-kicker">{escape(t("passport.kicker"))}</div>'
+        f"<h3>{escape(primary_name)}</h3>"
         f"{english_name}{publication_markup}</section>",
         unsafe_allow_html=True,
     )
 
 
 def _render_cultural_summary(passport: HeritagePassport, *, compact: bool) -> None:
-    symbolism = " · ".join(_visible_texts(passport.symbolism)) or "需进一步确认"
+    unknown = t("passport.unknown_neutral")
+    symbolism = " · ".join(_visible_texts(passport.symbolism)) or unknown
     rows = [
-        ("工艺", passport.craft_name or "需进一步确认"),
-        ("地域", passport.region or "需进一步确认"),
-        ("文化寓意", symbolism),
+        (t("passport.craft"), passport.craft_name or unknown),
+        (t("passport.region"), passport.region or unknown),
+        (t("passport.meaning"), symbolism),
     ]
     if not compact:
-        rows.append(("工艺背景", passport.cultural_background_zh or "需进一步确认"))
+        background = (
+            passport.cultural_background_en
+            if get_language() == Language.EN_US
+            else passport.cultural_background_zh
+        )
+        rows.append((t("passport.background"), background or unknown))
     _render_fact_grid(rows, css_class="hl-passport-cultural")
 
 
@@ -147,13 +150,19 @@ def _render_status_summary(
     *,
     audience: PassportAudience,
 ) -> None:
-    cultural = _STATUS_LABELS[passport.cultural_verification_status]
-    commercial = _STATUS_LABELS[passport.commercial_verification_status]
+    cultural = status_label(passport.cultural_verification_status)
+    commercial = status_label(passport.commercial_verification_status)
     if audience == "buyer":
-        cultural = _buyer_status(passport.cultural_verification_status, subject="文化资料")
-        commercial = _buyer_status(passport.commercial_verification_status, subject="商品信息")
+        cultural = _buyer_status(
+            passport.cultural_verification_status,
+            subject=t("passport.cultural_story"),
+        )
+        commercial = _buyer_status(
+            passport.commercial_verification_status,
+            subject=t("passport.commercial"),
+        )
     _render_fact_grid(
-        (("文化资料状态", cultural), ("商品事实状态", commercial)),
+        ((t("passport.cultural_status"), cultural), (t("passport.commercial_status"), commercial)),
         css_class="hl-passport-status-grid",
     )
 
@@ -165,26 +174,25 @@ def _render_commercial_facts(
     compact: bool,
 ) -> None:
     facts = {fact.field_name: fact for fact in passport.commercial_facts}
+    labels = _commercial_labels()
     rows: list[tuple[str, str, str | None]] = []
     price = _price_row(facts, audience=audience)
     if price is not None:
         rows.append(price)
 
     names = (
-        ("logo_supported", "international_shipping", "customization")
-        if compact
-        else tuple(_COMMERCIAL_LABELS)
+        ("logo_supported", "international_shipping", "customization") if compact else tuple(labels)
     )
     for name in names:
         fact = facts.get(name)
         if fact is None:
-            rows.append((_COMMERCIAL_LABELS[name], "需进一步确认", None))
+            rows.append((labels[name], t("passport.unknown_neutral"), None))
             continue
         value = _commercial_value(fact, audience=audience)
         source = _source_label(fact) if audience == "artisan" else None
-        rows.append((_COMMERCIAL_LABELS[name], value, source))
+        rows.append((labels[name], value, source))
 
-    st.markdown("#### 商品信息")
+    st.markdown(f"#### {t('passport.product_info')}")
     _render_commercial_grid(rows)
 
 
@@ -202,7 +210,7 @@ def _price_row(
     price_facts = tuple(fact for fact in (minimum, maximum) if fact is not None)
     confirmed = bool(price_facts) and all(_confirmed(fact) for fact in price_facts)
     if audience == "buyer" and not confirmed:
-        return ("价格", "需进一步确认", None)
+        return (t("passport.price"), t("passport.unknown_neutral"), None)
 
     minimum_value = _fen(minimum.value) if minimum and not _unknown(minimum.value) else None
     maximum_value = _fen(maximum.value) if maximum and not _unknown(maximum.value) else None
@@ -214,16 +222,16 @@ def _price_row(
     elif maximum_value is not None:
         value = f"{symbol}{maximum_value:,.0f} 以内"
     else:
-        value = "需进一步确认"
+        value = t("passport.unknown_neutral")
     source = _source_label(price_facts[0]) if audience == "artisan" and price_facts else None
-    return ("价格", value, source)
+    return (t("passport.price"), value, source)
 
 
 def _commercial_value(fact: ProvenancedFact, *, audience: PassportAudience) -> str:
     if audience == "buyer" and not _confirmed(fact):
-        return "需进一步确认"
+        return t("passport.unknown_neutral")
     if _unknown(fact.value):
-        return "需进一步确认"
+        return t("passport.unknown_neutral")
 
     value = fact.value
     if fact.field_name in {
@@ -232,18 +240,20 @@ def _commercial_value(fact: ProvenancedFact, *, audience: PassportAudience) -> s
         "international_shipping",
     } and isinstance(value, bool):
         if _confirmed(fact):
-            return "已确认支持" if value else "已确认不支持"
-        return "支持 · 待确认" if value else "不支持 · 待确认"
+            return t("passport.supported") if value else t("passport.not_supported")
+        return t("common.needs_verification")
     if fact.field_name == "moq":
-        return _number_with_unit(value, "件")
+        return _number_with_unit(value, "items" if get_language() == Language.EN_US else "件")
     if fact.field_name == "lead_time_days":
-        return _number_with_unit(value, "天")
+        return _number_with_unit(value, "days" if get_language() == Language.EN_US else "天")
     if fact.field_name == "quantity_capacity":
-        return _number_with_unit(value, "件")
+        return _number_with_unit(value, "items" if get_language() == Language.EN_US else "件")
     if fact.field_name == "customization":
         values = _iter_values(value)
-        visible = [_CUSTOMIZATION_LABELS.get(item.casefold(), item) for item in values]
-        return "、".join(visible) or "需进一步确认"
+        labels = _customization_labels()
+        visible = [labels.get(item.casefold(), item) for item in values]
+        separator = ", " if get_language() == Language.EN_US else "、"
+        return separator.join(visible) or t("passport.unknown_neutral")
     return _display_value(value)
 
 
@@ -253,9 +263,9 @@ def _render_sources(
     audience: PassportAudience,
     compact: bool,
 ) -> None:
-    st.markdown("#### 文化来源")
+    st.markdown(f"#### {t('passport.sources')}")
     if not sources:
-        st.caption("文化来源需进一步确认")
+        st.caption(t("passport.unknown_neutral"))
         return
 
     visible = sources[:2] if compact else sources
@@ -263,9 +273,9 @@ def _render_sources(
     for source in visible:
         if audience == "buyer":
             source_status = (
-                "已有来源"
+                t("common.verified")
                 if source.verification_status is VerificationStatus.CONFIRMED
-                else "来源待核实"
+                else t("passport.source_pending")
             )
         else:
             source_status = _source_reference_label(source)
@@ -292,10 +302,12 @@ def _render_bilingual_content(
     if audience == "buyer" and not confirmed:
         return
 
-    st.markdown("#### 中英文作品介绍")
+    st.markdown(f"#### {t('passport.bilingual_content')}")
     if audience == "artisan" and not confirmed:
-        st.caption("AI 协助整理 · 请确认；以下内容尚未进入正式推荐资料。")
-    chinese, english = st.tabs(("中文介绍", "English Description"))
+        st.caption(t("passport.ai_draft_note"))
+    chinese, english = st.tabs(
+        (t("passport.chinese_description"), t("passport.english_description"))
+    )
     with chinese:
         for value in (
             content.overview_zh,
@@ -317,8 +329,8 @@ def _render_bilingual_content(
 
 
 def _render_review_time(reviewed_at: datetime | None) -> None:
-    value = reviewed_at.strftime("%Y年%m月%d日 %H:%M %Z") if reviewed_at else "尚未完成审核"
-    st.caption(f"最后确认时间：{value}")
+    value = reviewed_at.strftime("%Y-%m-%d %H:%M %Z") if reviewed_at else t("passport.not_reviewed")
+    st.caption(f"{t('passport.last_reviewed')}: {value}")
 
 
 def _render_fact_grid(rows: Iterable[tuple[str, str]], *, css_class: str) -> None:
@@ -351,30 +363,37 @@ def _render_commercial_grid(rows: Iterable[tuple[str, str, str | None]]) -> None
 
 def _buyer_status(status: VerificationStatus, *, subject: str) -> str:
     if status is VerificationStatus.CONFIRMED:
-        return f"{subject}已确认 ✓"
+        return f"{subject}: {t('common.verified')} ✓"
     if status is VerificationStatus.NOT_APPLICABLE:
-        return "不适用"
-    return f"{subject}需进一步确认"
+        return "N/A"
+    return f"{subject}: {t('common.needs_verification')}"
 
 
 def _source_label(fact: ProvenancedFact) -> str:
     if fact.verification_status is VerificationStatus.UNKNOWN:
-        return "尚未提供"
+        return t("common.unknown")
     if fact.verification_status is VerificationStatus.NOT_APPLICABLE:
-        return "不适用"
-    return _SOURCE_LABELS[fact.source]
+        return "N/A"
+    return {
+        FactSource.ARTISAN_PROVIDED: t("common.needs_verification"),
+        FactSource.ARTISAN_CONFIRMED: t("passport.source_artisan"),
+        FactSource.MERCHANT_CONFIRMED: t("passport.source_merchant"),
+        FactSource.PUBLIC_SOURCE: t("passport.source_public"),
+        FactSource.AI_INFERRED: t("passport.source_ai"),
+        FactSource.UNKNOWN: t("common.unknown"),
+    }[fact.source]
 
 
 def _source_reference_label(source: SourceReference) -> str:
     if source.verification_status is VerificationStatus.CONFIRMED:
         if source.source is FactSource.ARTISAN_CONFIRMED:
-            return "您已确认"
+            return t("passport.source_artisan")
         if source.source is FactSource.MERCHANT_CONFIRMED:
-            return "商家已确认"
-        return "已有公开来源"
+            return t("passport.source_merchant")
+        return t("passport.source_public")
     if source.source is FactSource.AI_INFERRED:
-        return "AI 整理 · 请确认"
-    return "来源待核实"
+        return t("passport.source_ai")
+    return t("passport.source_pending")
 
 
 def _confirmed(fact: ProvenancedFact) -> bool:
@@ -399,14 +418,15 @@ def _iter_values(value: object) -> tuple[str, ...]:
 
 def _display_value(value: object) -> str:
     if isinstance(value, bool):
-        return "支持" if value else "不支持"
+        return t("passport.supported") if value else t("passport.not_supported")
     values = _iter_values(value)
-    return "、".join(values) if values else "需进一步确认"
+    separator = ", " if get_language() == Language.EN_US else "、"
+    return separator.join(values) if values else t("passport.unknown_neutral")
 
 
 def _number_with_unit(value: object, unit: str) -> str:
     if isinstance(value, bool):
-        return "需进一步确认"
+        return t("passport.unknown_neutral")
     if isinstance(value, (int, float)):
         return f"{value:g} {unit}"
     text = _safe_text(value)

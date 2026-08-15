@@ -1,0 +1,31 @@
+agent_id: heritage_growth_studio
+entrypoint: heritagelink.growth_orchestrator:run_growth_workflow
+maximum_automatic_revisions: 2
+skills:
+  - id: analyze_market_opportunities
+    order: 1
+    fallback: product_grounded_assessment
+    execution: artisan_growth
+  - id: build_marketing_strategy
+    order: 2
+    fallback: bounded_deterministic_strategy
+    execution: artisan_growth
+  - id: generate_campaign_assets
+    order: 3
+    fallback: grounded_campaign_templates
+    execution: artisan_growth
+  - id: review_campaign_grounding
+    order: 4
+    fallback: fail_closed_human_review
+    execution: artisan_growth
+  - id: revise_campaign_assets
+    order: 5
+    fallback: remove_unsupported_claims
+    execution: artisan_growth
+safety:
+  trace_contains_chain_of_thought: false
+  external_market_research_claimed: false
+  campaign_changes_publication_status: false
+  automatic_buyer_ranking_updates: false
+  unknown_facts_are_invented: false
+

@@ -414,3 +414,18 @@ DeepSeek 只提供候选结构化字段。模型返回的 `ready_to_recommend`�
 - 来源、审核和演示状态；
 - 未知客户事实不被代理值覆盖；
 - 可复现的测试和审计记录。
+# Wave 4 extension: HAHA Growth Studio
+
+The Artisan application now includes a separate Growth Studio state machine:
+
+```text
+Heritage Passport -> Market Intelligence -> Strategy -> Creative -> Guardian
+                                                       ^              |
+                                                       |-- revision --|
+```
+
+The revision loop is bounded to two cycles. The implementation reuses the existing
+Agent Registry and safe Trace contracts, while keeping the original seven-Skill Buyer
+chain unchanged. Campaign storage uses Repository adapters and is isolated from
+anonymous Buyer analytics and catalogue publication. See
+`docs/wave4/GROWTH_STUDIO.md` for the detailed mapping and safety boundaries.

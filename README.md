@@ -1,5 +1,25 @@
 # HAHA
 
+## HAHA Growth Studio
+
+HAHA now gives every cultural heritage artisan an AI-powered digital growth team:
+
+```text
+Digitize -> Understand the market -> Build strategy -> Create -> Verify -> Improve
+```
+
+The Artisan-side Growth Studio coordinates Market Intelligence, Marketing Strategy,
+multi-channel Creative, and a Cultural Guardian. Campaign generation is separate from
+catalogue publication: draft or pending products remain ineligible for Buyer search,
+unknown facts remain unknown, and automatic revision stops after two cycles. See
+[`docs/wave4/GROWTH_STUDIO.md`](docs/wave4/GROWTH_STUDIO.md).
+
+Competition presentation references:
+
+- [`docs/UI_UX_GUIDE.md`](docs/UI_UX_GUIDE.md)
+- [`docs/UX_TERMINOLOGY.md`](docs/UX_TERMINOLOGY.md)
+- [`docs/COMPETITION_DEMO.md`](docs/COMPETITION_DEMO.md)
+
 ## Heritage Artisans, Horizons Ahead
 
 > 连接非遗手艺人、文化礼品与全球买家的 AI 出海智能体

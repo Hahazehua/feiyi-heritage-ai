@@ -39,6 +39,7 @@ from heritagelink.artisan_studio import (
     submit_for_review,
     update_bilingual_draft,
 )
+from heritagelink.campaign_service import create_campaign_repository
 from heritagelink.catalog import CatalogDataError, HeritageReferenceItem, load_reference_catalog
 from heritagelink.catalog_eligibility import is_recommendation_eligible
 from heritagelink.comparison_models import ProductComparisonResult
@@ -49,17 +50,31 @@ from heritagelink.conversation_state import (
     new_conversation,
 )
 from heritagelink.data_loader import DataValidationError, build_products, load_data
+from heritagelink.growth_grounding import (
+    build_catalog_growth_context,
+    build_draft_growth_context,
+)
+from heritagelink.growth_models import GrowthOutputSource
 from heritagelink.heritage_passport import build_catalog_passports
 from heritagelink.heritage_passport_models import (
     ArtisanProductDraft,
     HeritagePassport,
     PublicationStatus,
 )
+from heritagelink.i18n import (
+    LANGUAGE_SESSION_KEY,
+    Language,
+    get_language,
+    localize_literal,
+    normalize_language,
+    t,
+)
 from heritagelink.inquiry import inquiry_to_json
 from heritagelink.llm_client import DeepSeekClient
 from heritagelink.models import DataBundle, Product, Recommendation
 from heritagelink.progressive_recommender import ProgressiveRecommendationResult
 from heritagelink.recommendation_context import RecommendationContext
+from heritagelink.repositories.campaign_repository import CampaignRepository
 from heritagelink.repositories.choice_repository import ChoiceRepository
 from heritagelink.repositories.memory_artisan_draft_repository import (
     MemoryArtisanDraftRepository,
@@ -77,17 +92,22 @@ from heritagelink.ui.artisan_studio import (
 )
 from heritagelink.ui.catalog_gallery import render_catalog_gallery
 from heritagelink.ui.comparison import render_product_comparison
-from heritagelink.ui.components import badges, product_image, render_hero
+from heritagelink.ui.components import badges, product_image
+from heritagelink.ui.growth_studio import render_growth_studio_app
+from heritagelink.ui.header import render_demo_guide, render_global_header
 from heritagelink.ui.heritage_passport import render_heritage_passport
+from heritagelink.ui.home import render_about_page, render_buyer_hero, render_platform_story
 from heritagelink.ui.product_card import render_product_card
 from heritagelink.ui.requirements import (
     MEANINGS,
+    OPTION_LABELS_EN,
     RECIPIENTS,
     SCENES,
     STYLES,
     parsed_from_widgets,
     render_structured_form,
 )
+from heritagelink.ui.system import render_metric_strip
 from heritagelink.ui.theme import apply_theme
 
 LOGGER = logging.getLogger(__name__)
@@ -109,6 +129,12 @@ QUICK_TEXT = {
     "我还没有明确想法": "我还没有明确想法，想先听听你的建议。",
 }
 
+QUICK_START_TRANSLATION_KEYS = (
+    ("buyer.quick.overseas", "buyer.quick.overseas_text"),
+    ("buyer.quick.professor", "buyer.quick.professor_text"),
+    ("buyer.quick.anniversary", "buyer.quick.anniversary_text"),
+    ("buyer.quick.explore", "buyer.quick.explore_text"),
+)
 TAG_LABELS = {
     **{value: key for key, value in RECIPIENTS.items()},
     **{value: key for key, value in SCENES.items()},
@@ -156,8 +182,31 @@ def _artisan_repository() -> MemoryArtisanDraftRepository:
     return _configured_artisan_repository()
 
 
+@st.cache_resource(show_spinner=False)
+def _configured_campaign_repository() -> CampaignRepository:
+    try:
+        return create_campaign_repository(os.getenv("CAMPAIGN_DATABASE_URL"))
+    except Exception:
+        LOGGER.exception("Growth campaign storage initialization failed; using memory storage")
+        return create_campaign_repository(None)
+
+
+def _campaign_repository() -> CampaignRepository:
+    override = st.session_state.get("_campaign_repository_override")
+    if override is not None:
+        return override
+    return _configured_campaign_repository()
+
+
 def _init_state() -> None:
     settings = AnalyticsSettings.from_env()
+    requested_language = str(st.query_params.get("lang", ""))
+    st.session_state.setdefault(
+        LANGUAGE_SESSION_KEY,
+        normalize_language(requested_language).value
+        if requested_language
+        else Language.ZH_CN.value,
+    )
     st.session_state.setdefault("ui_stage", "advisor")
     st.session_state.setdefault("conversation_state", new_conversation())
     st.session_state.setdefault("anonymous_session_id", new_anonymous_session_id())
@@ -172,12 +221,28 @@ def _init_state() -> None:
     st.session_state.setdefault("artisan_session_id", new_anonymous_session_id())
     requested_mode = str(st.query_params.get("mode", "")).casefold()
     st.session_state["app_mode"] = "artisan" if requested_mode == "artisan" else "buyer"
+    requested_page = str(st.query_params.get("page", "")).casefold()
+    st.session_state.setdefault("app_page", "about" if requested_page == "about" else "buyer")
+    if requested_mode == "artisan":
+        st.session_state["app_page"] = "artisan"
+    elif requested_page != "about" and st.session_state.get("app_page") == "artisan":
+        st.session_state["app_page"] = "buyer"
     st.session_state.setdefault("artisan_stage", "landing")
     st.session_state.setdefault("artisan_draft", None)
     st.session_state.setdefault("artisan_passport", None)
     st.session_state.setdefault("artisan_application_trace", ())
     st.session_state.setdefault("artisan_ai_status", "idle")
     st.session_state.setdefault("artisan_friendly_error", None)
+    st.session_state.setdefault("artisan_workspace", "onboarding")
+    st.session_state.setdefault("growth_run_state", None)
+    st.session_state.setdefault("growth_campaign", None)
+    st.session_state.setdefault("growth_context", None)
+    st.session_state.setdefault("growth_execution_trace", ())
+    st.session_state.setdefault(
+        "competition_demo",
+        str(st.query_params.get("demo", "")) == "1",
+    )
+    st.session_state.setdefault("competition_demo_step", 1)
 
 
 def _clear_downstream() -> None:
@@ -245,31 +310,67 @@ def _catalog_snapshot() -> CatalogSnapshot:
 
 
 def _render_mode_switcher() -> None:
-    """Use one shared header without executing both application branches."""
-    st.markdown(
-        '<div class="hl-mode-label">HAHA · Heritage Artisans, Horizons Ahead</div>',
-        unsafe_allow_html=True,
+    """Render global product navigation while preserving both application branches."""
+    destination = st.session_state.get("app_page", st.session_state["app_mode"])
+    action = render_global_header(
+        destination=destination,
+        demo_active=bool(st.session_state.get("competition_demo")),
     )
-    buyer, artisan = st.columns(2)
-    if buyer.button(
-        "我是买家",
-        key="switch_to_buyer",
-        type="primary" if st.session_state["app_mode"] == "buyer" else "secondary",
-        width="stretch",
-    ):
+    if action.destination == "buyer":
         if "mode" in st.query_params:
             del st.query_params["mode"]
+        if "page" in st.query_params:
+            del st.query_params["page"]
+        st.session_state["app_mode"] = "buyer"
+        st.session_state["app_page"] = "buyer"
+        if st.session_state.get("competition_demo"):
+            st.session_state["competition_demo_step"] = 1
+        st.rerun()
+    if action.destination == "artisan":
+        st.query_params["mode"] = "artisan"
+        if "page" in st.query_params:
+            del st.query_params["page"]
+        st.session_state["app_mode"] = "artisan"
+        st.session_state["app_page"] = "artisan"
+        if st.session_state.get("competition_demo"):
+            st.session_state["competition_demo_step"] = 3
+        st.rerun()
+    if action.destination == "about":
+        if "mode" in st.query_params:
+            del st.query_params["mode"]
+        st.query_params["page"] = "about"
+        st.session_state["app_page"] = "about"
         st.session_state["app_mode"] = "buyer"
         st.rerun()
-    if artisan.button(
-        "我是手艺人",
-        key="switch_to_artisan",
-        type="primary" if st.session_state["app_mode"] == "artisan" else "secondary",
-        width="stretch",
-    ):
-        st.query_params["mode"] = "artisan"
-        st.session_state["app_mode"] = "artisan"
+    if action.toggle_demo:
+        enabled = not bool(st.session_state.get("competition_demo"))
+        st.session_state["competition_demo"] = enabled
+        st.session_state["competition_demo_step"] = 1
+        if enabled:
+            st.query_params["demo"] = "1"
+        elif "demo" in st.query_params:
+            del st.query_params["demo"]
         st.rerun()
+    if action.reset_demo:
+        _reset_competition_demo()
+        st.rerun()
+
+
+def _reset_competition_demo() -> None:
+    """Restore predictable UI state without deleting saved campaigns or repositories."""
+    if "mode" in st.query_params:
+        del st.query_params["mode"]
+    if "page" in st.query_params:
+        del st.query_params["page"]
+    st.session_state["app_mode"] = "buyer"
+    st.session_state["app_page"] = "buyer"
+    st.session_state["competition_demo_step"] = 1
+    st.session_state["conversation_state"] = new_conversation()
+    st.session_state["growth_run_state"] = None
+    st.session_state["growth_campaign"] = None
+    st.session_state["growth_context"] = None
+    st.session_state["growth_execution_trace"] = ()
+    _clear_downstream()
 
 
 def _new_artisan_draft() -> ArtisanProductDraft:
@@ -301,6 +402,14 @@ def _parse_optional_int(value: str, label: str, *, multiplier: int = 1) -> int |
 
 def _choice_to_bool(value: str) -> bool | None:
     return {"支持": True, "不支持": False}.get(value)
+
+
+def _choice_label(value: str) -> str:
+    return {
+        "暂不确定": t("artisan.option.unknown"),
+        "支持": t("artisan.option.supported"),
+        "不支持": t("artisan.option.not_supported"),
+    }.get(value, value)
 
 
 def _split_values(value: str) -> tuple[str, ...] | None:
@@ -433,55 +542,57 @@ def _process_message(message: str, *, entry_source: str = "chat") -> None:
             focus_customization=focus_customization,
             focus_international=focus_international,
         )
+        if st.session_state.get("competition_demo") and st.session_state.get(
+            "recommendation_response"
+        ):
+            st.session_state["competition_demo_step"] = 2
     except (RequestValidationError, DataValidationError, ValueError) as exc:
         st.session_state["friendly_error"] = str(exc)
 
 
 def _render_artisan_story() -> None:
     render_artisan_section(
-        "STEP 1 · 讲述",
-        "先告诉我们，这是一件怎样的作品",
-        "不需要一次写得完整。名称、工艺、地区和你最想说的故事就足够开始。",
+        t("artisan.story.kicker"),
+        t("artisan.story.title"),
+        t("artisan.story.copy"),
     )
     draft = _current_artisan_draft()
     with st.form("artisan_story_form", border=True):
         product_name = st.text_input(
-            "作品名称",
+            t("artisan.field.product_name"),
             value=str(_fact_value(draft, "product_name_zh")),
             key="artisan_story_product_name",
         )
         craft_category = st.text_input(
-            "工艺类别",
+            t("artisan.field.craft"),
             value=str(_fact_value(draft, "craft_name")),
             key="artisan_story_craft_category",
         )
         region = st.text_input(
-            "所在地区",
+            t("artisan.field.region"),
             value=str(_fact_value(draft, "region")),
             key="artisan_story_region",
         )
         description = st.text_area(
-            "自由描述",
+            t("artisan.field.description"),
             value=str(_fact_value(draft, "free_description")),
-            placeholder=(
-                "例如：这是一件芜湖铁画作品，以迎客松为主题，适合作为企业礼赠，也可以加入公司题字。"
-            ),
+            placeholder=t("artisan.field.description_example"),
             height=150,
             key="artisan_story_description",
         )
         image = st.file_uploader(
-            "产品图片（可选）",
+            t("artisan.field.image"),
             type=("jpg", "jpeg", "png", "webp"),
             key="artisan_story_image",
         )
         submitted = st.form_submit_button(
-            "保存并继续：商业信息",
+            t("artisan.story.continue"),
             type="primary",
             width="stretch",
         )
     if submitted:
         if not product_name.strip() and not description.strip():
-            st.info("请先填写作品名称，或用一段自由描述讲讲你的作品。")
+            st.info(t("artisan.story.required"))
             return
         image_bytes = image.getvalue() if image is not None else draft.image_bytes
         image_name = image.name if image is not None else draft.image_name
@@ -515,14 +626,14 @@ def _render_artisan_story() -> None:
 
 def _render_artisan_commercial() -> None:
     render_artisan_section(
-        "STEP 2 · 整理",
-        "补充你目前知道的商业信息",
-        "所有字段都可以留空。暂不确定比为了完成表单而猜一个答案更可靠。",
+        t("artisan.commercial.kicker"),
+        t("artisan.commercial.title"),
+        t("artisan.commercial.copy"),
     )
     draft = _current_artisan_draft()
     with st.form("artisan_commercial_form", border=True):
         price_min = st.text_input(
-            "最低单价（元，可留空）",
+            t("artisan.field.price_min"),
             value=(
                 str(int(_fact_value(draft, "price_min_fen", 0)) // 100)
                 if _fact_value(draft, "price_min_fen", None) is not None
@@ -531,7 +642,7 @@ def _render_artisan_commercial() -> None:
             key="artisan_commercial_price_min",
         )
         price_max = st.text_input(
-            "最高单价（元，可留空）",
+            t("artisan.field.price_max"),
             value=(
                 str(int(_fact_value(draft, "price_max_fen", 0)) // 100)
                 if _fact_value(draft, "price_max_fen", None) is not None
@@ -540,44 +651,50 @@ def _render_artisan_commercial() -> None:
             key="artisan_commercial_price_max",
         )
         currency = st.selectbox(
-            "币种",
+            t("artisan.field.currency"),
             ("CNY", "USD", "暂不确定"),
+            format_func=_choice_label,
             key="artisan_commercial_currency",
         )
-        moq = st.text_input("最低起订量（件，可留空）", key="artisan_commercial_moq")
+        moq = st.text_input(t("artisan.field.moq"), key="artisan_commercial_moq")
         lead_time = st.text_input(
-            "预计制作周期（天，可留空）",
+            t("artisan.field.lead_time"),
             key="artisan_commercial_lead_time",
         )
         customization = st.text_input(
-            "可提供的定制方式",
-            placeholder="例如：题字、尺寸、包装",
+            t("artisan.field.customization"),
+            placeholder=t("artisan.field.customization_example"),
             key="artisan_commercial_customization",
         )
         logo = st.selectbox(
-            "是否支持 Logo",
+            t("artisan.field.logo"),
             ("暂不确定", "支持", "不支持"),
+            format_func=_choice_label,
             key="artisan_commercial_logo",
         )
-        packaging = st.text_input("包装说明（可留空）", key="artisan_commercial_packaging")
-        dimensions = st.text_input("尺寸（可留空）", key="artisan_commercial_dimensions")
-        materials = st.text_input("材料（可留空）", key="artisan_commercial_materials")
+        packaging = st.text_input(t("artisan.field.packaging"), key="artisan_commercial_packaging")
+        dimensions = st.text_input(
+            t("artisan.field.dimensions"), key="artisan_commercial_dimensions"
+        )
+        materials = st.text_input(t("artisan.field.materials"), key="artisan_commercial_materials")
         domestic = st.selectbox(
-            "国内运输",
+            t("artisan.field.domestic_shipping"),
             ("暂不确定", "支持", "不支持"),
+            format_func=_choice_label,
             key="artisan_commercial_domestic_shipping",
         )
         international = st.selectbox(
-            "国际运输",
+            t("artisan.field.international_shipping"),
             ("暂不确定", "支持", "不支持"),
+            format_func=_choice_label,
             key="artisan_commercial_international_shipping",
         )
         capacity = st.text_input(
-            "可承接数量（件，可留空）",
+            t("artisan.field.capacity"),
             key="artisan_commercial_capacity",
         )
         submitted = st.form_submit_button(
-            "保存并继续：文化与来源",
+            t("artisan.commercial.continue"),
             type="primary",
             width="stretch",
         )
@@ -613,55 +730,57 @@ def _render_artisan_commercial() -> None:
 
 def _render_artisan_culture() -> None:
     render_artisan_section(
-        "STEP 3 · 来源",
-        "补充文化背景与可追溯来源",
-        "AI 只会重组你提供的资料；文化身份、传承关系和商业承诺仍由你确认。",
+        t("artisan.culture.kicker"),
+        t("artisan.culture.title"),
+        t("artisan.culture.copy"),
     )
     draft = _current_artisan_draft()
     with st.form("artisan_culture_form", border=True):
         craft_name = st.text_input(
-            "工艺名称",
+            t("artisan.field.craft_name"),
             value=str(_fact_value(draft, "craft_name")),
             key="artisan_culture_craft_name",
         )
-        heritage_item = st.text_input("非遗项目（可留空）", key="artisan_culture_heritage_item")
+        heritage_item = st.text_input(
+            t("artisan.field.heritage_item"), key="artisan_culture_heritage_item"
+        )
         region = st.text_input(
-            "地域",
+            t("artisan.field.region"),
             value=str(_fact_value(draft, "region")),
             key="artisan_culture_region",
         )
         background = st.text_area(
-            "工艺与文化背景",
+            t("artisan.field.cultural_background"),
             height=130,
             key="artisan_culture_background",
         )
         symbolism = st.text_input(
-            "文化寓意",
-            placeholder="例如：迎客、友谊、开放",
+            t("artisan.field.symbolism"),
+            placeholder=t("artisan.field.symbolism_example"),
             key="artisan_culture_symbolism",
         )
-        process = st.text_area("制作工序（可留空）", key="artisan_culture_process")
+        process = st.text_area(t("artisan.field.process"), key="artisan_culture_process")
         cultural_url = st.text_input(
-            "文化资料链接（HTTPS，可留空）",
+            t("artisan.field.cultural_url"),
             key="artisan_culture_cultural_source_url",
         )
         merchant_url = st.text_input(
-            "商家资料链接（HTTPS，可留空）",
+            t("artisan.field.merchant_url"),
             key="artisan_culture_merchant_source_url",
         )
         other_url = st.text_input(
-            "其他参考链接（HTTPS，可留空）",
+            t("artisan.field.other_url"),
             key="artisan_culture_other_reference_url",
         )
         submitted = st.form_submit_button(
-            "AI 协助整理并进入确认",
+            t("artisan.culture.continue"),
             type="primary",
             width="stretch",
         )
     if submitted:
         urls = (cultural_url, merchant_url, other_url)
         if any(url and not url.startswith("https://") for url in urls):
-            st.info("资料链接请填写完整的 HTTPS 地址，或暂时留空。")
+            st.info(t("artisan.culture.url_error"))
             return
         draft = _resolved_merge(
             draft,
@@ -719,11 +838,61 @@ ARTISAN_FACT_LABELS = {
 }
 
 
+def _artisan_fact_labels() -> dict[str, str]:
+    return {
+        **ARTISAN_FACT_LABELS,
+        "product_name_zh": t("artisan.field.product_name"),
+        "product_name_en": t("artisan.field.product_name_en"),
+        "craft_name": t("artisan.field.craft_name"),
+        "heritage_item": t("artisan.field.heritage_item"),
+        "region": t("artisan.field.region"),
+        "cultural_background": t("artisan.field.cultural_background"),
+        "symbolism": t("artisan.field.symbolism"),
+        "craft_process": t("artisan.field.process"),
+        "currency": t("artisan.field.currency"),
+        "moq": t("passport.moq"),
+        "lead_time_days": t("passport.lead_time"),
+        "customization": t("passport.customization"),
+        "logo_supported": t("artisan.field.logo"),
+        "packaging": t("artisan.field.packaging"),
+        "dimensions": t("artisan.field.dimensions"),
+        "materials": t("artisan.field.materials"),
+        "domestic_shipping": t("artisan.field.domestic_shipping"),
+        "international_shipping": t("artisan.field.international_shipping"),
+        "quantity_capacity": t("artisan.field.capacity"),
+        "cultural_source_url": t("artisan.field.cultural_url"),
+        "merchant_source_url": t("artisan.field.merchant_url"),
+        "other_reference_url": t("artisan.field.other_url"),
+    }
+
+
+def _render_artisan_profile_metrics(draft: ArtisanProductDraft) -> None:
+    visible = tuple(
+        fact
+        for fact in draft.facts
+        if fact.field_name in _artisan_fact_labels() and fact.field_name != "free_description"
+    )
+    known = tuple(fact for fact in visible if fact.value not in (None, "", (), []))
+    confirmed = tuple(fact for fact in known if fact.verification_status.value == "confirmed")
+    pending = tuple(fact for fact in known if fact.verification_status.value == "pending_review")
+    unknown = len(visible) - len(known)
+    completeness = round(len(known) / max(1, len(visible)) * 100)
+    render_metric_strip(
+        (
+            (t("artisan.profile_completeness"), f"{completeness}%", None),
+            (t("artisan.verified_fields"), str(len(confirmed)), None),
+            (t("artisan.pending_fields"), str(len(pending)), None),
+            (t("artisan.unknown_fields"), str(unknown), None),
+        )
+    )
+    st.caption(t("artisan.completeness_note"))
+
+
 def _fact_to_text(value: Any) -> str:
     if value is None:
         return ""
     if isinstance(value, bool):
-        return "支持" if value else "不支持"
+        return t("artisan.option.supported") if value else t("artisan.option.not_supported")
     if isinstance(value, (tuple, list, set, frozenset)):
         return "、".join(str(item) for item in value)
     return str(value)
@@ -738,9 +907,11 @@ def _coerce_review_value(field_name: str, text: str, original: Any) -> Any:
         or field_name.endswith("_shipping")
         or field_name == "logo_supported"
     ):
-        if normalized not in {"支持", "不支持"}:
-            raise ValueError(f"{ARTISAN_FACT_LABELS.get(field_name, field_name)}请填写支持或不支持")
-        return normalized == "支持"
+        supported_values = {"支持", t("artisan.option.supported")}
+        unsupported_values = {"不支持", t("artisan.option.not_supported")}
+        if normalized not in supported_values | unsupported_values:
+            raise ValueError(_artisan_fact_labels().get(field_name, field_name))
+        return normalized in supported_values
     if isinstance(original, int) or field_name in {
         "price_min_fen",
         "price_max_fen",
@@ -748,7 +919,7 @@ def _coerce_review_value(field_name: str, text: str, original: Any) -> Any:
         "lead_time_days",
         "quantity_capacity",
     }:
-        return _parse_optional_int(normalized, ARTISAN_FACT_LABELS.get(field_name, field_name))
+        return _parse_optional_int(normalized, _artisan_fact_labels().get(field_name, field_name))
     if isinstance(original, (tuple, list, set, frozenset)) or field_name in {
         "symbolism",
         "customization",
@@ -759,21 +930,22 @@ def _coerce_review_value(field_name: str, text: str, original: Any) -> Any:
 
 def _render_artisan_review() -> None:
     render_artisan_section(
-        "REVIEW · 人工确认",
-        "请确认作品资料",
-        "你可以修改每个字段，并只勾选自己能够确认的内容。未勾选字段会继续保持待确认。",
+        t("artisan.review.kicker"),
+        t("artisan.review.title"),
+        t("artisan.review.copy"),
     )
     if st.session_state.get("artisan_ai_status") == "fallback":
-        st.info("AI 双语辅助暂时不可用。您仍可以手动完善资料并继续建立文化护照。")
+        st.info(t("artisan.review.ai_fallback"))
     draft = _current_artisan_draft()
+    _render_artisan_profile_metrics(draft)
     unresolved = tuple(conflict for conflict in draft.conflicts if not conflict.is_resolved)
     if unresolved:
-        st.warning("检测到已有资料与本次输入不同。请先选择保留哪一项，再继续确认。")
+        st.warning(t("artisan.review.conflict"))
         for conflict in unresolved:
-            label = ARTISAN_FACT_LABELS.get(conflict.field_name, conflict.field_name)
+            label = _artisan_fact_labels().get(conflict.field_name, conflict.field_name)
             choice = st.radio(
                 label,
-                ("保留当前记录", "采用本次输入"),
+                (t("artisan.review.keep_current"), t("artisan.review.use_incoming")),
                 key=f"artisan_conflict_{draft.updated_at.timestamp()}_{conflict.field_name}",
                 captions=(
                     _fact_to_text(conflict.current_value),
@@ -781,12 +953,14 @@ def _render_artisan_review() -> None:
                 ),
             )
             if st.button(
-                f"确认{label}选择",
+                t("artisan.review.confirm_choice", label=label),
                 key=f"artisan_conflict_resolve_{draft.updated_at.timestamp()}_{conflict.field_name}",
                 width="stretch",
             ):
                 selected = (
-                    conflict.current_value if choice == "保留当前记录" else conflict.incoming_value
+                    conflict.current_value
+                    if choice == t("artisan.review.keep_current")
+                    else conflict.incoming_value
                 )
                 resolved = merge_artisan_values(
                     draft,
@@ -799,20 +973,20 @@ def _render_artisan_review() -> None:
     facts = tuple(
         fact
         for fact in draft.facts
-        if fact.field_name in ARTISAN_FACT_LABELS and fact.field_name != "free_description"
+        if fact.field_name in _artisan_fact_labels() and fact.field_name != "free_description"
     )
     with st.form(f"artisan_review_form_{draft.updated_at.timestamp()}", border=True):
         edited: dict[str, str] = {}
         confirmed: list[str] = []
         for fact in facts:
-            label = ARTISAN_FACT_LABELS[fact.field_name]
+            label = _artisan_fact_labels()[fact.field_name]
             edited[fact.field_name] = st.text_input(
                 label,
                 value=_fact_to_text(fact.value),
                 key=f"artisan_review_{draft.updated_at.timestamp()}_{fact.field_name}",
             )
             if fact.value is not None and st.checkbox(
-                "我确认这项资料准确",
+                t("artisan.review.confirm_field"),
                 value=fact.verification_status.value == "confirmed",
                 key=f"artisan_confirm_{draft.updated_at.timestamp()}_{fact.field_name}",
             ):
@@ -820,40 +994,40 @@ def _render_artisan_review() -> None:
 
         bilingual = draft.bilingual_draft
         if bilingual is not None:
-            st.markdown("### 中英双语草稿")
+            st.markdown(f"### {t('artisan.review.bilingual')}")
             overview_zh = st.text_area(
-                "中文产品简介",
+                t("artisan.review.overview_zh"),
                 value=bilingual.overview_zh,
                 height=100,
                 key=f"artisan_review_{draft.updated_at.timestamp()}_overview_zh",
             )
             overview_en = st.text_area(
-                "English product overview",
+                t("artisan.review.overview_en"),
                 value=bilingual.overview_en,
                 height=100,
                 key=f"artisan_review_{draft.updated_at.timestamp()}_overview_en",
             )
             cultural_zh = st.text_area(
-                "中文文化寓意",
+                t("artisan.review.cultural_zh"),
                 value=bilingual.cultural_meaning_zh,
                 height=90,
                 key=f"artisan_review_{draft.updated_at.timestamp()}_cultural_meaning_zh",
             )
             cultural_en = st.text_area(
-                "English cultural meaning",
+                t("artisan.review.cultural_en"),
                 value=bilingual.cultural_meaning_en,
                 height=90,
                 key=f"artisan_review_{draft.updated_at.timestamp()}_cultural_meaning_en",
             )
             confirm_bilingual = st.checkbox(
-                "我已检查并确认这份双语表达",
+                t("artisan.review.confirm_bilingual"),
                 key=f"artisan_confirm_{draft.updated_at.timestamp()}_bilingual",
             )
         else:
             overview_zh = overview_en = cultural_zh = cultural_en = ""
             confirm_bilingual = False
         submitted = st.form_submit_button(
-            "确认并生成文化护照",
+            t("artisan.review.submit"),
             type="primary",
             width="stretch",
         )
@@ -902,12 +1076,13 @@ def _render_artisan_passport() -> None:
         passport = build_passport(_current_artisan_draft())
         st.session_state["artisan_passport"] = passport
     render_artisan_section(
-        "HERITAGE PASSPORT",
-        "你的非遗文化护照",
-        "这里区分文化来源、商家事实和仍待确认的信息。提交审核不会自动发布产品。",
+        t("passport.eyebrow"),
+        t("artisan.passport.title"),
+        t("artisan.passport.copy"),
     )
+    _render_artisan_profile_metrics(_current_artisan_draft())
     render_heritage_passport(passport, audience="artisan")
-    if st.button("保存并提交审核", type="primary", width="stretch"):
+    if st.button(t("artisan.passport.submit"), type="primary", width="stretch"):
         try:
             draft = submit_for_review(_current_artisan_draft(), _artisan_repository())
         except (RuntimeError, ValueError) as exc:
@@ -945,15 +1120,12 @@ def _reset_artisan_flow() -> None:
 
 def _render_artisan_submitted() -> None:
     draft = _current_artisan_draft()
-    st.success("作品资料已保存并提交审核。")
-    st.markdown("## 接下来会发生什么")
-    st.write(
-        "当前资料处于待审核目录，不会自动进入 AI Shopping。平台仍需核验身份、商家信息、"
-        "文化来源与商业条件，符合正式资格后才能另行导入推荐目录。"
-    )
+    st.success(t("artisan.submitted"))
+    st.markdown(f"## {t('artisan.submitted.next')}")
+    st.write(t("artisan.submitted.copy"))
     render_heritage_passport(build_passport(draft), audience="artisan", compact=True)
     if is_review_mode_enabled(st.query_params) and st.button(
-        "模拟审核通过",
+        t("artisan.submitted.simulate_review"),
         width="stretch",
     ):
         reviewed = simulate_review_approval(draft, review_authorized=True)
@@ -961,21 +1133,79 @@ def _render_artisan_submitted() -> None:
         st.session_state["artisan_draft"] = reviewed
         st.session_state["artisan_passport"] = build_passport(reviewed)
         if reviewed.publication_status is PublicationStatus.RECOMMENDABLE:
-            st.info("演示审核已通过；该记录仍未写入当前 50 件正式目录。")
+            st.info(t("artisan.submitted.recommendable_demo"))
         else:
-            st.info("审核后暂列文化参考；商业资料尚不足以进入正式推荐。")
-    if st.button("继续添加作品", type="primary", width="stretch"):
+            st.info(t("artisan.submitted.reference_demo"))
+    if st.button(t("artisan.add_another"), type="primary", width="stretch"):
         _reset_artisan_flow()
         st.rerun()
 
 
+def _growth_context_options() -> dict[str, Any]:
+    bundle, products = load_catalog()
+    passports = build_catalog_passports(products, bundle)
+    contexts = {
+        product.product_id: build_catalog_growth_context(product, passports[product.product_id])
+        for product in products
+        if is_recommendation_eligible(product)
+    }
+    draft = st.session_state.get("artisan_draft")
+    if isinstance(draft, ArtisanProductDraft) and draft.facts:
+        context = build_draft_growth_context(draft)
+        contexts[context.product_id] = context
+    return contexts
+
+
+def _growth_client(output_source: GrowthOutputSource) -> DeepSeekClient | None:
+    if output_source is not GrowthOutputSource.LIVE_AI:
+        return None
+    if os.getenv("LLM_ENABLED", "true").lower() != "true" or not deepseek_is_configured():
+        return None
+    try:
+        return DeepSeekClient.from_env()
+    except Exception:
+        return None
+
+
+def _render_growth_studio() -> None:
+    render_growth_studio_app(
+        _growth_context_options(),
+        _campaign_repository(),
+        _growth_client,
+    )
+
+
 def _render_artisan_app() -> None:
+    onboarding_column, growth_column = st.columns(2)
+    if onboarding_column.button(
+        t("artisan.workspace_onboarding"),
+        key="artisan_workspace_onboarding",
+        type=(
+            "primary" if st.session_state.get("artisan_workspace") == "onboarding" else "secondary"
+        ),
+        width="stretch",
+    ):
+        st.session_state["artisan_workspace"] = "onboarding"
+        st.rerun()
+    if growth_column.button(
+        t("artisan.workspace_growth"),
+        key="artisan_workspace_growth",
+        type=("primary" if st.session_state.get("artisan_workspace") == "growth" else "secondary"),
+        width="stretch",
+    ):
+        st.session_state["artisan_workspace"] = "growth"
+        if st.session_state.get("competition_demo"):
+            st.session_state["competition_demo_step"] = 4
+        st.rerun()
+    if st.session_state.get("artisan_workspace") == "growth":
+        _render_growth_studio()
+        return
     render_artisan_hero()
     stage = st.session_state.get("artisan_stage", "landing")
     render_artisan_progress(stage)
     if stage == "landing":
         render_artisan_journey()
-        if st.button("开始添加作品", type="primary", width="stretch"):
+        if st.button(t("artisan.start"), type="primary", width="stretch"):
             _new_artisan_draft()
             st.session_state["artisan_stage"] = "story"
             st.rerun()
@@ -1028,59 +1258,81 @@ def _friendly_value(value: Any, mapping: dict[str, str] | None = None) -> str | 
     if value is None or value == "" or value == ():
         return None
     if isinstance(value, bool):
-        return "需要" if value else "不需要"
+        return t("buyer.form.needed") if value else t("buyer.form.not_needed")
     reverse = {code: label for label, code in (mapping or {}).items()}
     if isinstance(value, tuple):
-        return "、".join(reverse.get(str(item), str(item)) for item in value)
-    return reverse.get(str(value), str(value))
+        labels = [reverse.get(str(item), str(item)) for item in value]
+        if get_language() == Language.EN_US:
+            labels = [OPTION_LABELS_EN.get(label, label) for label in labels]
+        return " · ".join(labels)
+    label = reverse.get(str(value), str(value))
+    return OPTION_LABELS_EN.get(label, label) if get_language() == Language.EN_US else label
+
+
+def _direction_summary(context: RecommendationContext) -> str:
+    if get_language() == Language.EN_US:
+        return t("buyer.summary.direction_ready")
+    return context.direction_summary
 
 
 def _summary_items(parsed: ParsedCustomerRequest) -> list[tuple[str, str]]:
     rows = (
-        ("赠礼对象", _friendly_value(parsed.recipient, RECIPIENTS)),
-        ("使用场景", _friendly_value(parsed.scene, SCENES)),
-        ("单件预算", f"¥{parsed.budget_per_item:,.0f}" if parsed.budget_per_item else None),
-        ("数量", f"{parsed.quantity} 件" if parsed.quantity else None),
-        ("风格方向", _friendly_value(parsed.style_preferences, STYLES)),
-        ("文化寓意", _friendly_value(parsed.symbolism_preferences, MEANINGS)),
-        ("定制要求", _friendly_value(parsed.customization_required)),
+        (t("buyer.summary.recipient"), _friendly_value(parsed.recipient, RECIPIENTS)),
+        (t("buyer.summary.scene"), _friendly_value(parsed.scene, SCENES)),
+        (
+            t("buyer.summary.budget"),
+            f"¥{parsed.budget_per_item:,.0f}" if parsed.budget_per_item else None,
+        ),
+        (
+            t("buyer.summary.quantity"),
+            t("buyer.summary.items", count=parsed.quantity) if parsed.quantity else None,
+        ),
+        (t("buyer.summary.style"), _friendly_value(parsed.style_preferences, STYLES)),
+        (t("buyer.summary.meaning"), _friendly_value(parsed.symbolism_preferences, MEANINGS)),
+        (t("buyer.summary.customization"), _friendly_value(parsed.customization_required)),
         ("Logo", _friendly_value(parsed.logo_required)),
         (
-            "交付要求",
-            f"{parsed.required_delivery_days} 天内" if parsed.required_delivery_days else None,
+            t("buyer.summary.delivery"),
+            t("buyer.summary.days", days=parsed.required_delivery_days)
+            if parsed.required_delivery_days
+            else None,
         ),
-        ("目的地", parsed.destination),
+        (t("buyer.summary.destination"), parsed.destination),
     )
     return [(label, value) for label, value in rows if value]
 
 
 def _render_conversation() -> None:
-    st.markdown("## AI 礼品顾问")
+    st.markdown(f"## {t('buyer.advisor_title')}")
     state = st.session_state["conversation_state"]
     with st.chat_message("assistant"):
-        st.write(
-            "您好，我是 HAHA｜飞颐礼遇顾问。您可以先告诉我礼物准备送给谁，"
-            "或者描述一个大概的礼赠场景。"
-        )
+        st.write(t("buyer.welcome"))
     for message in state.messages:
         with st.chat_message(message.role):
-            st.write(message.content)
+            st.write(localize_literal(message.content))
     if not state.raw_user_texts:
         columns = st.columns(2)
-        for index, label in enumerate(QUICK_STARTS):
+        for index, (label_key, text_key) in enumerate(QUICK_START_TRANSLATION_KEYS):
+            label = t(label_key)
             if columns[index % 2].button(label, key=f"quick_{index}", width="stretch"):
-                _process_message(QUICK_TEXT[label], entry_source=f"quick:{label}")
+                _process_message(
+                    t(text_key, language=Language.ZH_CN),
+                    entry_source=f"quick:{label_key}",
+                )
                 st.rerun()
-    prompt = st.chat_input("说说这次想送给谁，或输入您的礼赠场景")
+    prompt = st.chat_input(t("buyer.chat_placeholder"))
     if prompt:
         _process_message(prompt)
         st.rerun()
     if state.raw_user_texts:
         recommend, restart = st.columns(2)
-        if recommend.button("先为我推荐", type="primary", width="stretch"):
-            _process_message("请先为我推荐，我之后再调整。", entry_source="recommend_now")
+        if recommend.button(t("buyer.recommend_now"), type="primary", width="stretch"):
+            _process_message(
+                t("buyer.recommend_now_prompt", language=Language.ZH_CN),
+                entry_source="recommend_now",
+            )
             st.rerun()
-        if restart.button("重新开始", width="stretch"):
+        if restart.button(t("buyer.restart"), width="stretch"):
             _run_agent(RequestedAction.RESTART, source="restart")
             st.session_state["show_requirement_editor"] = False
             st.rerun()
@@ -1094,31 +1346,33 @@ def _render_requirement_summary() -> None:
         return
     context = st.session_state.get("recommendation_context")
     display = context.effective_request if isinstance(context, RecommendationContext) else parsed
-    st.markdown("## 当前需求摘要")
+    st.markdown(f"## {t('buyer.summary.title')}")
     items = _summary_items(display)
     if items:
         tags = "".join(f"<span>{escape(label)}：{escape(value)}</span>" for label, value in items)
         st.markdown(f'<div class="hl-summary">{tags}</div>', unsafe_allow_html=True)
     else:
-        st.caption("我们先从赠礼对象或场景开始，之后可以随时调整。")
+        st.caption(t("buyer.summary.empty"))
     if isinstance(context, RecommendationContext):
-        st.write(context.direction_summary)
+        st.write(_direction_summary(context))
     edit, rematch = st.columns(2)
-    if edit.button("调整需求", width="stretch"):
+    if edit.button(t("buyer.summary.edit"), width="stretch"):
         st.session_state["show_requirement_editor"] = not st.session_state.get(
             "show_requirement_editor", False
         )
         st.rerun()
-    if rematch.button("重新匹配", width="stretch"):
+    if rematch.button(t("buyer.summary.rematch"), width="stretch"):
         state = st.session_state["conversation_state"]
         st.session_state["conversation_state"] = replace(state, ready_to_recommend=True)
         _generate_recommendations()
         st.rerun()
     if st.session_state.get("show_requirement_editor"):
         with st.container(border=True):
-            st.caption("只修改您希望调整的条件，留空项目不会被当作硬性要求。")
+            st.caption(t("buyer.summary.edit_help"))
             if render_structured_form(
-                prefix="advisor_edit", parsed=display, submit_label="保存并重新匹配"
+                prefix="advisor_edit",
+                parsed=display,
+                submit_label=t("buyer.summary.save_rematch"),
             ):
                 try:
                     updated = parsed_from_widgets("advisor_edit", display)
@@ -1157,11 +1411,11 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
     count = len(response.recommendations)
     heading, action = st.columns([4, 1.2], vertical_alignment="center")
     with heading:
-        st.markdown(f"## 我为您挑选了{count}件更适合这次赠礼的作品")
-        st.write("根据赠礼对象、场景和您偏好的文化方向，我为您整理了以下作品。")
+        st.markdown(f"## {t('buyer.results.title', count=count)}")
+        st.write(t("buyer.results.copy"))
     with action:
         if count >= 2 and st.button(
-            f"比较这{count}件",
+            t("buyer.results.compare_all", count=count),
             key="compare_all_recommendations",
             type="primary",
             width="stretch",
@@ -1172,14 +1426,12 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
             )
             st.rerun()
     st.checkbox(
-        "允许匿名保存本次礼品偏好和选择，用于优化未来推荐。",
+        t("buyer.analytics.label"),
         key="analytics_consent",
-        help="不保存姓名、联系方式或完整聊天原文；不同意也可以正常使用。",
+        help=t("buyer.analytics.help"),
     )
     if not response.recommendations:
-        st.info(
-            "当前目录中暂时没有同时符合这些条件的作品。您可以调整预算、数量、交付或定制要求后重新匹配。"
-        )
+        st.info(t("buyer.results.empty"))
         return
     participating = frozenset(result.participating_dimensions)
     parsed = context.effective_request
@@ -1212,7 +1464,7 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
         choose, continue_comparing, adjust = st.columns(3)
         recommended_id = comparison.recommendation_for_current_user
         if recommended_id and choose.button(
-            "选择推荐款",
+            t("buyer.comparison.select"),
             key="comparison_select_recommended",
             type="primary",
             width="stretch",
@@ -1220,16 +1472,14 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
             _select_product(recommended_id)
             st.rerun()
         if continue_comparing.button(
-            "继续比较",
+            t("buyer.comparison.continue"),
             key="comparison_continue",
             width="stretch",
         ):
-            st.session_state["comparison_prompt_hint"] = (
-                "可以继续问：第一个和第三个哪个更适合教授？"
-            )
+            st.session_state["comparison_prompt_hint"] = t("buyer.comparison.hint")
             st.rerun()
         if adjust.button(
-            "调整需求",
+            t("buyer.comparison.adjust"),
             key="comparison_adjust",
             width="stretch",
         ):
@@ -1249,7 +1499,7 @@ def _compare_products(
 ) -> None:
     _run_agent(
         RequestedAction.COMPARE_SELECTED_PRODUCTS,
-        text="请比较当前推荐的作品。",
+        text=t("buyer.comparison.prompt"),
         source=source,
         product_ids=product_ids,
         comparison_focus=focus,
@@ -1281,27 +1531,36 @@ def _render_selected_plan(
     context = st.session_state.get("recommendation_context")
     if recommendation is None or not isinstance(context, RecommendationContext):
         return
-    st.markdown("## 您选择的礼品")
+    st.markdown(f"## {t('buyer.selected.title')}")
     with st.container(border=True):
         image, detail = st.columns([1, 1.5])
         with image:
             product_image(recommendation.product.image_path, recommendation.product.image_alt_zh)
         with detail:
-            st.markdown(f"### {recommendation.product.product_name_zh}")
-            st.write(context.direction_summary)
+            product_name = (
+                recommendation.product.product_name_en
+                if get_language() == Language.EN_US
+                else recommendation.product.product_name_zh
+            )
+            st.markdown(f"### {product_name}")
+            st.write(_direction_summary(context))
             budget = context.effective_request.budget_per_item
             budget_fen = _yuan_to_fen(budget) if budget else None
             st.write(
-                f"数量：{context.effective_request.quantity or '可后续沟通'}　·　"
-                f"单件预算：{_money(budget_fen)}"
+                t(
+                    "buyer.selected.quantity_budget",
+                    quantity=context.effective_request.quantity
+                    or t("buyer.selected.quantity_later"),
+                    budget=_money(budget_fen),
+                )
             )
         change, generate = st.columns(2)
-        if change.button("更换产品", width="stretch"):
+        if change.button(t("buyer.selected.change"), width="stretch"):
             st.session_state.pop("selected_product_id", None)
             st.session_state.pop("selection_event", None)
             st.session_state.pop("customization_inquiry", None)
             st.rerun()
-        if generate.button("生成我的礼品方案", type="primary", width="stretch"):
+        if generate.button(t("buyer.selected.generate"), type="primary", width="stretch"):
             _run_agent(RequestedAction.GENERATE_PLAN, source="generate_plan")
             st.rerun()
     inquiry = st.session_state.get("customization_inquiry")
@@ -1319,7 +1578,8 @@ def _render_source_note(note: str) -> None:
     url = escape(match.group(), quote=True)
     after = escape(note[match.end() :])
     st.markdown(
-        f'<small>{before}<a href="{url}" target="_blank">馆藏资料页 / Source</a>{after}</small>',
+        f'<small>{before}<a href="{url}" target="_blank">{t("buyer.source_link")}</a>'
+        f"{after}</small>",
         unsafe_allow_html=True,
     )
 
@@ -1334,24 +1594,27 @@ def _render_final_scheme(
     content = st.session_state.get("grounded_content")
     if not isinstance(content, BilingualContent):
         return
-    st.markdown("## 您的专属礼品方案")
-    badges([("礼品已选定", "ok"), ("可继续调整", "wait")])
-    st.markdown("### 推荐定制方向")
-    st.write(f"主题方向：{parsed.requested_theme or context.direction_summary}")
-    st.write(f"Logo：{'加入企业 Logo' if parsed.logo_required else '可按需要沟通'}")
-    st.write(f"题字：{parsed.requested_text or '可结合赠礼场景进一步确定'}")
-    st.write(f"包装：{parsed.packaging_requirement or '采用与当前礼赠场景相符的包装方向'}")
-    zh, en = st.tabs(("中文文化介绍", "English Cultural Story"))
+    st.markdown(f"## {t('buyer.plan.title')}")
+    badges([(t("buyer.plan.selected"), "ok"), (t("buyer.plan.adjustable"), "wait")])
+    st.markdown(f"### {t('buyer.plan.customization')}")
+    st.write(f"{t('buyer.plan.theme')}: {parsed.requested_theme or _direction_summary(context)}")
+    logo = t("buyer.plan.logo_yes") if parsed.logo_required else t("buyer.plan.logo_optional")
+    st.write(f"{t('buyer.plan.logo')}: {logo}")
+    inscription = parsed.requested_text or t("buyer.plan.inscription_default")
+    st.write(f"{t('buyer.plan.inscription')}: {inscription}")
+    packaging = parsed.packaging_requirement or t("buyer.plan.packaging_default")
+    st.write(f"{t('buyer.plan.packaging')}: {packaging}")
+    zh, en = st.tabs((t("buyer.plan.zh_story"), t("buyer.plan.en_story")))
     with zh:
         st.write(content.zh.cultural_story)
         _render_source_note(content.zh.source_note)
     with en:
         st.write(content.en.cultural_story)
         _render_source_note(content.en.source_note)
-    st.markdown("### 下一步")
-    st.write("下载方案后，可继续确认具体定制内容、正式价格、制作安排与交付方式。")
+    st.markdown(f"### {t('buyer.plan.next')}")
+    st.write(t("buyer.plan.next_copy"))
     st.download_button(
-        "下载方案",
+        t("buyer.plan.download"),
         data=inquiry_to_json(inquiry),
         file_name=f"{inquiry['inquiry_id']}.json",
         mime="application/json",
@@ -1360,8 +1623,8 @@ def _render_final_scheme(
 
 
 def _render_secondary_form() -> None:
-    with st.expander("我想直接填写需求"):
-        if render_structured_form(prefix="direct", submit_label="填写完成，开始匹配"):
+    with st.expander(t("buyer.direct_form")):
+        if render_structured_form(prefix="direct", submit_label=t("buyer.direct_submit")):
             try:
                 parsed = parsed_from_widgets("direct")
             except RequestValidationError as exc:
@@ -1372,7 +1635,7 @@ def _render_secondary_form() -> None:
 
 
 def _render_catalog() -> None:
-    with st.expander("浏览完整礼品目录"):
+    with st.expander(t("buyer.catalog")):
         try:
             items = load_heritage_reference_catalog()
             _, products = load_catalog()
@@ -1382,50 +1645,60 @@ def _render_catalog() -> None:
                 project_root=ROOT,
             )
         except CatalogDataError:
-            st.info("礼品目录暂时无法加载，请稍后再试。")
+            st.info(t("buyer.catalog_error"))
 
 
 def _render_service_note() -> None:
-    with st.expander("数据与服务说明"):
-        st.write(
-            "产品展示依据当前目录资料；实际价格、制作、定制与交付细节以最终服务方案为准。"
-            "文化介绍保留资料来源，不使用夸张或虚构的产品事实。"
-        )
-        st.write(
-            "匿名偏好分析完全自愿，不保存姓名、联系方式或完整聊天原文；不同意不会影响推荐和方案生成。"
-        )
+    with st.expander(t("buyer.data_note")):
+        st.write(t("buyer.demo_note"))
 
 
 def _render_agent_trace() -> None:
     if not is_review_mode_enabled(st.query_params):
         return
-    traces = st.session_state.get("agent_execution_trace", ())
-    application_traces = (
-        st.session_state.get("artisan_application_trace", ())
+    traces = (
+        st.session_state.get("growth_execution_trace", ())
         if st.session_state.get("app_mode") == "artisan"
-        else st.session_state.get("application_execution_trace", ())
+        and st.session_state.get("artisan_workspace") == "growth"
+        else st.session_state.get("agent_execution_trace", ())
     )
-    st.markdown("## Agent 执行轨迹")
+    if st.session_state.get("app_mode") == "artisan":
+        application_traces = (
+            ()
+            if st.session_state.get("artisan_workspace") == "growth"
+            else st.session_state.get("artisan_application_trace", ())
+        )
+    else:
+        application_traces = st.session_state.get("application_execution_trace", ())
+    st.markdown(f"## {t('trace.title')}")
     if not traces and not application_traces:
-        st.caption("完成一轮交互后，这里会显示当前会话内的脱敏 Skill 轨迹。")
+        st.caption(t("trace.empty"))
         return
     for trace in traces:
         icon = "✓" if trace.status.value in {"success", "fallback"} else "–"
         with st.expander(
             f"{icon} Skill {trace.sequence_number}：{trace.skill_name} · {trace.status.value}"
         ):
-            st.write(f"调用原因：{trace.trigger_reason}")
-            st.json({"输入摘要": trace.input_summary, "输出摘要": trace.output_summary})
+            st.write(f"{t('trace.reason')}：{trace.trigger_reason}")
+            st.json(
+                {t("trace.input"): trace.input_summary, t("trace.output"): trace.output_summary}
+            )
             if trace.fallback_used:
-                st.write(f"安全回退：{trace.fallback_reason or '已启用'}")
-            st.write(f"执行时间：{trace.duration_ms:.3f} ms")
+                st.write(f"{t('trace.fallback')}：{trace.fallback_reason or t('common.ready')}")
+            st.write(f"{t('trace.duration')}：{trace.duration_ms:.3f} ms")
             for check in trace.safety_checks:
                 marker = "✓" if check.passed else "!"
                 st.write(f"{marker} {check.check_id}：{check.summary}")
     if application_traces:
-        st.markdown("### Application Actions")
+        st.markdown(f"### {t('trace.application_actions')}")
     for trace in application_traces:
-        with st.expander(f"Application Action：{trace.action_id} · {trace.status.value}"):
+        with st.expander(
+            t(
+                "trace.application_action",
+                action=trace.action_id,
+                status=trace.status.value,
+            )
+        ):
             st.json(
                 {
                     "输入摘要": dict(trace.input_summary),
@@ -1447,15 +1720,22 @@ def main() -> None:
     apply_theme()
     _init_state()
     _render_mode_switcher()
+    if st.session_state.get("competition_demo"):
+        render_demo_guide(int(st.session_state.get("competition_demo_step", 1)))
     try:
         bundle, products = load_catalog()
     except DataValidationError:
-        st.info("产品资料暂时无法加载，请稍后再试。")
+        st.info(t("buyer.load_error"))
         st.stop()
-    if st.session_state["app_mode"] == "artisan":
+    if st.session_state.get("app_page") == "about":
+        render_about_page()
+    elif st.session_state["app_mode"] == "artisan":
         _render_artisan_app()
     else:
-        render_hero()
+        render_buyer_hero()
+        state = st.session_state.get("conversation_state")
+        if isinstance(state, ConversationState) and not state.raw_user_texts:
+            render_platform_story()
         _render_conversation()
         _render_secondary_form()
         _render_requirement_summary()

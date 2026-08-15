@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from time import perf_counter
 
 from heritagelink.agent_models import SafetyCheckResult, SkillExecutionTrace, SkillStatus
-from heritagelink.agent_registry import SKILLS_BY_ID
+from heritagelink.agent_registry import ALL_SKILLS_BY_ID
 
 _SAFE_KEYS = frozenset(
     {
@@ -43,6 +43,21 @@ _SAFE_KEYS = frozenset(
         "capture_status",
         "idempotency_protected",
         "reason",
+        "verified_fact_count",
+        "unverified_fact_count",
+        "unknown_field_count",
+        "opportunity_count",
+        "recommended_segment",
+        "strategy_channel_count",
+        "campaign_asset_count",
+        "guardian_issue_count",
+        "guardian_approved",
+        "risk_level",
+        "revision_count",
+        "requires_human_review",
+        "external_evidence_used",
+        "publication_eligibility_changed",
+        "generation_source",
     }
 )
 _PII = re.compile(
@@ -81,7 +96,7 @@ class TraceTimer:
     """Build one trace while keeping timestamps and summaries centralized."""
 
     def __init__(self, skill_id: str, trigger_reason: str) -> None:
-        self.definition = SKILLS_BY_ID[skill_id]
+        self.definition = ALL_SKILLS_BY_ID[skill_id]
         self.trigger_reason = trigger_reason
         self.started_at = datetime.now(UTC)
         self.started_counter = perf_counter()

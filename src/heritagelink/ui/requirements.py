@@ -6,6 +6,7 @@ from typing import Any
 
 import streamlit as st
 
+from heritagelink.i18n import Language, get_language, t
 from heritagelink.request_parser import (
     ParsedCustomerRequest,
     RequestValidationError,
@@ -88,6 +89,77 @@ FIELD_DISPLAY = {
     "output_language": "内容语言",
 }
 
+OPTION_LABELS_EN = {
+    "未说明": "Not Specified",
+    "需要": "Needed",
+    "不需要": "Not Needed",
+    "企业客户": "Corporate Buyer",
+    "政府/高校/文化机构": "Government / University / Cultural Institution",
+    "个人客户": "Individual Buyer",
+    "海外客户": "International Buyer",
+    "商务伙伴": "Business Partner",
+    "机构客户": "Institution",
+    "员工": "Employee",
+    "长辈": "Elder",
+    "家人": "Family",
+    "朋友": "Friend",
+    "新婚夫妇": "Newlyweds",
+    "教师": "Teacher",
+    "收藏者": "Collector",
+    "商务礼赠": "Business Gifting",
+    "机构纪念": "Institutional Commemoration",
+    "婚礼": "Wedding",
+    "周年纪念": "Anniversary",
+    "乔迁": "Housewarming",
+    "生日": "Birthday",
+    "节庆": "Festival",
+    "毕业": "Graduation",
+    "感谢答谢": "Appreciation",
+    "收藏": "Collection",
+    "展览展示": "Exhibition",
+    "传统": "Traditional",
+    "现代": "Modern",
+    "简约": "Minimal",
+    "大气": "Grand",
+    "典雅": "Elegant",
+    "喜庆": "Festive",
+    "温暖": "Warm",
+    "文化传承": "Cultural Continuity",
+    "繁荣兴盛": "Prosperity",
+    "祝福": "Good Wishes",
+    "和谐": "Harmony",
+    "长久": "Longevity",
+    "坚韧": "Resilience",
+    "纪念": "Remembrance",
+    "感谢": "Gratitude",
+    "相伴结合": "Union",
+    "题字": "Inscription",
+    "图案定制": "Pattern",
+    "尺寸定制": "Size",
+    "包装定制": "Packaging",
+    "颜色定制": "Colour",
+    "其他定制": "Other",
+    "中文": "Chinese",
+    "中英双语": "Bilingual",
+}
+
+
+def _option_label(label: str) -> str:
+    if get_language() == Language.EN_US:
+        return OPTION_LABELS_EN.get(label, label)
+    return label
+
+
+OPTION_LABELS_ZH = {value: key for key, value in OPTION_LABELS_EN.items()}
+
+
+def _localized_options(values: list[str] | tuple[str, ...]) -> list[str]:
+    return [_option_label(value) for value in values]
+
+
+def _canonical_option(value: str) -> str:
+    return OPTION_LABELS_ZH.get(value, value)
+
 
 def _optional_float(value: str, field: str) -> float | None:
     if not value.strip():
@@ -129,12 +201,13 @@ def parsed_from_widgets(
     budget = _optional_float(st.session_state[f"{prefix}_budget"], "单件预算")
     quantity = _optional_int(st.session_state[f"{prefix}_quantity"], "采购数量")
     delivery = _optional_int(st.session_state[f"{prefix}_delivery"], "交付天数")
-    logo = _bool_value(st.session_state[f"{prefix}_logo"])
-    customization = _bool_value(st.session_state[f"{prefix}_customization"])
+    logo = _bool_value(_canonical_option(st.session_state[f"{prefix}_logo"]))
+    customization = _bool_value(_canonical_option(st.session_state[f"{prefix}_customization"]))
     customization_types = [
-        CUSTOMIZATION_TYPES[item] for item in st.session_state[f"{prefix}_customization_types"]
+        CUSTOMIZATION_TYPES[_canonical_option(item)]
+        for item in st.session_state[f"{prefix}_customization_types"]
     ]
-    international = _bool_value(st.session_state[f"{prefix}_international"])
+    international = _bool_value(_canonical_option(st.session_state[f"{prefix}_international"]))
     if logo:
         customization_types.append("logo")
     requested_text = st.session_state[f"{prefix}_text"].strip() or None
@@ -147,9 +220,11 @@ def parsed_from_widgets(
         raise RequestValidationError("已选择具体定制内容时，不能同时选择“不需要定制”。")
     customization_required = True if customization_types else customization
     destination = st.session_state[f"{prefix}_destination"].strip() or None
-    customer_type = CUSTOMER_TYPES.get(st.session_state[f"{prefix}_customer_type"])
-    recipient = RECIPIENTS.get(st.session_state[f"{prefix}_recipient"])
-    scene = SCENES.get(st.session_state[f"{prefix}_scene"])
+    customer_type = CUSTOMER_TYPES.get(
+        _canonical_option(st.session_state[f"{prefix}_customer_type"])
+    )
+    recipient = RECIPIENTS.get(_canonical_option(st.session_state[f"{prefix}_recipient"]))
+    scene = SCENES.get(_canonical_option(st.session_state[f"{prefix}_scene"]))
     payload: dict[str, Any] = {
         "customer_type": customer_type,
         "budget_type": "per_item" if budget is not None else None,
@@ -158,9 +233,11 @@ def parsed_from_widgets(
         "quantity": quantity,
         "recipient": recipient,
         "scene": scene,
-        "style_preferences": [STYLES[item] for item in st.session_state[f"{prefix}_styles"]],
+        "style_preferences": [
+            STYLES[_canonical_option(item)] for item in st.session_state[f"{prefix}_styles"]
+        ],
         "symbolism_preferences": [
-            MEANINGS[item] for item in st.session_state[f"{prefix}_meanings"]
+            MEANINGS[_canonical_option(item)] for item in st.session_state[f"{prefix}_meanings"]
         ],
         "customization_required": customization_required,
         "customization_types": customization_types,
@@ -168,7 +245,9 @@ def parsed_from_widgets(
         "international_shipping_required": international,
         "destination": destination,
         "required_delivery_days": delivery,
-        "output_language": OUTPUT_LANGUAGES.get(st.session_state[f"{prefix}_language"]),
+        "output_language": OUTPUT_LANGUAGES.get(
+            _canonical_option(st.session_state[f"{prefix}_language"])
+        ),
         "requested_theme": st.session_state[f"{prefix}_theme"].strip() or None,
         "requested_text": requested_text,
         "packaging_requirement": packaging_note,
@@ -194,13 +273,18 @@ def render_structured_form(
             return fresh_default
         return {code: label for label, code in mapping.items()}.get(value or "", "未说明")
 
+    customer_type_options = ["未说明", *CUSTOMER_TYPES]
+    recipient_options = ["未说明", *RECIPIENTS]
+    scene_options = ["未说明", *SCENES]
+    boolean_options = ("未说明", "需要", "不需要")
+    output_language_options = ("未说明", *OUTPUT_LANGUAGES)
     with st.form(f"{prefix}_form", border=True):
-        st.markdown("#### 基本礼赠信息")
+        st.markdown(f"#### {t('buyer.form.basic')}")
         left, right = st.columns(2)
         left.selectbox(
-            "客户类型",
-            ["未说明", *CUSTOMER_TYPES],
-            index=["未说明", *CUSTOMER_TYPES].index(
+            t("buyer.form.customer_type"),
+            _localized_options(customer_type_options),
+            index=customer_type_options.index(
                 selected_label(
                     CUSTOMER_TYPES,
                     parsed.customer_type if parsed else None,
@@ -210,9 +294,9 @@ def render_structured_form(
             key=f"{prefix}_customer_type",
         )
         right.selectbox(
-            "礼赠对象",
-            ["未说明", *RECIPIENTS],
-            index=["未说明", *RECIPIENTS].index(
+            t("buyer.form.recipient"),
+            _localized_options(recipient_options),
+            index=recipient_options.index(
                 selected_label(
                     RECIPIENTS, parsed.recipient if parsed else None, fresh_default="未说明"
                 )
@@ -220,112 +304,114 @@ def render_structured_form(
             key=f"{prefix}_recipient",
         )
         left.selectbox(
-            "礼赠场景",
-            ["未说明", *SCENES],
-            index=["未说明", *SCENES].index(
+            t("buyer.form.scene"),
+            _localized_options(scene_options),
+            index=scene_options.index(
                 selected_label(SCENES, parsed.scene if parsed else None, fresh_default="未说明")
             ),
             key=f"{prefix}_scene",
         )
         left.text_input(
-            "单件预算（元）",
+            t("buyer.form.budget"),
             value=""
             if parsed is None or parsed.budget_per_item is None
             else str(parsed.budget_per_item),
-            placeholder="例如 800",
+            placeholder=t("buyer.form.example_budget"),
             key=f"{prefix}_budget",
         )
         right.text_input(
-            "采购数量",
+            t("buyer.form.quantity"),
             value="" if parsed is None or parsed.quantity is None else str(parsed.quantity),
-            placeholder="例如 20",
+            placeholder=t("buyer.form.example_quantity"),
             key=f"{prefix}_quantity",
         )
         right.text_input(
-            "交付天数",
+            t("buyer.form.delivery_days"),
             value=(
                 ""
                 if parsed is None or parsed.required_delivery_days is None
                 else str(parsed.required_delivery_days)
             ),
-            placeholder="例如 21",
+            placeholder=t("buyer.form.example_days"),
             key=f"{prefix}_delivery",
         )
-        with st.expander("偏好与文化表达", expanded=prefix == "confirm"):
+        with st.expander(t("buyer.form.preference"), expanded=prefix == "confirm"):
             st.multiselect(
-                "风格偏好",
-                list(STYLES),
+                t("buyer.form.styles"),
+                _localized_options(list(STYLES)),
                 default=[]
                 if parsed is None
-                else [label for label, code in STYLES.items() if code in parsed.style_preferences],
+                else _localized_options(
+                    [label for label, code in STYLES.items() if code in parsed.style_preferences]
+                ),
                 key=f"{prefix}_styles",
             )
             st.multiselect(
-                "文化寓意",
-                list(MEANINGS),
+                t("buyer.form.meanings"),
+                _localized_options(list(MEANINGS)),
                 default=[]
                 if parsed is None
-                else [
-                    label
-                    for label, code in MEANINGS.items()
-                    if code in parsed.symbolism_preferences
-                ],
+                else _localized_options(
+                    [
+                        label
+                        for label, code in MEANINGS.items()
+                        if code in parsed.symbolism_preferences
+                    ]
+                ),
                 key=f"{prefix}_meanings",
             )
             st.text_input(
-                "定制主题",
+                t("buyer.form.theme"),
                 value="" if parsed is None else parsed.requested_theme or "",
                 key=f"{prefix}_theme",
             )
             st.text_input(
-                "题字内容",
+                t("buyer.form.inscription"),
                 value="" if parsed is None else parsed.requested_text or "",
                 key=f"{prefix}_text",
             )
-        with st.expander("定制与交付", expanded=prefix == "confirm"):
+        with st.expander(t("buyer.form.custom_delivery"), expanded=prefix == "confirm"):
             col1, col2 = st.columns(2)
             col1.radio(
-                "是否需要定制",
-                ("未说明", "需要", "不需要"),
-                index=("未说明", "需要", "不需要").index(
+                t("buyer.form.customization_needed"),
+                _localized_options(boolean_options),
+                index=boolean_options.index(
                     _bool_label(parsed.customization_required if parsed else None)
                 ),
                 key=f"{prefix}_customization",
             )
             col1.radio(
-                "需要 Logo",
-                ("未说明", "需要", "不需要"),
-                index=("未说明", "需要", "不需要").index(
-                    _bool_label(parsed.logo_required if parsed else None)
-                ),
+                t("buyer.form.logo_needed"),
+                _localized_options(boolean_options),
+                index=boolean_options.index(_bool_label(parsed.logo_required if parsed else None)),
                 key=f"{prefix}_logo",
             )
             col1.radio(
-                "需要国际运输",
-                ("未说明", "需要", "不需要"),
-                index=("未说明", "需要", "不需要").index(
+                t("buyer.form.international_needed"),
+                _localized_options(boolean_options),
+                index=boolean_options.index(
                     _bool_label(parsed.international_shipping_required if parsed else None)
                 ),
                 key=f"{prefix}_international",
             )
             existing_types = set(parsed.customization_types) if parsed else set()
             col2.multiselect(
-                "定制类型",
-                list(CUSTOMIZATION_TYPES),
-                default=[
-                    label for label, code in CUSTOMIZATION_TYPES.items() if code in existing_types
-                ],
+                t("buyer.form.customization_types"),
+                _localized_options(list(CUSTOMIZATION_TYPES)),
+                default=_localized_options(
+                    [label for label, code in CUSTOMIZATION_TYPES.items() if code in existing_types]
+                ),
                 key=f"{prefix}_customization_types",
             )
             st.text_input(
-                "包装要求",
+                t("buyer.form.packaging"),
                 value="" if parsed is None else parsed.packaging_requirement or "",
                 key=f"{prefix}_packaging_note",
             )
             st.text_input(
-                "目的国家或地区",
+                t("buyer.form.destination"),
                 value="" if parsed is None else parsed.destination or "",
-                placeholder="例如 美国",
+                placeholder=t("buyer.form.example_destination"),
                 key=f"{prefix}_destination",
             )
             language_value = (
@@ -336,14 +422,14 @@ def render_structured_form(
                 )
             )
             st.radio(
-                "文化介绍语言",
-                ("未说明", *OUTPUT_LANGUAGES),
-                index=["未说明", *OUTPUT_LANGUAGES].index(language_value),
+                t("buyer.form.content_language"),
+                _localized_options(output_language_options),
+                index=list(output_language_options).index(language_value),
                 horizontal=True,
                 key=f"{prefix}_language",
             )
             st.text_area(
-                "其他说明",
+                t("buyer.form.notes"),
                 value="" if parsed is None else parsed.additional_notes or "",
                 height=80,
                 key=f"{prefix}_notes",

@@ -9,7 +9,10 @@ import streamlit as st
 
 from heritagelink.catalog import HeritageReferenceItem
 from heritagelink.catalog_eligibility import is_recommendation_eligible
+from heritagelink.i18n import Language, get_language, t
 from heritagelink.models import Product
+
+ALL_CATEGORIES = "__all_categories__"
 
 
 def _money(fen: int) -> str:
@@ -17,7 +20,7 @@ def _money(fen: int) -> str:
 
 
 def _matches(item: HeritageReferenceItem, *, category: str, query: str) -> bool:
-    if category != "全部工艺" and item.craft_category_zh != category:
+    if category != ALL_CATEGORIES and item.craft_category_zh != category:
         return False
     if not query:
         return True
@@ -30,6 +33,7 @@ def _matches(item: HeritageReferenceItem, *, category: str, query: str) -> bool:
             item.period_text,
             item.material_text,
             item.introduction_zh,
+            item.introduction_en,
         )
     ).casefold()
     return query.casefold() in haystack
@@ -42,23 +46,38 @@ def render_catalog_gallery(
     project_root: Path,
 ) -> None:
     """Render searchable product cards linked to their reference sources."""
+    language = get_language()
     categories = tuple(dict.fromkeys(item.craft_category_zh for item in items))
-    filter_col, search_col = st.columns([1, 2])
-    category = filter_col.selectbox(
-        "按工艺筛选",
-        ("全部工艺", *categories),
-        key="reference_catalog_category",
+    category_labels_en = {
+        item.craft_category_zh: item.craft_category_en for item in items if item.craft_category_en
+    }
+    category_values = (ALL_CATEGORIES, *categories)
+    category_labels = tuple(
+        t("catalog.all_categories")
+        if value == ALL_CATEGORIES
+        else category_labels_en.get(value, value)
+        if language == Language.EN_US
+        else value
+        for value in category_values
     )
+    category_by_label = dict(zip(category_labels, category_values, strict=True))
+    filter_col, search_col = st.columns([1, 2])
+    selected_category = filter_col.selectbox(
+        t("catalog.filter"),
+        category_labels,
+        key=f"reference_catalog_category_{language.value}",
+    )
+    category = category_by_label[selected_category]
     query = search_col.text_input(
-        "搜索商品",
-        placeholder="输入名称、材质、年代或工艺",
+        t("catalog.search"),
+        placeholder=t("catalog.search_placeholder"),
         key="reference_catalog_query",
     ).strip()
 
     visible_items = tuple(item for item in items if _matches(item, category=category, query=query))
-    st.caption(f"当前显示 {len(visible_items)} / {len(items)} 件 · 图片与资料均可追溯")
+    st.caption(t("catalog.showing", visible=len(visible_items), total=len(items)))
     if not visible_items:
-        st.info("没有匹配的商品，请尝试清空搜索或切换工艺分类。")
+        st.info(t("catalog.empty"))
         return
 
     for start in range(0, len(visible_items), 3):
@@ -72,38 +91,57 @@ def render_catalog_gallery(
                     caption=product.image_alt_zh,
                     width="stretch",
                 )
-                st.markdown(f"### {product.product_name_zh}")
-                st.caption(product.product_name_en)
+                product_name = (
+                    product.product_name_en
+                    if language == Language.EN_US
+                    else product.product_name_zh
+                )
+                secondary_name = (
+                    product.product_name_zh
+                    if language == Language.EN_US
+                    else product.product_name_en
+                )
+                category_name = (
+                    item.craft_category_en if language == Language.EN_US else item.craft_category_zh
+                )
+                introduction = (
+                    item.introduction_en if language == Language.EN_US else item.introduction_zh
+                )
+                st.markdown(f"### {product_name}")
+                st.caption(secondary_name)
+                status = (
+                    t("catalog.recommendable_demo")
+                    if recommendable
+                    else t("catalog.reference_only")
+                )
                 st.markdown(
-                    f'<span class="hl-catalog-pill">{item.craft_category_zh}</span>'
-                    + (
-                        '<span class="hl-catalog-pill muted">可参与智能推荐 · Demo 商业参数</span>'
-                        if recommendable
-                        else '<span class="hl-catalog-pill muted">馆藏探索参考 · 不参与推荐</span>'
-                    ),
+                    f'<span class="hl-catalog-pill">{category_name}</span>'
+                    f'<span class="hl-catalog-pill muted">{status}</span>',
                     unsafe_allow_html=True,
                 )
                 if recommendable:
-                    st.markdown(
-                        f"**{_money(product.price_min_fen)}–{_money(product.price_max_fen)} / 件**"
-                    )
-                    st.caption("以上为推荐流程演示预算带，不是商家公开报价")
+                    price = f"{_money(product.price_min_fen)}–{_money(product.price_max_fen)}"
+                    st.markdown(f"**{t('catalog.price_per_item', price=price)}**")
+                    st.caption(t("catalog.demo_price_note"))
                     st.caption(
-                        f"起订 {product.min_order_qty} 件 · "
-                        f"基础制作周期 {product.lead_time_days} 天"
+                        t(
+                            "catalog.commercial_summary",
+                            moq=product.min_order_qty,
+                            days=product.lead_time_days,
+                        )
                     )
                 else:
-                    st.caption("仅作文化与馆藏探索参考 · 商业条件待核实")
-                st.write(item.introduction_zh)
-                with st.expander("商品详情与图片出处"):
+                    st.caption(t("catalog.reference_note"))
+                st.write(introduction)
+                with st.expander(t("catalog.details")):
                     if recommendable:
-                        st.write(f"方案规格：{product.dimensions_text}")
-                        st.write(f"方案材料：{product.material_text}")
+                        st.write(f"{t('catalog.dimensions')}: {product.dimensions_text}")
+                        st.write(f"{t('catalog.materials')}: {product.material_text}")
                     else:
-                        st.write(f"馆藏材质参考：{item.material_text}")
-                    st.write(f"年代：{item.period_text}")
-                    st.write(f"地区：{item.region_text}")
-                    st.write(f"馆藏编号：{item.source_object_number}")
-                    st.caption(f"图片许可：{item.image_license}")
-                    st.caption("图片与文化资料来自下方馆藏原页")
-                    st.link_button("查看馆藏原页", item.source_url, width="stretch")
+                        st.write(f"{t('catalog.reference_materials')}: {item.material_text}")
+                    st.write(f"{t('catalog.period')}: {item.period_text}")
+                    st.write(f"{t('catalog.region')}: {item.region_text}")
+                    st.write(f"{t('catalog.object_number')}: {item.source_object_number}")
+                    st.caption(f"{t('catalog.image_license')}: {item.image_license}")
+                    st.caption(t("catalog.source_note"))
+                    st.link_button(t("catalog.open_source"), item.source_url, width="stretch")

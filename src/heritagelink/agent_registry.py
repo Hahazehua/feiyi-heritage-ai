@@ -48,3 +48,50 @@ SKILL_REGISTRY = (
     ),
 )
 SKILLS_BY_ID = {item.skill_id: item for item in SKILL_REGISTRY}
+
+# Artisan Growth Skills are registered beside, not inserted into, the seven-skill
+# buyer chain.  This preserves the published buyer manifest and its stable order.
+GROWTH_SKILL_REGISTRY = (
+    SkillDefinition(
+        "analyze_market_opportunities",
+        "Market Intelligence",
+        1,
+        True,
+        "product_grounded_assessment",
+        "artisan_growth",
+    ),
+    SkillDefinition(
+        "build_marketing_strategy",
+        "Marketing Strategist",
+        2,
+        True,
+        "bounded_deterministic_strategy",
+        "artisan_growth",
+    ),
+    SkillDefinition(
+        "generate_campaign_assets",
+        "Creative Agent",
+        3,
+        True,
+        "grounded_campaign_templates",
+        "artisan_growth",
+    ),
+    SkillDefinition(
+        "review_campaign_grounding",
+        "Cultural Guardian",
+        4,
+        True,
+        "fail_closed_human_review",
+        "artisan_growth",
+    ),
+    SkillDefinition(
+        "revise_campaign_assets",
+        "Creative Revision",
+        5,
+        False,
+        "remove_unsupported_claims",
+        "artisan_growth",
+    ),
+)
+GROWTH_SKILLS_BY_ID = {item.skill_id: item for item in GROWTH_SKILL_REGISTRY}
+ALL_SKILLS_BY_ID = {**SKILLS_BY_ID, **GROWTH_SKILLS_BY_ID}

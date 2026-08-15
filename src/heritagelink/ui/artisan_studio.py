@@ -11,13 +11,7 @@ from html import escape
 
 import streamlit as st
 
-_JOURNEY_STEPS = (
-    ("01", "讲述作品", "用你熟悉的方式介绍作品、工艺、地域与故事。"),
-    ("02", "AI 协助整理", "将你提供的资料整理为结构化的中英文草稿。"),
-    ("03", "确认并建立文化护照", "由你确认文化与商业事实，再提交审核。"),
-)
-
-_PROGRESS_STEPS = ("讲述作品", "商业信息", "文化与来源")
+from heritagelink.i18n import t
 
 _STAGE_INDEX = {
     "landing": 0,
@@ -38,14 +32,11 @@ _STAGE_INDEX = {
 def render_artisan_hero() -> None:
     """Render the Artisan Studio hero without adding navigation or widgets."""
     st.markdown(
-        """
+        f"""
         <section class="hl-hero hl-artisan-hero">
-          <div class="hl-eyebrow">HAHA · ARTISAN STUDIO</div>
-          <h1 class="hl-brand">让你的作品被世界更好地理解</h1>
-          <div class="hl-value">从作品与故事出发，建立可供全球买家理解的文化资料。</div>
-          <p class="hl-copy">告诉 HAHA 你的作品是什么、来自哪里以及它背后的故事。
-          AI 会帮助你整理成适合全球买家理解的中英文商品资料；所有文化与商业事实，
-          最终都由你确认。</p>
+          <div class="hl-eyebrow">{t("artisan.eyebrow")}</div>
+          <h1 class="hl-brand">{t("artisan.title")}</h1>
+          <p class="hl-copy">{t("artisan.subtitle")}</p>
         </section>
         """,
         unsafe_allow_html=True,
@@ -54,6 +45,11 @@ def render_artisan_hero() -> None:
 
 def render_artisan_journey() -> None:
     """Explain the three-part onboarding journey in a compact branded panel."""
+    journey_steps = (
+        ("01", t("artisan.journey_tell"), t("artisan.journey_tell_copy")),
+        ("02", t("artisan.journey_structure"), t("artisan.journey_structure_copy")),
+        ("03", t("artisan.journey_confirm"), t("artisan.journey_confirm_copy")),
+    )
     cards = "".join(
         (
             '<div class="hl-artisan-step">'
@@ -62,10 +58,11 @@ def render_artisan_journey() -> None:
             f"<p>{escape(copy)}</p>"
             "</div>"
         )
-        for number, title, copy in _JOURNEY_STEPS
+        for number, title, copy in journey_steps
     )
     st.markdown(
-        f'<section class="hl-artisan-journey" aria-label="添加作品的三个步骤">{cards}</section>',
+        f'<section class="hl-artisan-journey" '
+        f'aria-label="{escape(t("artisan.journey_aria"))}">{cards}</section>',
         unsafe_allow_html=True,
     )
 
@@ -81,8 +78,13 @@ def render_artisan_progress(stage: str) -> None:
         supported = ", ".join(sorted(_STAGE_INDEX))
         raise ValueError(f"未知 Artisan Studio 阶段；支持：{supported}")
     current = _STAGE_INDEX[normalized]
+    progress_steps = (
+        t("artisan.progress.story"),
+        t("artisan.progress.commercial"),
+        t("artisan.progress.culture"),
+    )
     items: list[str] = []
-    for index, title in enumerate(_PROGRESS_STEPS):
+    for index, title in enumerate(progress_steps):
         state = "active" if index == current else "done" if index < current else ""
         marker = "✓" if index < current else f"{index + 1:02d}"
         items.append(
@@ -92,7 +94,8 @@ def render_artisan_progress(stage: str) -> None:
             "</div>"
         )
     st.markdown(
-        f'<nav class="hl-artisan-progress" aria-label="作品录入进度">{"".join(items)}</nav>',
+        f'<nav class="hl-artisan-progress" '
+        f'aria-label="{escape(t("artisan.progress_aria"))}">{"".join(items)}</nav>',
         unsafe_allow_html=True,
     )
 

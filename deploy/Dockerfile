@@ -2,10 +2,20 @@
 
 FROM python:3.11-slim
 
+# PyPI resolves but crawls from the competition host — numpy alone downloaded at
+# 38 KB/s, putting a cold install past half an hour. Override PIP_INDEX_URL to
+# build elsewhere:
+#   docker compose build --build-arg PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_INDEX_URL=${PIP_INDEX_URL} \
+    PIP_TIMEOUT=60 \
+    PIP_RETRIES=5 \
+    PYTHONPATH=/app/src
 
 # curl is only needed for the container HEALTHCHECK below.
 RUN apt-get update \
@@ -14,13 +24,19 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Dependency layer: only invalidated when the project metadata changes,
-# so day-to-day code pushes rebuild in seconds.
+# Dependency layer. requirements.txt installs the project itself with `-e .`,
+# which needs an importable package to exist at install time — so a stub stands
+# in for the real one here. Copying src/ instead would put application code
+# above this layer, and every code push would reinstall every dependency from
+# scratch, which is exactly what used to happen.
 COPY pyproject.toml requirements.txt README.md ./
-COPY src/ ./src/
-RUN pip install -r requirements.txt
+RUN mkdir -p src/heritagelink \
+    && touch src/heritagelink/__init__.py \
+    && pip install -r requirements.txt
 
-# Application layer.
+# Application layer. PYTHONPATH points at /app/src, so the real package below
+# is imported directly and the editable install's own resolution never matters.
+COPY src/ ./src/
 COPY app.py ./
 COPY data/ ./data/
 COPY assets/ ./assets/

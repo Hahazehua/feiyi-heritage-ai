@@ -135,6 +135,20 @@ def test_any_model_failure_falls_back_to_the_scoreboard(error: Exception) -> Non
     assert source is ExplanationSource.DETERMINISTIC_FALLBACK
 
 
+def test_the_call_is_time_boxed_well_under_the_client_default() -> None:
+    """It sits on the path to the recommendation screen.
+
+    The client retries once, so the default 20s timeout would put a stalled
+    provider 40 seconds in front of the most important screen in the product.
+    """
+    from heritagelink.config import DEFAULT_TIMEOUT_SECONDS
+
+    budget = recommendation_narrative.EXPLANATION_TIMEOUT_SECONDS
+
+    assert budget < DEFAULT_TIMEOUT_SECONDS
+    assert budget * 2 <= 15, "worst case with the retry is still too long to watch"
+
+
 def test_no_recommendations_needs_no_call() -> None:
     client = _StubClient({"x": "y"})
 

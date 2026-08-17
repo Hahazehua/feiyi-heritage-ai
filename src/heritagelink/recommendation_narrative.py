@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable, Sequence
+from dataclasses import replace
 
 from heritagelink.comparison_models import ExplanationSource
-from heritagelink.llm_client import DeepSeekClient, LLMClientError
+from heritagelink.config import DeepSeekConfig
+from heritagelink.llm_client import DeepSeekClient, LLMClientError, MissingAPIKeyError
 from heritagelink.models import Recommendation
 
 LOGGER = logging.getLogger(__name__)
@@ -25,6 +27,20 @@ LOGGER = logging.getLogger(__name__)
 # Explaining beyond the first few costs latency the buyer screen cannot spend,
 # and nobody reads past them during a demo.
 MAX_EXPLAINED = 3
+
+# This call sits on the path to the recommendation screen, so it runs on a much
+# tighter budget than the 20s default: the client retries once, which would put
+# a stalled provider 40 seconds in front of the most important screen in the
+# product. Prose is an enhancement; the scoreboard renders either way.
+EXPLANATION_TIMEOUT_SECONDS = 6.0
+
+
+def _time_boxed_client() -> DeepSeekClient:
+    """A client that gives up quickly, because the buyer is waiting."""
+    config = DeepSeekConfig.from_env()
+    if not config.is_configured:
+        raise MissingAPIKeyError("未配置 DeepSeek API Key，推荐解释使用确定性评分。")
+    return DeepSeekClient(replace(config, timeout_seconds=EXPLANATION_TIMEOUT_SECONDS))
 
 
 def build_payload(
@@ -91,7 +107,7 @@ def explain(
         return {}, ExplanationSource.DETERMINISTIC_FALLBACK
 
     try:
-        resolved = (client or DeepSeekClient.from_env()).explain_recommendations(payload)
+        resolved = (client or _time_boxed_client()).explain_recommendations(payload)
     except LLMClientError as error:
         # Never surface the provider error: a missing key is a normal
         # configuration, not a failure the buyer should read about.

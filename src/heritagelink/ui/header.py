@@ -72,35 +72,4 @@ def render_global_header(*, role: str, demo_active: bool) -> HeaderAction:
     return HeaderAction(toggle_demo=toggle_demo, reset_demo=reset_demo)
 
 
-def render_demo_guide(step: int) -> None:
-    steps = (
-        t("demo.discover"),
-        t("demo.recommend"),
-        t("demo.artisan"),
-        t("demo.growth"),
-        t("demo.guardian"),
-    )
-    current = max(1, min(step, len(steps)))
-    items = "".join(
-        '<li class="hl-demo-step '
-        + ("active" if index == current else "done" if index < current else "")
-        + '"'
-        + (' aria-current="step"' if index == current else "")
-        + '><span aria-hidden="true">'
-        + str(index)
-        + "</span><strong>"
-        + escape(label)
-        + "</strong></li>"
-        for index, label in enumerate(steps, start=1)
-    )
-    progress = t("demo.step", current=current, total=len(steps))
-    st.markdown(
-        f'<nav class="hl-demo-guide" aria-label="{escape(progress)}">'
-        f'<div class="hl-demo-guide-title">{escape(progress)}</div>'
-        f'<ol class="hl-demo-steps">{items}</ol>'
-        "</nav>",
-        unsafe_allow_html=True,
-    )
-
-
-__all__ = ["HeaderAction", "render_demo_guide", "render_global_header"]
+__all__ = ["HeaderAction", "render_global_header"]

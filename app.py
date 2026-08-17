@@ -96,10 +96,11 @@ from heritagelink.ui.artisan_studio import (
 from heritagelink.ui.catalog_gallery import render_catalog_gallery
 from heritagelink.ui.comparison import render_product_comparison
 from heritagelink.ui.components import badges, product_image
+from heritagelink.ui.demo_tour import clamp_step, render_demo_tour
 from heritagelink.ui.entry import render_entry_screen
 from heritagelink.ui.footer import render_footer
 from heritagelink.ui.growth_studio import render_growth_studio_app
-from heritagelink.ui.header import render_demo_guide, render_global_header
+from heritagelink.ui.header import render_global_header
 from heritagelink.ui.heritage_passport import render_heritage_passport
 from heritagelink.ui.home import render_about_page, render_buyer_hero, render_platform_story
 from heritagelink.ui.product_card import render_product_card
@@ -1801,7 +1802,10 @@ def main() -> None:
 
     _render_mode_switcher()
     if st.session_state.get("competition_demo"):
-        render_demo_guide(int(st.session_state.get("competition_demo_step", 1)))
+        requested = render_demo_tour(int(st.session_state.get("competition_demo_step", 1)))
+        if requested is not None:
+            st.session_state["competition_demo_step"] = clamp_step(requested)
+            st.rerun()
     try:
         bundle, products = load_catalog()
     except DataValidationError:

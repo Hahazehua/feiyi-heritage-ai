@@ -468,14 +468,35 @@ def apply_theme() -> None:
           font-size:var(--text-2xs);font-weight:var(--w-bold);
           letter-spacing:var(--tracking-wide);text-transform:uppercase;}
 
-        /* ================= Competition demo guide ================= */
-        .hl-demo-guide {margin:var(--sp-3) 0 var(--sp-5);padding:var(--sp-3) var(--sp-4);
+        /* ================= Competition demo tour =================
+           A teleprompter for a presenter who may not know the product. The
+           next action is always on screen; the script stays in a collapsed
+           expander because judges can see this too. */
+        .hl-demo-guide {margin:var(--sp-3) 0 var(--sp-4);padding:var(--sp-4);
           border:1px solid var(--wait-line);border-radius:var(--r-md);background:var(--wait-bg);}
-        .hl-demo-guide-title {font-size:var(--text-2xs);font-weight:var(--w-bold);
-          color:var(--bronze-deep);margin-bottom:var(--sp-2);letter-spacing:var(--tracking-wide);}
+        .hl-demo-guide-title {display:flex;flex-wrap:wrap;gap:var(--sp-2);
+          justify-content:space-between;align-items:baseline;
+          font-size:var(--text-2xs);font-weight:var(--w-bold);
+          color:var(--bronze-deep);margin-bottom:var(--sp-3);letter-spacing:var(--tracking-wide);}
+        .hl-demo-now {margin-top:var(--sp-3);padding-top:var(--sp-3);
+          border-top:1px solid var(--wait-line);}
+        .hl-demo-now-label {display:flex;align-items:center;gap:var(--sp-2);
+          margin-bottom:var(--sp-1);color:var(--bronze-deep);font-size:var(--text-2xs);
+          font-weight:var(--w-bold);letter-spacing:var(--tracking-wide);}
+        [data-testid="stMarkdownContainer"][data-testid] .hl-demo-now p {
+          margin:0;color:var(--ink);font-size:var(--text-base);line-height:1.6;}
+        /* Two of the five steps carry the differentiation; the presenter has
+           to know where to slow down. */
+        .hl-demo-pivotal {padding:var(--sp-1) var(--sp-2);border-radius:var(--r-pill);
+          background:var(--bronze-deep);color:#fff;font-size:var(--text-2xs);
+          font-weight:var(--w-bold);letter-spacing:0;}
+        .hl-demo-step.pivotal strong {text-decoration:underline;
+          text-decoration-style:dotted;text-underline-offset:.2em;}
         .hl-demo-steps {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
           gap:var(--sp-2);margin:0;padding:0;list-style:none;}
-        .hl-demo-step {min-width:0;color:var(--ink-400);font-size:var(--text-2xs);
+        /* ink-400 clears 4.5:1 on paper but only reaches 4.36:1 on the warmer
+           tour background, so upcoming steps take the darker tone. */
+        .hl-demo-step {min-width:0;color:var(--ink-500);font-size:var(--text-2xs);
           line-height:1.4;list-style:none;}
         .hl-demo-step span {display:block;margin-bottom:var(--sp-1);}
         .hl-demo-step.active,.hl-demo-step.done {color:var(--ink);}

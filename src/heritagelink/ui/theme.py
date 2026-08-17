@@ -516,6 +516,44 @@ def apply_theme() -> None:
         .hl-fact-source {color:var(--sage);font-size:var(--text-2xs);font-weight:var(--w-semi);}
         .hl-source-list {padding-left:var(--sp-4);overflow-wrap:anywhere;}
 
+        /* ================= Museum provenance =================
+           Reads as a credential rather than a caption: the accession number is
+           set in mono so it looks like something you could go and look up,
+           which is exactly what it is. */
+        [data-testid="stMarkdownContainer"][data-testid] p.hl-provenance-compact {
+          display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);
+          margin:var(--sp-3) 0 0;padding-top:var(--sp-3);
+          border-top:1px solid var(--line);font-size:var(--text-xs);color:var(--ink-500);}
+        .hl-provenance-mark {padding:var(--sp-1) var(--sp-2);border-radius:var(--r-pill);
+          background:var(--sage-tint);color:var(--sage);
+          font-size:var(--text-2xs);font-weight:var(--w-bold);}
+        .hl-provenance-museum {color:var(--ink-700);font-weight:var(--w-semi);}
+        .hl-provenance-accession {font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+          font-size:var(--text-2xs);color:var(--bronze-deep);
+          padding:var(--sp-1) var(--sp-2);border:1px solid var(--line);
+          border-radius:var(--r-sm);background:var(--surface);}
+        .hl-provenance-link {color:var(--bronze-deep);font-weight:var(--w-semi);
+          text-decoration:underline;text-underline-offset:.18em;}
+        .hl-provenance {margin:var(--sp-4) 0 0;padding:var(--sp-4);
+          border:1px solid var(--line);border-left:3px solid var(--sage);
+          border-radius:var(--r-md);background:var(--surface);}
+        .hl-provenance-head {color:var(--sage);font-size:var(--text-2xs);
+          font-weight:var(--w-bold);letter-spacing:var(--tracking-wide);
+          text-transform:uppercase;margin-bottom:var(--sp-2);}
+        [data-testid="stMarkdownContainer"][data-testid] p.hl-provenance-object {
+          display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);
+          margin:0 0 var(--sp-2);font-size:var(--text-sm);}
+        .hl-provenance-rows {display:grid;gap:var(--sp-1);margin:var(--sp-3) 0 0;}
+        .hl-provenance-row {display:flex;justify-content:space-between;gap:var(--sp-3);
+          font-size:var(--text-2xs);color:var(--ink-500);}
+        .hl-provenance-row strong {color:var(--ink-700);text-align:right;}
+        /* The boundary of the claim, so the credential is never read as
+           vouching for the commercial terms too. */
+        [data-testid="stMarkdownContainer"][data-testid] p.hl-provenance-scope {
+          margin:var(--sp-3) 0 0;padding-top:var(--sp-3);
+          border-top:1px dashed var(--line-strong);
+          font-size:var(--text-2xs);line-height:1.6;color:var(--wait-fg);}
+
         /* ================= Catalog ================= */
         .hl-catalog-note {margin:0 0 var(--sp-5);padding:var(--sp-4);border:1px solid var(--line);
           border-left:4px solid var(--bronze);border-radius:var(--r-md);

@@ -68,6 +68,42 @@ def test_footer_switch_returns_to_the_chooser() -> None:
     assert "mode" not in app.query_params
 
 
+def test_losing_the_mode_parameter_returns_to_the_chooser() -> None:
+    """This is browser Back.
+
+    Back rewrites the URL without telling the server, so the only signal the
+    next rerun gets is the missing parameter. When session state decided which
+    side to render, the address bar moved and the page did not.
+    """
+    app = AppTest.from_file("app.py")
+    app.query_params["mode"] = "artisan"
+    app.run(timeout=30)
+    assert app.session_state["entry_role"] == "artisan"
+
+    del app.query_params["mode"]
+    app.run(timeout=30)
+
+    assert not app.exception
+    assert app.session_state["entry_role"] is None
+    assert {"进入买家端", "进入手艺人端"}.issubset(_labels(app))
+
+
+def test_leaving_the_about_page_restores_the_role_behind_it() -> None:
+    """Back out of About and the side you were reading it from is still there."""
+    app = AppTest.from_file("app.py")
+    app.query_params["mode"] = "artisan"
+    app.query_params["page"] = "about"
+    app.run(timeout=30)
+    assert app.session_state["app_page"] == "about"
+
+    del app.query_params["page"]
+    app.run(timeout=30)
+
+    assert not app.exception
+    assert app.session_state["app_page"] == "artisan"
+    assert app.session_state["entry_role"] == "artisan"
+
+
 def test_each_side_hides_the_other_sides_entry() -> None:
     buyer = AppTest.from_file("app.py")
     buyer.query_params["mode"] = "buyer"

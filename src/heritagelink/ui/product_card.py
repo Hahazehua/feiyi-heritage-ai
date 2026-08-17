@@ -6,11 +6,13 @@ from typing import Literal
 
 import streamlit as st
 
+from heritagelink.catalog import HeritageReferenceItem
 from heritagelink.heritage_passport_models import HeritagePassport, VerificationStatus
 from heritagelink.i18n import Language, get_language, t
 from heritagelink.models import GiftRequest, Recommendation
 from heritagelink.ui.components import badges, product_image
 from heritagelink.ui.heritage_passport import render_heritage_passport
+from heritagelink.ui.provenance import render_source_credential
 from heritagelink.ui.requirements import MEANINGS, RECIPIENTS, SCENES, STYLES
 from heritagelink.ui.system import render_demo_badge, render_status_badge
 
@@ -149,6 +151,7 @@ def render_product_card(
     known_customer_fields: frozenset[str],
     passport: HeritagePassport | None = None,
     ai_explanation: str | None = None,
+    reference: HeritageReferenceItem | None = None,
 ) -> Literal["select", "compare"] | None:
     """Render one product card and return the customer's chosen card action."""
     product = recommendation.product
@@ -219,9 +222,13 @@ def render_product_card(
                     )
                     st.write(f"**{dimension_labels[key]}**: {explanation}")
             st.caption(t("buyer.ranking_note"))
+        # Kept outside the expanders: the accession number is the one claim a
+        # reader can independently check, so it should not need a click.
+        render_source_credential(reference, compact=True)
         if passport is not None:
             with st.expander(t("buyer.passport")):
                 render_heritage_passport(passport, audience="buyer", compact=True)
+                render_source_credential(reference)
         select, compare = st.columns(2)
         if select.button(
             t("buyer.select"),

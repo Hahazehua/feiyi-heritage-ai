@@ -159,6 +159,20 @@ def load_heritage_reference_catalog() -> tuple[HeritageReferenceItem, ...]:
     return load_reference_catalog(REFERENCE_CATALOG_PATH, project_root=ROOT)
 
 
+@st.cache_data(show_spinner=False)
+def _reference_by_demo_product() -> dict[str, HeritageReferenceItem]:
+    """Index the museum catalogue by the sale product it backs.
+
+    heritage_products.csv carries demo_product_id for exactly this join, which
+    is what lets a product card cite the accession number behind its image.
+    """
+    return {
+        item.demo_product_id: item
+        for item in load_heritage_reference_catalog()
+        if item.demo_product_id
+    }
+
+
 @st.cache_resource(show_spinner=False)
 def _configured_repository(settings: AnalyticsSettings) -> ChoiceRepository | None:
     try:
@@ -224,19 +238,16 @@ def _init_state() -> None:
     st.session_state.setdefault("application_execution_trace", ())
     st.session_state.setdefault("comparison_history", ())
     st.session_state.setdefault("artisan_session_id", new_anonymous_session_id())
+    # The URL decides which surface is showing — session state only remembers
+    # it. Deriving it the other way round let browser Back rewrite the address
+    # bar while the page kept rendering the side the visitor had just left, and
+    # it is also what makes ?mode= a real deep link for reviewers.
     requested_mode = str(st.query_params.get("mode", "")).casefold()
-    # A mode in the URL is a deep link straight into one side; reviewers and the
-    # demo script rely on it, so it also settles the entry choice.
-    if requested_mode in {"artisan", "buyer"}:
-        st.session_state.setdefault("entry_role", requested_mode)
-    st.session_state.setdefault("entry_role", None)
-    st.session_state["app_mode"] = "artisan" if requested_mode == "artisan" else "buyer"
     requested_page = str(st.query_params.get("page", "")).casefold()
-    st.session_state.setdefault("app_page", "about" if requested_page == "about" else "buyer")
-    if requested_mode == "artisan":
-        st.session_state["app_page"] = "artisan"
-    elif requested_page != "about" and st.session_state.get("app_page") == "artisan":
-        st.session_state["app_page"] = "buyer"
+    role = requested_mode if requested_mode in {"artisan", "buyer"} else None
+    st.session_state["entry_role"] = role
+    st.session_state["app_mode"] = role or "buyer"
+    st.session_state["app_page"] = "about" if requested_page == "about" else (role or "buyer")
     st.session_state.setdefault("artisan_stage", "landing")
     st.session_state.setdefault("artisan_draft", None)
     st.session_state.setdefault("artisan_passport", None)
@@ -320,14 +331,12 @@ def _catalog_snapshot() -> CatalogSnapshot:
 
 
 def _enter_role(role: str) -> None:
-    """Commit an entry choice to both session state and the URL.
+    """Commit an entry choice to the URL.
 
-    The mode query parameter is what survives a refresh and what makes the
-    chosen side shareable as a link, so it is written alongside the state.
+    Only the query parameter is written: _init_state derives every piece of
+    navigation state from it on the next run, so there is one source of truth
+    and Back stays meaningful.
     """
-    st.session_state["entry_role"] = role
-    st.session_state["app_mode"] = role
-    st.session_state["app_page"] = role
     st.query_params["mode"] = role
     if "page" in st.query_params:
         del st.query_params["page"]
@@ -340,13 +349,10 @@ def _render_footer_navigation() -> None:
     action = render_footer(on_about=st.session_state.get("app_page") == "about")
     if action.show_about:
         st.query_params["page"] = "about"
-        st.session_state["app_page"] = "about"
         st.rerun()
     if action.switch_role:
-        # Returning to the chooser must also clear the deep link, or the next
-        # rerun would immediately re-enter the side just left.
-        st.session_state["entry_role"] = None
-        st.session_state["app_page"] = "buyer"
+        # Clearing the parameters is the whole operation: _init_state reads the
+        # empty URL on the next run and falls back to the chooser.
         for key in ("mode", "page"):
             if key in st.query_params:
                 del st.query_params[key]
@@ -1492,6 +1498,7 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
     parsed = context.effective_request
     selected_id = st.session_state.get("selected_product_id")
     passports = build_catalog_passports(products, bundle)
+    references = _reference_by_demo_product()
     explanations = _recommendation_explanations(response.recommendations, context, participating)
     for rank, recommendation in enumerate(response.recommendations, start=1):
         request = result.request_by_product[recommendation.product.product_id]
@@ -1503,6 +1510,7 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
             _known_customer_fields(parsed),
             passports.get(recommendation.product.product_id),
             explanations.get(recommendation.product.product_id),
+            references.get(recommendation.product.product_id),
         )
         if card_action == "select":
             _select_product(recommendation.product.product_id)

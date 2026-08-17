@@ -9,7 +9,7 @@ import streamlit as st
 from heritagelink.catalog import HeritageReferenceItem
 from heritagelink.heritage_passport_models import HeritagePassport, VerificationStatus
 from heritagelink.i18n import Language, get_language, t
-from heritagelink.models import GiftRequest, Recommendation
+from heritagelink.models import DimensionScore, GiftRequest, Recommendation
 from heritagelink.ui.components import badges, product_image
 from heritagelink.ui.heritage_passport import render_heritage_passport
 from heritagelink.ui.provenance import render_source_credential
@@ -102,6 +102,44 @@ def _display_tags() -> dict[str, str]:
 
 def _money(fen: int) -> str:
     return f"¥{fen / 100:,.0f}"
+
+
+def _dimension_sentence(dimension: DimensionScore, label: str, english: bool) -> str:
+    """State what matched, in the reader's language.
+
+    The domain builds its explanation from raw tag codes, which is right for
+    prompts but put identifiers like ``elegant`` in front of Chinese readers.
+    Naming happens here, where the display map lives.
+    """
+    score = f"{dimension.score:g}"
+    if dimension.matched_tags:
+        display_tags = _display_tags()
+        separator = ", " if english else "、"
+        named = separator.join(display_tags.get(tag, tag) for tag in dimension.matched_tags)
+        return t(
+            "buyer.dimension_matched",
+            tags=named,
+            score=score,
+            maximum=dimension.max_score,
+        )
+    # No structured tags: budget, customization and lead time explain
+    # themselves in prose, and an unmatched tag dimension has nothing to name.
+    # The dimension is already the bold label on this line, so the sentence
+    # does not repeat it — "场景匹配: 未匹配到你选择的场景匹配" read badly.
+    if dimension.explanation.startswith("未命中"):
+        return t(
+            "buyer.dimension_unmatched",
+            score=score,
+            maximum=dimension.max_score,
+        )
+    if english:
+        return t(
+            "buyer.dimension_explanation",
+            dimension=label,
+            score=score,
+            maximum=dimension.max_score,
+        )
+    return dimension.explanation
 
 
 def recommendation_reason(recommendation: Recommendation, participating: frozenset[str]) -> str:
@@ -210,17 +248,10 @@ def render_product_card(
             dimension_labels = DIMENSION_LABELS_EN if english else DIMENSION_LABELS
             for key, dimension in recommendation.score_breakdown.items():
                 if key in participating:
-                    explanation = (
-                        t(
-                            "buyer.dimension_explanation",
-                            dimension=dimension_labels[key],
-                            score=f"{dimension.score:g}",
-                            maximum=dimension.max_score,
-                        )
-                        if english
-                        else dimension.explanation
+                    st.write(
+                        f"**{dimension_labels[key]}**: "
+                        f"{_dimension_sentence(dimension, dimension_labels[key], english)}"
                     )
-                    st.write(f"**{dimension_labels[key]}**: {explanation}")
             st.caption(t("buyer.ranking_note"))
         # Kept outside the expanders: the accession number is the one claim a
         # reader can independently check, so it should not need a click.

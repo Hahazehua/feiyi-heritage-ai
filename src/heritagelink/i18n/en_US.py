@@ -130,6 +130,8 @@ TRANSLATIONS = {
     "buyer.lead_time": "Catalogue lead time",
     "buyer.ranking_note": "Explanations describe the current ranking. They are not purchase probabilities or fulfilment commitments.",
     "buyer.dimension_explanation": "{dimension} scores {score}/{maximum} against the needs you confirmed.",
+    "buyer.dimension_matched": "Matched {tags} ({score}/{maximum}).",
+    "buyer.dimension_unmatched": "No match ({score}/{maximum}).",
     "buyer.customization_pending": "Available customization depends on verified product details and the final inquiry.",
     "buyer.form.basic": "Core Gift Requirements",
     "buyer.form.customer_type": "Customer Type",

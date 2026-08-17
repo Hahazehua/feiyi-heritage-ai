@@ -1426,6 +1426,7 @@ def _recommendation_explanations(
     recommendations: Sequence[Recommendation],
     context: RecommendationContext,
     participating: frozenset[str],
+    references: dict[str, HeritageReferenceItem],
 ) -> dict[str, str]:
     """Phrase the top recommendations once per distinct result set.
 
@@ -1451,6 +1452,7 @@ def _recommendation_explanations(
         request_summary=_direction_summary(context),
         language=language,
         participating=participating,
+        references=references,
     )
     st.session_state["recommendation_explanations"] = {
         "signature": signature,
@@ -1499,7 +1501,9 @@ def _render_recommendations(bundle: DataBundle, products: tuple[Product, ...]) -
     selected_id = st.session_state.get("selected_product_id")
     passports = build_catalog_passports(products, bundle)
     references = _reference_by_demo_product()
-    explanations = _recommendation_explanations(response.recommendations, context, participating)
+    explanations = _recommendation_explanations(
+        response.recommendations, context, participating, references
+    )
     for rank, recommendation in enumerate(response.recommendations, start=1):
         request = result.request_by_product[recommendation.product.product_id]
         card_action = render_product_card(

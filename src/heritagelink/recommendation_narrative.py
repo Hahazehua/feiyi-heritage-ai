@@ -14,9 +14,10 @@ the prose.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
 
+from heritagelink.catalog import HeritageReferenceItem
 from heritagelink.comparison_models import ExplanationSource
 from heritagelink.config import DeepSeekConfig
 from heritagelink.llm_client import DeepSeekClient, LLMClientError, MissingAPIKeyError
@@ -28,11 +29,13 @@ LOGGER = logging.getLogger(__name__)
 # and nobody reads past them during a demo.
 MAX_EXPLAINED = 3
 
-# This call sits on the path to the recommendation screen, so it runs on a much
-# tighter budget than the 20s default: the client retries once, which would put
-# a stalled provider 40 seconds in front of the most important screen in the
-# product. Prose is an enhancement; the scoreboard renders either way.
-EXPLANATION_TIMEOUT_SECONDS = 6.0
+# This call sits on the path to the recommendation screen, so the whole budget
+# is what a person will watch: one attempt, no retry, twelve seconds. Six with
+# a retry had the same worst case but gave a legitimately slow generation — six
+# paragraphs across three products — no room to finish. Prose is an
+# enhancement; the scoreboard renders either way.
+EXPLANATION_TIMEOUT_SECONDS = 12.0
+EXPLANATION_MAX_ATTEMPTS = 1
 
 
 def _time_boxed_client() -> DeepSeekClient:
@@ -40,7 +43,10 @@ def _time_boxed_client() -> DeepSeekClient:
     config = DeepSeekConfig.from_env()
     if not config.is_configured:
         raise MissingAPIKeyError("未配置 DeepSeek API Key，推荐解释使用确定性评分。")
-    return DeepSeekClient(replace(config, timeout_seconds=EXPLANATION_TIMEOUT_SECONDS))
+    return DeepSeekClient(
+        replace(config, timeout_seconds=EXPLANATION_TIMEOUT_SECONDS),
+        max_attempts=EXPLANATION_MAX_ATTEMPTS,
+    )
 
 
 def build_payload(
@@ -49,11 +55,20 @@ def build_payload(
     request_summary: str,
     language: str,
     participating: Iterable[str],
+    references: Mapping[str, HeritageReferenceItem] | None = None,
 ) -> dict[str, object]:
-    """Collect the grounded facts the model is allowed to draw on."""
+    """Collect the grounded facts the model is allowed to draw on.
+
+    Depth has to come from more sourced material, not a longer leash: asked for
+    detail with only a scoreboard to work from, a model pads. The museum block
+    is what it can legitimately expand on, and every field in it is a CC0
+    museum record with an accession number behind it.
+    """
     keys = set(participating)
+    lookup = references or {}
     products: list[dict[str, object]] = []
     for recommendation in recommendations[:MAX_EXPLAINED]:
+        product_id = recommendation.product.product_id
         dimensions = [
             {
                 "dimension": key,
@@ -64,16 +79,26 @@ def build_payload(
             for key, dimension in recommendation.score_breakdown.items()
             if key in keys
         ]
-        products.append(
-            {
-                "product_id": recommendation.product.product_id,
-                "product_name": recommendation.product.product_name_zh,
-                "total_score": round(float(recommendation.total_score), 2),
-                "matched_tags": list(recommendation.matched_tags),
-                "risks": list(recommendation.risks),
-                "dimensions": dimensions,
+        product: dict[str, object] = {
+            "product_id": product_id,
+            "product_name": recommendation.product.product_name_zh,
+            "total_score": round(float(recommendation.total_score), 2),
+            "matched_tags": list(recommendation.matched_tags),
+            "risks": list(recommendation.risks),
+            "dimensions": dimensions,
+        }
+        reference = lookup.get(product_id)
+        if reference is not None:
+            product["museum_reference"] = {
+                "holding_institution": reference.source_name,
+                "accession_number": reference.source_object_number,
+                "object_name": reference.product_name_zh,
+                "craft": reference.craft_category_zh,
+                "period": reference.period_text,
+                "region": reference.region_text,
+                "material": reference.material_text,
             }
-        )
+        products.append(product)
     return {
         "language": language,
         "buyer_request": request_summary,
@@ -87,6 +112,7 @@ def explain(
     request_summary: str,
     language: str,
     participating: Iterable[str],
+    references: Mapping[str, HeritageReferenceItem] | None = None,
     client: DeepSeekClient | None = None,
 ) -> tuple[dict[str, str], ExplanationSource]:
     """Return product_id -> paragraph, and which source produced it.
@@ -102,6 +128,7 @@ def explain(
         request_summary=request_summary,
         language=language,
         participating=participating,
+        references=references,
     )
     if not payload["products"]:
         return {}, ExplanationSource.DETERMINISTIC_FALLBACK

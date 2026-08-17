@@ -139,11 +139,18 @@ class DataBundle:
 
 @dataclass(frozen=True, slots=True)
 class DimensionScore:
-    """A weighted score and its user-facing explanation."""
+    """A weighted score and its user-facing explanation.
+
+    ``matched_tags`` carries the raw tag codes so presentation can name them in
+    the reader's language.  ``explanation`` embeds those codes verbatim, which
+    is fine for prompts and logs but leaked identifiers like ``elegant`` into
+    the Chinese interface when rendered directly.
+    """
 
     score: float
     max_score: int
     explanation: str
+    matched_tags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

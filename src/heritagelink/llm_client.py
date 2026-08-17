@@ -25,14 +25,22 @@ Return one JSON object with exactly one string field named explanation.
 
 RECOMMENDATION_SYSTEM_PROMPT = """You are phrasing why each recommended gift fits a
 buyer's stated request. The ranking and scoring are already decided; your task is
-wording, not judgement. Use only facts in the supplied JSON, including its matched
-tags and dimension explanations. Do not invent price, material, dimensions, lead
-time, capacity, heritage status, certification, symbolism, or history, and do not
-add cultural claims of any kind. Do not re-rank, compare against products that are
-not supplied, or contradict the supplied scores. Unknown information must remain
-unknown. Write at most three sentences per product, in the language named by the
-language field. Return one JSON object with exactly one field named explanations,
-whose value maps each supplied product_id to its paragraph.
+wording, not judgement.
+
+Use only facts in the supplied JSON. Each product may carry a museum_reference
+block holding facts a museum recorded about the object the design references:
+craft, period, region and material. You may retell those, attributed as what the
+museum records, and you may connect them to the buyer's stated need. Everything
+else is closed to you: do not invent price, dimensions, lead time, capacity,
+certification, symbolism or history, do not upgrade a museum object into a claim
+about the item for sale, do not re-rank, and do not compare against products that
+are not supplied. Unknown information must remain unknown.
+
+Write four to six sentences per product, in the language named by the language
+field: open with the fit against the stated need, then what the object is
+according to the museum record, then anything the buyer would still need to
+confirm. Return one JSON object with exactly one field named explanations, whose
+value maps each supplied product_id to its paragraph.
 """
 
 ARTISAN_EXTRACTION_SYSTEM_PROMPT = """You structure an artisan's own product notes.
@@ -179,8 +187,13 @@ class DeepSeekClient:
         config: DeepSeekConfig,
         *,
         client: _OpenAICompatibleClient | None = None,
+        max_attempts: int = 2,
     ) -> None:
         self.config = config
+        # Callers on a user-facing path can drop to a single attempt: retrying
+        # doubles the worst case a person spends watching a spinner, and is
+        # only worth it where nobody is waiting.
+        self.max_attempts = max(1, max_attempts)
         self._client = client or OpenAI(
             api_key=config.api_key,
             base_url=config.base_url,
@@ -289,10 +302,11 @@ class DeepSeekClient:
         )
 
     def _extract_json(self, system_prompt: str, user_content: str) -> dict[str, Any]:
-        """Call the compatible JSON endpoint with one bounded safe retry."""
+        """Call the compatible JSON endpoint with a bounded number of attempts."""
 
         last_transient: Exception | None = None
-        for attempt in range(2):
+        final = self.max_attempts - 1
+        for attempt in range(self.max_attempts):
             try:
                 response = self._client.chat.completions.create(
                     model=self.config.model,
@@ -317,15 +331,15 @@ class DeepSeekClient:
                 raise LLMAuthenticationError("DeepSeek 认证失败，请检查本地 API Key。") from exc
             except APITimeoutError as exc:
                 last_transient = exc
-                if attempt == 1:
+                if attempt == final:
                     raise LLMTimeoutError("DeepSeek 请求超时，已切换到演示解析模式。") from exc
             except APIConnectionError as exc:
                 last_transient = exc
-                if attempt == 1:
+                if attempt == final:
                     raise LLMNetworkError("DeepSeek 网络连接失败，已切换到演示解析模式。") from exc
             except LLMEmptyResponseError as exc:
                 last_transient = exc
-                if attempt == 1:
+                if attempt == final:
                     raise
             except APIStatusError as exc:
                 if exc.status_code == 401:

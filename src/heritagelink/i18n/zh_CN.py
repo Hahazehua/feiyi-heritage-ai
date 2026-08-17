@@ -130,6 +130,8 @@ TRANSLATIONS = {
     "buyer.lead_time": "目录基础制作周期",
     "buyer.ranking_note": "解释信息仅用于说明当前排序，不代表购买概率或履约承诺。",
     "buyer.dimension_explanation": "当前条件下的{dimension}得分为 {score}/{maximum}。",
+    "buyer.dimension_matched": "匹配到{tags}（{score}/{maximum}）。",
+    "buyer.dimension_unmatched": "没有匹配项（{score}/{maximum}）。",
     "buyer.customization_pending": "可用定制方式以产品详情和最终方案为准",
     "buyer.form.basic": "基本礼赠信息",
     "buyer.form.customer_type": "客户类型",

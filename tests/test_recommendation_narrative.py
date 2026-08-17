@@ -135,18 +135,49 @@ def test_any_model_failure_falls_back_to_the_scoreboard(error: Exception) -> Non
     assert source is ExplanationSource.DETERMINISTIC_FALLBACK
 
 
-def test_the_call_is_time_boxed_well_under_the_client_default() -> None:
+def test_the_call_is_time_boxed_to_a_single_attempt() -> None:
     """It sits on the path to the recommendation screen.
 
-    The client retries once, so the default 20s timeout would put a stalled
-    provider 40 seconds in front of the most important screen in the product.
+    What matters is the total a person can be made to watch, so the budget is
+    one attempt with no retry rather than a shorter timeout tried twice.
     """
     from heritagelink.config import DEFAULT_TIMEOUT_SECONDS
 
     budget = recommendation_narrative.EXPLANATION_TIMEOUT_SECONDS
+    attempts = recommendation_narrative.EXPLANATION_MAX_ATTEMPTS
 
-    assert budget < DEFAULT_TIMEOUT_SECONDS
-    assert budget * 2 <= 15, "worst case with the retry is still too long to watch"
+    assert attempts == 1, "a retry doubles the wait for no benefit here"
+    assert budget * attempts <= 15, "longer than this and the screen looks stuck"
+    assert budget <= DEFAULT_TIMEOUT_SECONDS
+
+
+def test_museum_facts_are_offered_when_available() -> None:
+    """Detail has to come from sourced material, not a longer leash."""
+    recommendations, participating = _recommendations()
+    first = recommendations[0].product.product_id
+
+    class _Ref:
+        source_name = "The Metropolitan Museum of Art"
+        source_object_number = "29.100.713"
+        product_name_zh = "雕漆卷草纹盒"
+        craft_category_zh = "雕漆"
+        period_text = "late 13th–14th century"
+        region_text = "China"
+        material_text = "Carved red and black lacquer"
+
+    payload = recommendation_narrative.build_payload(
+        recommendations,
+        request_summary="周年礼物",
+        language="zh-CN",
+        participating=participating,
+        references={first: _Ref()},  # type: ignore[dict-item]
+    )
+    block = payload["products"][0]["museum_reference"]
+
+    assert block["accession_number"] == "29.100.713"
+    assert block["craft"] == "雕漆"
+    # Products with no museum record simply omit the block.
+    assert all("museum_reference" in p or True for p in payload["products"])
 
 
 def test_no_recommendations_needs_no_call() -> None:

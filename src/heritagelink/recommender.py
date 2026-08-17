@@ -137,12 +137,18 @@ def _hard_filter(product: Product, request: GiftRequest) -> FilterFailure | None
     )
 
 
-def _dimension(score_ratio: float, key: str, explanation: str) -> DimensionScore:
+def _dimension(
+    score_ratio: float,
+    key: str,
+    explanation: str,
+    matched_tags: frozenset[str] = frozenset(),
+) -> DimensionScore:
     max_score = WEIGHTS[key]
     return DimensionScore(
         score=round(max(0.0, min(1.0, score_ratio)) * max_score, 2),
         max_score=max_score,
         explanation=explanation,
+        matched_tags=tuple(sorted(matched_tags)),
     )
 
 
@@ -174,7 +180,7 @@ def _tag_score(
         explanation = f"产品标记为通用{label}，但没有精确命中用户标签。"
     else:
         explanation = f"未命中用户选择的{label}标签。"
-    return _dimension(ratio, key, explanation), matched
+    return _dimension(ratio, key, explanation, matched), matched
 
 
 def _customization_score(product: Product, request: GiftRequest) -> DimensionScore:

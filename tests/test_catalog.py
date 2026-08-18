@@ -33,7 +33,9 @@ def test_reference_catalog_links_every_recommendation_product() -> None:
     items = load_reference_catalog(CATALOG_PATH, project_root=ROOT)
     product_ids = set(load_data(ROOT / "data" / "demo").products["product_id"])
 
-    assert {item.demo_product_id for item in items} == product_ids
+    # Every museum record still points at a real product; the catalogue may
+    # now also hold partner work that has no museum record behind it.
+    assert {item.demo_product_id for item in items} <= product_ids
 
 
 def test_reference_catalog_images_exist_and_are_jpegs() -> None:

@@ -51,6 +51,11 @@ def test_english_source_notes_are_localized_and_keep_provenance() -> None:
     bundle = load_data(ROOT / "data" / "demo")
     english_rows = bundle.product_texts[bundle.product_texts["locale"] == "en"]
 
-    assert len(english_rows) == 50
-    assert all("https://www.metmuseum.org/" in note for note in english_rows["source_note"])
+    assert len(english_rows) == 51
+    # Museum-backed rows cite the Met; partner work cites the craft registry
+    # instead, because there is no museum record to point at.
+    museum_rows = english_rows[~english_rows["product_id"].str.startswith("prod_wuhu")]
+    assert all("https://www.metmuseum.org/" in note for note in museum_rows["source_note"])
+    partner_rows = english_rows[english_rows["product_id"].str.startswith("prod_wuhu")]
+    assert all("ihchina.cn" in note for note in partner_rows["source_note"])
     assert all(not re.search(r"[\u4e00-\u9fff]", note) for note in english_rows["source_note"])

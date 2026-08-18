@@ -93,7 +93,7 @@ from heritagelink.ui.artisan_studio import (
     render_artisan_progress,
     render_artisan_section,
 )
-from heritagelink.ui.catalog_gallery import render_catalog_gallery
+from heritagelink.ui.catalog_gallery import render_catalog_gallery, render_partner_works
 from heritagelink.ui.comparison import render_product_comparison
 from heritagelink.ui.components import badges, product_image
 from heritagelink.ui.demo_tour import clamp_step, render_demo_tour
@@ -1708,7 +1708,11 @@ def _render_catalog() -> None:
     with st.expander(t("buyer.catalog")):
         try:
             items = load_heritage_reference_catalog()
-            _, products = load_catalog()
+            bundle, products = load_catalog()
+            # Partner work is a second source with no museum record behind it,
+            # so it gets its own group rather than sitting among rows that all
+            # carry an accession number.
+            render_partner_works(products, bundle.product_texts)
             render_catalog_gallery(
                 items,
                 products_by_id={product.product_id: product for product in products},

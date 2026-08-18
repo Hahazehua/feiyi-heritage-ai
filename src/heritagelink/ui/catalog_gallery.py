@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from html import escape
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 from heritagelink.catalog import HeritageReferenceItem
 from heritagelink.catalog_eligibility import is_recommendation_eligible
 from heritagelink.i18n import Language, get_language, t
 from heritagelink.models import Product
+from heritagelink.ui.components import product_image
 
 ALL_CATEGORIES = "__all_categories__"
 
@@ -145,3 +148,65 @@ def render_catalog_gallery(
                     st.caption(f"{t('catalog.image_license')}: {item.image_license}")
                     st.caption(t("catalog.source_note"))
                     st.link_button(t("catalog.open_source"), item.source_url, width="stretch")
+
+
+def render_partner_works(
+    products: tuple[Product, ...],
+    product_texts: pd.DataFrame,
+) -> None:
+    """Render work supplied by a partner or by the company itself.
+
+    These are real objects rather than museum records, so they have no
+    accession number to cite and no open licence behind their photography.
+    They are shown as their own group, with their verification state stated
+    plainly, rather than mixed into the museum catalogue where the
+    surrounding rows all carry a checkable source.
+    """
+    partner = tuple(
+        product for product in products if product.catalog_role == "partner_pending_verification"
+    )
+    if not partner:
+        return
+
+    language = get_language()
+    locale = "en" if language == Language.EN_US else "zh-CN"
+    st.markdown(f"### {t('catalog.partner_title')}")
+    st.caption(t("catalog.partner_note"))
+
+    for product in partner:
+        with st.container(border=True):
+            visual, detail = st.columns([1, 1.3], gap="large")
+            with visual:
+                # Shown whole: a 4:3 crop would cut the frame, inscription and seals.
+                product_image(product.image_path, product.image_alt_zh, uncropped=True)
+            with detail:
+                name = (
+                    product.product_name_en
+                    if language == Language.EN_US
+                    else product.product_name_zh
+                )
+                secondary = (
+                    product.product_name_zh
+                    if language == Language.EN_US
+                    else product.product_name_en
+                )
+                st.markdown(f"#### {name}")
+                st.caption(secondary)
+                st.markdown(
+                    f'<span class="hl-catalog-pill">{escape(t("catalog.partner_pill"))}</span>'
+                    f'<span class="hl-catalog-pill muted">'
+                    f"{escape(t('catalog.partner_status'))}</span>",
+                    unsafe_allow_html=True,
+                )
+                rows = product_texts[
+                    (product_texts.get("product_id") == product.product_id)
+                    & (product_texts.get("locale") == locale)
+                ]
+                if not rows.empty:
+                    row = rows.iloc[0]
+                    st.write(str(row["craft_summary"]))
+                    with st.expander(t("catalog.partner_heritage")):
+                        st.write(str(row["cultural_story"]))
+                        st.caption(str(row["meaning_summary"]))
+                        st.caption(str(row["source_note"]))
+                st.caption(t("catalog.partner_no_price"))

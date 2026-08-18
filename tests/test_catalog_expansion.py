@@ -32,8 +32,8 @@ def _tag_values(products: pd.DataFrame, column: str) -> set[str]:
 
 def test_catalog_has_exactly_fifty_unique_products_and_valid_foreign_keys() -> None:
     products, merchants, heritage, _ = _frames()
-    assert len(products) == 50
-    assert products["product_id"].nunique() == 50
+    assert len(products) == 51
+    assert products["product_id"].nunique() == 51
     assert set(products["merchant_id"]) <= set(merchants["merchant_id"])
     assert set(products["heritage_id"]) <= set(heritage["heritage_id"])
     assert products["product_name_zh"].str.strip().ne("").all()
@@ -101,8 +101,8 @@ def test_catalog_references_are_not_formal_recommendation_candidates() -> None:
 def test_images_and_bilingual_texts_are_complete() -> None:
     products, _, _, texts = _frames()
     assert all((ROOT / path).is_file() for path in products["image_path"])
-    assert products["image_path"].nunique() == 50
-    assert len(texts) == 100
+    assert products["image_path"].nunique() == 51
+    assert len(texts) == 102
     assert not texts.duplicated(["product_id", "locale"]).any()
     assert set(texts["locale"]) == {"zh-CN", "en"}
     assert texts.groupby("product_id")["locale"].nunique().eq(2).all()
@@ -119,7 +119,7 @@ def test_source_registry_research_log_and_coverage_matrix_link_cleanly() -> None
     assert set(research["product_id"]) == set(
         products.loc[products["catalog_role"] == "catalog_reference", "product_id"]
     )
-    assert len(coverage) == 50
+    assert len(coverage) == 51
     assert set(coverage["product_id"]) == product_ids
 
 

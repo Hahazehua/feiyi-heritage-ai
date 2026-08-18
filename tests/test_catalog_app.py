@@ -19,5 +19,5 @@ def test_reference_catalog_is_a_secondary_single_page_section() -> None:
     assert not app.exception
     assert app.session_state["ui_stage"] == "advisor"
     assert any(expander.label == "浏览完整礼品目录" for expander in app.expander)
-    assert len(_images(app)) == 50
+    assert len(_images(app)) == 51
     assert any("¥" in str(item.value) for item in app.markdown)

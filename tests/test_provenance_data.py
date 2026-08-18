@@ -23,11 +23,37 @@ def _rows(path: Path) -> list[dict[str, str]]:
 
 
 def test_every_sale_product_is_backed_by_a_museum_record() -> None:
-    """The join is what lets a product card cite an accession number."""
-    backed = {row["demo_product_id"] for row in _rows(REFERENCE) if row["demo_product_id"]}
-    unbacked = [row["product_id"] for row in _rows(PRODUCTS) if row["product_id"] not in backed]
+    """The join is what lets a product card cite an accession number.
 
-    assert not unbacked, f"products with no museum reference: {unbacked}"
+    Partner-supplied work is the deliberate exception: it is a real object with
+    no museum record behind it, so it may not claim one. What it must do
+    instead is say so — the exemption is granted by the catalogue role, and
+    checked below against the verification status it carries.
+    """
+    backed = {row["demo_product_id"] for row in _rows(REFERENCE) if row["demo_product_id"]}
+    unbacked = [
+        row
+        for row in _rows(PRODUCTS)
+        if row["product_id"] not in backed and row["catalog_role"] != "partner_pending_verification"
+    ]
+
+    assert not unbacked, f"products with no museum reference: {[r['product_id'] for r in unbacked]}"
+
+
+def test_partner_work_never_claims_museum_provenance() -> None:
+    """The exemption above must not become a hole to smuggle claims through."""
+    backed = {row["demo_product_id"] for row in _rows(REFERENCE) if row["demo_product_id"]}
+    partner = [
+        row for row in _rows(PRODUCTS) if row["catalog_role"] == "partner_pending_verification"
+    ]
+
+    assert partner, "the exemption exists, so something should be using it"
+    for row in partner:
+        product = row["product_id"]
+        assert product not in backed, f"{product} claims a museum record it does not have"
+        assert row["verification_status"] == "needs_verification", product
+        assert row["status"] == "inactive", f"{product} must stay out of recommendations"
+        assert "CC0" not in row["image_license"], f"{product} may not claim an open museum licence"
 
 
 def test_every_museum_record_can_actually_be_looked_up() -> None:

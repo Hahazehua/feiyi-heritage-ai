@@ -29,7 +29,16 @@ FACT_STATUS_VALUES = {
     "pending_verification",
 }
 QUALITY_LEVEL_VALUES = {"A", "B", "C"}
-CATALOG_ROLE_VALUES = {"recommendation_demo", "catalog_reference"}
+# partner_pending_verification is for work supplied by a partner or by the
+# company itself: a real object rather than a museum record, but with its
+# commercial terms and attribution still unconfirmed. It is displayable and
+# open to enquiry, and never recommendable.
+CATALOG_ROLE_VALUES = {
+    "recommendation_demo",
+    "catalog_reference",
+    "partner_pending_verification",
+}
+NON_RECOMMENDABLE_ROLES = {"catalog_reference", "partner_pending_verification"}
 PRICE_TIER_VALUES = {"entry", "mid", "business", "high", "collector"}
 
 
@@ -378,8 +387,10 @@ def _normalize_products(frame: pd.DataFrame) -> pd.DataFrame:
             raise DataValidationError(
                 f"products.csv 在 CSV 行 {row_number} 必须明确标注为 MVP 演示数据"
             )
-        if row["catalog_role"] == "catalog_reference" and row["status"] != "inactive":
-            raise DataValidationError("catalog_reference 产品必须为 inactive，不能进入正式推荐")
+        if row["catalog_role"] in NON_RECOMMENDABLE_ROLES and row["status"] != "inactive":
+            raise DataValidationError(
+                f"{row['catalog_role']} 产品必须为 inactive，不能进入正式推荐"
+            )
         if (
             row["commercial_data_status"] in {"demo_assumption", "pending_verification"}
             and row["merchant_fact_status"] == "verified_merchant_fact"

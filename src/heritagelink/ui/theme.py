@@ -275,6 +275,12 @@ def apply_theme() -> None:
         .stProgress > div > div > div {background:var(--bronze);}
         [data-testid="stImage"] img {aspect-ratio:4/3;object-fit:cover;
           border-radius:var(--r-md);border:1px solid var(--line);background:var(--line-soft);}
+        /* A framed artwork loses its frame, inscription and seals to a 4:3 crop,
+           so works that must be seen whole opt out of the grid ratio. */
+        .st-key-hl-uncropped-image [data-testid="stImage"] img {
+          aspect-ratio:auto;object-fit:contain;height:auto;max-height:34rem;
+          width:auto;max-width:100%;margin:0 auto;display:block;
+          background:var(--surface);padding:var(--sp-2);}
 
         /* ================= Requirement summary ================= */
         .hl-summary {display:flex;gap:var(--sp-2);flex-wrap:wrap;margin:var(--sp-3) 0 var(--sp-5);}

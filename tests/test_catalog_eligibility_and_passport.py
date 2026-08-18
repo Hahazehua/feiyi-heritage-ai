@@ -43,7 +43,7 @@ def test_catalog_keeps_exactly_twenty_formal_and_thirty_reference_products(
         product for product in products if product.catalog_role == "catalog_reference"
     )
 
-    assert len(products) == 50
+    assert len(products) == 51
     assert len(formal) == 20
     assert len(references) == 30
     assert len({product.product_id for product in formal}) == 20
@@ -191,7 +191,7 @@ def test_catalog_passport_adapter_covers_all_products_without_changing_boundarie
 
     passports = build_catalog_passports(products, bundle)
 
-    assert len(passports) == 50
+    assert len(passports) == 51
     assert set(passports) == {product.product_id for product in products}
     assert (
         sum(

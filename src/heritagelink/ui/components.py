@@ -55,14 +55,23 @@ def section_intro(kicker: str, title: str, copy: str) -> None:
     )
 
 
-def product_image(image_path: str, image_alt: str) -> None:
-    """Render a validated local product image from the repository assets directory."""
+def product_image(image_path: str, image_alt: str, *, uncropped: bool = False) -> None:
+    """Render a validated local product image from the repository assets directory.
+
+    The theme crops images to 4:3 so the catalogue reads as a consistent grid.
+    A framed artwork loses its frame, inscription and seals that way, so such
+    works opt out and are shown whole.
+    """
     project_root = Path(__file__).parents[3]
-    st.image(
-        str(project_root / PurePosixPath(image_path)),
-        caption=image_alt,
-        width="stretch",
-    )
+    source = str(project_root / PurePosixPath(image_path))
+    if not uncropped:
+        st.image(source, caption=image_alt, width="stretch")
+        return
+    # A keyed container is the only reliable CSS hook here: Streamlit wraps
+    # each element in its own node, so a sibling marker div never lands next
+    # to the image it was meant to describe.
+    with st.container(key="hl-uncropped-image"):
+        st.image(source, caption=image_alt, width="stretch")
 
 
 def badges(items: list[tuple[str, str]]) -> None:

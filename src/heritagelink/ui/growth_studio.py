@@ -361,10 +361,16 @@ def _render_growth_request(
             ("LinkedIn", "Instagram", "Xiaohongshu", "Email Outreach", "Landing Page"),
             default=("LinkedIn", "Instagram", "Email Outreach", "Landing Page"),
         )
+        # Default to the language the visitor is already reading. The two stay
+        # independent — an artisan selling abroad wants English copy from a
+        # Chinese interface — but defaulting to English was read as a bug.
+        campaign_languages = ("Chinese", "English", "Bilingual")
         language = st.selectbox(
             t("growth.campaign_language"),
-            ("Chinese", "English", "Bilingual"),
-            index=1,
+            campaign_languages,
+            index=campaign_languages.index(
+                "Chinese" if get_language() == Language.ZH_CN else "English"
+            ),
             format_func=lambda item: {
                 "Chinese": t("language.zh"),
                 "English": t("language.en"),

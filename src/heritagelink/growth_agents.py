@@ -21,6 +21,7 @@ from heritagelink.growth_models import (
     MarketingStrategy,
     MarketOpportunity,
 )
+from heritagelink.growth_phrases import EN, GrowthPhrases, is_bilingual, phrases_for
 
 DEFAULT_CHANNELS = ("LinkedIn", "Instagram", "Email Outreach", "Landing Page")
 SUPPORTED_CHANNELS = (
@@ -251,6 +252,23 @@ def apply_human_edits(
     )
 
 
+def _localized_product_name(
+    context: GrowthProductContext,
+    phrases: GrowthPhrases,
+    fallback: str,
+) -> str:
+    """Name the product in the language the copy is written in.
+
+    English copy that names the item in Chinese reads as a translation that was
+    only half done; the English name is a verified catalogue field, so use it.
+    """
+    if phrases is EN:
+        english = public_claim_value(context, "product_name_en")
+        if english:
+            return str(english)
+    return str(public_claim_value(context, "product_name") or fallback)
+
+
 def _deterministic_market_analysis(
     context: GrowthProductContext,
     request: GrowthRunRequest,
@@ -261,37 +279,36 @@ def _deterministic_market_analysis(
     occasion_tags = _values(verified.get("occasion_tags"))
     recipient_tags = _values(verified.get("recipient_tags"))
     style_tags = _values(verified.get("style_tags"))
+    phrases = phrases_for(request.language)
     source_reason = (
-        "A verified public cultural source supports source-aware storytelling."
-        if context.cultural_source_urls
-        else "Campaign wording must remain generic because cultural sources need review."
+        phrases.source_supported if context.cultural_source_urls else phrases.source_pending
     )
-    common_risks = _commercial_risks(context, request.target_geography)
+    common_risks = _commercial_risks(context, request.target_geography, phrases)
 
     corporate_score = 68
-    corporate_reasons = ["The product can be positioned as a distinctive cultural gift concept."]
+    corporate_reasons = [phrases.corporate_positioning]
     if "business_gift" in occasion_tags or "business_partner" in recipient_tags:
         corporate_score += 16
-        corporate_reasons.append("Structured catalogue tags support business-gifting scenarios.")
+        corporate_reasons.append(phrases.corporate_tags)
     if public_claim_value(context, "customization"):
         corporate_score += 8
-        corporate_reasons.append("Confirmed customization supports organizational gifting needs.")
+        corporate_reasons.append(phrases.corporate_customization)
     corporate_reasons.append(source_reason)
 
     decor_score = 66 + (8 if {"elegant", "traditional", "grand"} & set(style_tags) else 0)
     culture_score = 64 + (12 if context.cultural_source_urls else 0)
     opportunities = (
         MarketOpportunity(
-            "Corporate Gifts",
+            phrases.segment_corporate,
             min(corporate_score, 96),
             tuple(corporate_reasons),
             common_risks,
         ),
         MarketOpportunity(
-            "Cultural Home Decor",
+            phrases.segment_decor,
             min(decor_score, 92),
             (
-                "The object-led format can support visual storytelling and display-oriented copy.",
+                phrases.decor_visual,
                 source_reason,
             ),
             tuple(
@@ -301,25 +318,22 @@ def _deterministic_market_analysis(
             ),
         ),
         MarketOpportunity(
-            "University / Museum Gifting",
+            phrases.segment_institution,
             min(culture_score, 90),
             (
-                "The source-aware narrative is suitable for educational and cultural contexts.",
-                "The campaign can foreground learning and exchange without claiming endorsement.",
+                phrases.institution_educational,
+                phrases.institution_no_endorsement,
             ),
-            (*common_risks, "No museum, university, or institutional endorsement is verified."),
+            (*common_risks, phrases.institution_endorsement_risk),
         ),
     )
     recommended = max(opportunities, key=lambda item: (item.fit_score, item.segment))
-    geography = request.target_geography or "the selected geography"
+    geography = request.target_geography or phrases.geography_fallback
     return MarketAnalysis(
         opportunities=opportunities,
         recommended_segment=recommended.segment,
-        summary=(
-            f"{recommended.segment} is the strongest product-grounded scenario for {geography}. "
-            "This is an AI opportunity assessment, not externally validated market research."
-        ),
-        evidence_basis="Verified product context and deterministic catalogue tags only",
+        summary=phrases.summary_template.format(segment=recommended.segment, geography=geography),
+        evidence_basis=phrases.evidence_basis,
         external_evidence_used=False,
         source=source,
     )
@@ -332,61 +346,80 @@ def _deterministic_strategy(
     *,
     source: GrowthOutputSource,
 ) -> MarketingStrategy:
+    phrases = phrases_for(request.language)
     segment = analysis.recommended_segment
     target_audience = (
         (request.optional_target_audience.strip(),)
         if request.optional_target_audience and request.optional_target_audience.strip()
-        else _default_audience(segment)
+        else _default_audience(segment, phrases)
     )
     channels = _normalize_channels(request.preferred_channels) or DEFAULT_CHANNELS
-    product_name = str(public_claim_value(context, "product_name") or "the artisan product")
+    product_name = _localized_product_name(context, phrases, phrases.product_fallback)
     craft_name = public_claim_value(context, "craft_name")
     source_message = (
-        "Use source-aware cultural context and link to the available reference."
+        phrases.source_message_ok
         if context.cultural_source_urls
-        else "Keep cultural wording general until source review is complete."
+        else phrases.source_message_pending
     )
-    key_messages = [f"Present {product_name} as a considered cultural gifting concept."]
+    key_messages = [phrases.key_present_template.format(product=product_name)]
     if craft_name:
-        key_messages.append(f"Explain the work through its confirmed craft context: {craft_name}.")
+        key_messages.append(phrases.key_craft_template.format(craft=craft_name))
     if public_claim_value(context, "customization"):
-        key_messages.append("Invite buyers to discuss the confirmed customization options.")
+        key_messages.append(phrases.key_customization)
     key_messages.append(source_message)
-    geography = request.target_geography or "the intended market"
+    geography = request.target_geography or phrases.market_fallback
     risks = tuple(
-        dict.fromkeys((*_commercial_risks(context, geography), *analysis.opportunities[0].risks))
+        dict.fromkeys(
+            (*_commercial_risks(context, geography, phrases), *analysis.opportunities[0].risks)
+        )
     )
     return MarketingStrategy(
         campaign_goal=request.campaign_goal,
         target_audience=target_audience,
-        positioning=(
-            f"A source-aware artisan product for {segment.casefold()}, presented with cultural "
-            "context and clear confirmation boundaries."
-        ),
-        value_proposition=(
-            "Combine a distinctive object, understandable cultural context, and a low-friction "
-            "path to a qualified inquiry without making unverified commercial promises."
-        ),
+        positioning=phrases.positioning_template.format(segment=segment.casefold()),
+        value_proposition=phrases.value_proposition,
         key_messages=tuple(key_messages),
         content_angles=(
-            "The story behind the object",
-            "A thoughtful alternative to generic gifting",
-            "How to begin a customization or sourcing conversation",
+            phrases.angle_story,
+            phrases.angle_alternative,
+            phrases.angle_conversation,
         ),
         recommended_channels=channels,
-        cta="Request verified product and customization details",
+        cta=phrases.cta,
         risks=risks,
         things_to_avoid=(
-            "Official heritage, certification, award, or master-artisan claims without evidence",
-            "Exact price, inventory, capacity, lead-time, or shipping promises unless confirmed",
-            "Superlatives, invented historical ages, and exoticized cultural language",
+            phrases.avoid_claims,
+            phrases.avoid_promises,
+            phrases.avoid_superlatives,
         ),
-        reasoning_summary=(
-            f"Strategy follows the {segment} opportunity selected before Creative generation; "
-            "Creative may execute but cannot change this positioning."
-        ),
+        reasoning_summary=phrases.reasoning_template.format(segment=segment),
         source=source,
     )
+
+
+def _channel_contents(
+    phrases: GrowthPhrases,
+    product_name: str,
+    craft_phrase: str,
+    source_phrase: str,
+    strategy: MarketingStrategy,
+    disclaimer: str,
+) -> dict[str, str]:
+    """Fill one phrase set's channel templates."""
+    common = {
+        "product": product_name,
+        "craft": craft_phrase,
+        "source": source_phrase,
+        "cta": strategy.cta,
+        "disclaimer": disclaimer,
+    }
+    return {
+        "LinkedIn": phrases.linkedin_template.format(**common),
+        "Instagram": phrases.instagram_template.format(**common),
+        "Xiaohongshu": phrases.xiaohongshu_template.format(**common),
+        "Email Outreach": phrases.email_template.format(**common),
+        "Landing Page": phrases.landing_template.format(value=strategy.value_proposition, **common),
+    }
 
 
 def _deterministic_assets(
@@ -397,18 +430,13 @@ def _deterministic_assets(
     source: GrowthOutputSource,
 ) -> tuple[CampaignAsset, ...]:
     del source
-    product_name = str(public_claim_value(context, "product_name") or "This artisan product")
+    phrases = phrases_for(request.language)
+    product_name = _localized_product_name(context, phrases, phrases.asset_product_fallback)
     craft_name = public_claim_value(context, "craft_name")
     source_phrase = (
-        "Its campaign story is linked to a reviewed public cultural reference."
-        if context.cultural_source_urls
-        else "Cultural details remain subject to source review."
+        phrases.source_phrase_ok if context.cultural_source_urls else phrases.source_phrase_pending
     )
-    craft_phrase = (
-        f" It is presented through the confirmed craft context of {craft_name}."
-        if craft_name
-        else ""
-    )
+    craft_phrase = phrases.craft_phrase_template.format(craft=craft_name) if craft_name else ""
     base_claims = [
         CampaignClaim(
             product_name,
@@ -430,7 +458,7 @@ def _deterministic_assets(
     if context.cultural_source_urls:
         base_claims.append(
             CampaignClaim(
-                "A public cultural reference is available",
+                phrases.claim_source_available,
                 "source_availability",
                 EvidenceStatus.VERIFIED,
                 "Heritage Passport source",
@@ -438,47 +466,30 @@ def _deterministic_assets(
             )
         )
     disclaimer = (
-        " Draft campaign: product publication and unverified commercial details remain separate."
-        if context.requires_draft_label or context.unverified_facts
-        else ""
+        phrases.disclaimer if context.requires_draft_label or context.unverified_facts else ""
     )
-    contents = {
-        "LinkedIn": (
-            f"Looking for a more meaningful approach to organizational gifting? {product_name} "
-            f"offers a culturally grounded starting point.{craft_phrase} {source_phrase} "
-            f"{strategy.cta}.{disclaimer}"
-        ),
-        "Instagram": (
-            f"A gift can open a cultural conversation. Discover {product_name}.{craft_phrase} "
-            f"{source_phrase} {strategy.cta}.{disclaimer}"
-        ),
-        "Xiaohongshu": (
-            f"把礼物变成一次有依据的文化交流：{product_name}。{source_phrase} "
-            f"如需用于海外礼赠，请先咨询并确认产品与定制细节。{disclaimer}"
-        ),
-        "Email Outreach": (
-            f"Subject: A source-aware cultural gifting concept\n\n"
-            f"Hello,\n\nWe would like to introduce {product_name} as a possible starting point "
-            f"for a thoughtful gifting conversation.{craft_phrase} {source_phrase}\n\n"
-            f"{strategy.cta}.\n\nCommercial details will be confirmed before any "
-            f"commitment.{disclaimer}"
-        ),
-        "Landing Page": (
-            f"{product_name}\n\nA source-aware artisan product designed for a thoughtful gifting "
-            f"conversation.{craft_phrase} {source_phrase}\n\n{strategy.value_proposition}\n\n"
-            f"{strategy.cta}.{disclaimer}"
-        ),
-    }
+    contents = _channel_contents(
+        phrases, product_name, craft_phrase, source_phrase, strategy, disclaimer
+    )
+    if is_bilingual(request.language):
+        # Bilingual leads in Chinese and appends the English counterpart, so one
+        # asset carries both without paying for a second generation pass.
+        english = _channel_contents(
+            EN,
+            product_name,
+            EN.craft_phrase_template.format(craft=craft_name) if craft_name else "",
+            EN.source_phrase_ok if context.cultural_source_urls else EN.source_phrase_pending,
+            strategy,
+            EN.disclaimer if context.requires_draft_label or context.unverified_facts else "",
+        )
+        contents = {channel: f"{text}\n\n{english[channel]}" for channel, text in contents.items()}
     channels = _normalize_channels(request.preferred_channels) or strategy.recommended_channels
     assets: list[CampaignAsset] = []
     for index, channel in enumerate(channels, start=1):
         content = contents[channel]
         claims = tuple(base_claims)
         if request.demo_guardian_scenario and index == 1:
-            fixture_claim = (
-                "A thousand-year-old officially certified tradition, with guaranteed "
-                "international delivery."
-            )
+            fixture_claim = phrases.guardian_fixture
             content = f"{content} {fixture_claim}"
             claims = (
                 *claims,
@@ -759,19 +770,18 @@ def _remove_unsafe_sentences(content: str, unsafe_claims: set[str]) -> str:
 def _commercial_risks(
     context: GrowthProductContext,
     target_geography: str | None,
+    phrases: GrowthPhrases,
 ) -> tuple[str, ...]:
     risks: list[str] = []
     verified = context.verified_by_name
     if target_geography and "international_shipping" not in verified:
-        risks.append(
-            "International shipping capability remains unverified for the target geography."
-        )
+        risks.append(phrases.risk_shipping)
     if "lead_time_days" not in verified:
-        risks.append("Production lead time remains unverified.")
+        risks.append(phrases.risk_lead_time)
     if "quantity_capacity" not in verified:
-        risks.append("Production capacity and quantity suitability remain unverified.")
+        risks.append(phrases.risk_capacity)
     if "customization" not in verified:
-        risks.append("Customization capability must be confirmed before promotion as a feature.")
+        risks.append(phrases.risk_customization)
     return tuple(risks)
 
 
@@ -852,12 +862,13 @@ def _strategy_payload(strategy: MarketingStrategy) -> dict[str, object]:
     }
 
 
-def _default_audience(segment: str) -> tuple[str, ...]:
-    if segment == "Corporate Gifts":
-        return ("Corporate event planners", "Executive assistants", "Procurement teams")
-    if segment == "University / Museum Gifting":
-        return ("University advancement teams", "Museum programme teams", "Cultural institutions")
-    return ("Design-conscious gift buyers", "Cultural home decor buyers")
+def _default_audience(segment: str, phrases: GrowthPhrases) -> tuple[str, ...]:
+    """Segment names are localized, so compare against the same phrase set."""
+    if segment == phrases.segment_corporate:
+        return phrases.audience_corporate
+    if segment == phrases.segment_institution:
+        return phrases.audience_institution
+    return phrases.audience_default
 
 
 def _normalize_channels(channels: tuple[str, ...]) -> tuple[str, ...]:

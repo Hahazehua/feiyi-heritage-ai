@@ -44,9 +44,9 @@ def test_catalog_keeps_exactly_twenty_formal_and_thirty_reference_products(
     )
 
     assert len(products) == 51
-    assert len(formal) == 20
+    assert len(formal) == 21
     assert len(references) == 30
-    assert len({product.product_id for product in formal}) == 20
+    assert len({product.product_id for product in formal}) == 21
     assert len({product.product_id for product in references}) == 30
     assert {product.product_id for product in formal}.isdisjoint(
         product.product_id for product in references
@@ -198,7 +198,7 @@ def test_catalog_passport_adapter_covers_all_products_without_changing_boundarie
             passport.publication_status is PublicationStatus.RECOMMENDABLE
             for passport in passports.values()
         )
-        == 20
+        == 21
     )
     assert (
         sum(

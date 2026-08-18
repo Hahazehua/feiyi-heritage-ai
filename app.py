@@ -318,15 +318,22 @@ def _agent_state() -> AgentSessionState:
 
 
 def _catalog_snapshot() -> CatalogSnapshot:
+    """Count the catalogue from the products themselves.
+
+    These figures used to be derived from the museum reference table, which
+    worked while the two were one-to-one. They no longer are: a product can
+    exist without a museum record, so reference_only was being inferred as a
+    remainder and drifting away from the number of actual reference rows.
+    """
     bundle, products = load_catalog()
-    total = len(load_heritage_reference_catalog())
     formally_recommendable = sum(is_recommendation_eligible(product) for product in products)
+    reference_only = sum(product.catalog_role == "catalog_reference" for product in products)
     return CatalogSnapshot(
         bundle=bundle,
         products=products,
-        catalog_total=total,
+        catalog_total=len(products),
         formally_recommendable=formally_recommendable,
-        reference_only=max(0, total - formally_recommendable),
+        reference_only=reference_only,
         repository=_repository(),
     )
 
@@ -1712,7 +1719,8 @@ def _render_catalog() -> None:
             # Partner work is a second source with no museum record behind it,
             # so it gets its own group rather than sitting among rows that all
             # carry an accession number.
-            render_partner_works(products, bundle.product_texts)
+            museum_backed = frozenset(item.demo_product_id for item in items)
+            render_partner_works(products, bundle.product_texts, museum_backed)
             render_catalog_gallery(
                 items,
                 products_by_id={product.product_id: product for product in products},

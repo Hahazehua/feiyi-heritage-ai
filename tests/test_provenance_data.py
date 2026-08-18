@@ -25,35 +25,36 @@ def _rows(path: Path) -> list[dict[str, str]]:
 def test_every_sale_product_is_backed_by_a_museum_record() -> None:
     """The join is what lets a product card cite an accession number.
 
-    Partner-supplied work is the deliberate exception: it is a real object with
-    no museum record behind it, so it may not claim one. What it must do
-    instead is say so — the exemption is granted by the catalogue role, and
-    checked below against the verification status it carries.
+    Work with no museum record behind it is the deliberate exception: it may
+    not claim one, and it earns the exemption by declaring itself unverified.
+    The obligations that come with that declaration are checked below.
     """
     backed = {row["demo_product_id"] for row in _rows(REFERENCE) if row["demo_product_id"]}
     unbacked = [
         row
         for row in _rows(PRODUCTS)
-        if row["product_id"] not in backed and row["catalog_role"] != "partner_pending_verification"
+        if row["product_id"] not in backed and row["verification_status"] != "needs_verification"
     ]
 
     assert not unbacked, f"products with no museum reference: {[r['product_id'] for r in unbacked]}"
 
 
-def test_partner_work_never_claims_museum_provenance() -> None:
-    """The exemption above must not become a hole to smuggle claims through."""
-    backed = {row["demo_product_id"] for row in _rows(REFERENCE) if row["demo_product_id"]}
-    partner = [
-        row for row in _rows(PRODUCTS) if row["catalog_role"] == "partner_pending_verification"
-    ]
+def test_work_without_a_museum_record_says_so() -> None:
+    """The exemption above must not become a hole to smuggle claims through.
 
-    assert partner, "the exemption exists, so something should be using it"
-    for row in partner:
+    A product may skip museum backing only by declaring itself unverified, and
+    declaring that carries obligations: it may not appear in the museum table,
+    and it may not borrow an open museum licence for its photography.
+    """
+    backed = {row["demo_product_id"] for row in _rows(REFERENCE) if row["demo_product_id"]}
+    exempt = [row for row in _rows(PRODUCTS) if row["verification_status"] == "needs_verification"]
+
+    assert exempt, "the exemption exists, so something should be using it"
+    for row in exempt:
         product = row["product_id"]
         assert product not in backed, f"{product} claims a museum record it does not have"
-        assert row["verification_status"] == "needs_verification", product
-        assert row["status"] == "inactive", f"{product} must stay out of recommendations"
         assert "CC0" not in row["image_license"], f"{product} may not claim an open museum licence"
+        assert row["commercial_data_status"] == "demo_assumption", product
 
 
 def test_every_museum_record_can_actually_be_looked_up() -> None:

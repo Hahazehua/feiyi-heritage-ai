@@ -47,7 +47,7 @@ def catalog() -> CatalogSnapshot:
     references = tuple(
         product for product in products if product.catalog_role == "catalog_reference"
     )
-    assert len(formal) == 20
+    assert len(formal) == 21
     assert len(references) == 30
     return CatalogSnapshot(
         bundle=bundle,

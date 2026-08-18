@@ -153,6 +153,7 @@ def render_catalog_gallery(
 def render_partner_works(
     products: tuple[Product, ...],
     product_texts: pd.DataFrame,
+    museum_backed: frozenset[str],
 ) -> None:
     """Render work supplied by a partner or by the company itself.
 
@@ -162,9 +163,10 @@ def render_partner_works(
     plainly, rather than mixed into the museum catalogue where the
     surrounding rows all carry a checkable source.
     """
-    partner = tuple(
-        product for product in products if product.catalog_role == "partner_pending_verification"
-    )
+    # Selected by the absence of a museum record rather than by catalogue role:
+    # such a work may still be recommendable, and it would otherwise vanish from
+    # the catalogue entirely, since the gallery below is driven by museum items.
+    partner = tuple(product for product in products if product.product_id not in museum_backed)
     if not partner:
         return
 

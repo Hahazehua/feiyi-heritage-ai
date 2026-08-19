@@ -1,3 +1,3 @@
 merchant_id,merchant_name_zh,merchant_name_en,city,province,contact_channel,status,data_version,is_demo
 mer_demo_feiyi,飞颐礼遇（平台演示选品）,HeritageLink AI Curated Gifts (Demo),平台演示,多地区选品,平台演示询单,active,2026-07-17.2,true
-mer_wuhu_iron_partner,芜湖铁画合作方（工商登记名称待补）,Wuhu Iron Painting Partner (registered name pending),芜湖,安徽,合作方直接对接,active,2026-08-18.2,true
+mer_wuhu_iron_partner,安徽飞颐文化有限公司,"Anhui Feiyi Culture Co., Ltd.",注册地待补,安徽,合作方直接对接,active,2026-08-18.2,true

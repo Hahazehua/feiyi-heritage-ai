@@ -19,7 +19,7 @@ Product comparison is an application-layer capability and does not change the se
 - 客户动作继续通过 `run_agent_turn(...)`，结果继续使用 `AgentTurnResult`；
 - 七项正式 Skills、Agent manifest 和 Skill 1–7 的业务职责不变；
 - 推荐器原有硬过滤、八维固定权重、稳定排序和零结果语义不变；
-- 21 件 `recommendation_demo/active` 是正式推荐范围，30 件 `inactive/catalog_reference` 仍只作参考；
+- 23 件 `recommendation_demo/active` 是正式推荐范围，30 件 `inactive/catalog_reference` 仍只作参考；
 - 比较不创建 `comparison_score`、AI 分、星级或第二套排名；
 - 不增加 RAG、向量数据库、商品语义重排或新核心 Skill；
 - 价格、材料、认证、交付、运输、产能与定制能力没有可靠依据时保持未知。

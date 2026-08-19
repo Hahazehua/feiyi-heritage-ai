@@ -51,7 +51,7 @@ def test_english_source_notes_are_localized_and_keep_provenance() -> None:
     bundle = load_data(ROOT / "data" / "demo")
     english_rows = bundle.product_texts[bundle.product_texts["locale"] == "en"]
 
-    assert len(english_rows) == 51
+    assert len(english_rows) == 54
     # Museum-backed rows cite the Met; partner work cites the craft registry
     # instead, because there is no museum record to point at.
     museum_rows = english_rows[~english_rows["product_id"].str.startswith("prod_wuhu")]

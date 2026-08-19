@@ -263,8 +263,8 @@ def test_catalog_snapshot_keeps_twenty_formal_and_thirty_reference_only_products
     )
 
     assert not app.exception
-    assert recommendation_trace.input_summary["catalog_total"] == 51
-    assert recommendation_trace.input_summary["formally_recommendable"] == 21
+    assert recommendation_trace.input_summary["catalog_total"] == 54
+    assert recommendation_trace.input_summary["formally_recommendable"] == 23
     assert recommendation_trace.input_summary["reference_only"] == 30
 
 

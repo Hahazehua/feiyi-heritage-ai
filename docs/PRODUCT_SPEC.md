@@ -28,7 +28,7 @@ Recommendation
 
 有当前推荐时，Shopping router 在 Skill 1 之前识别“比较第一和第三”“再现代一点”“那我选第一个”等连续意图。比较问题直接使用当前推荐和当前 `RecommendationContext`；偏好调整才重新进入现有 Skills 1–3；选品继续进入既有 Skills 4–6 门控。路由不解析商品事实、不建立第二套动作枚举，也不修改正式推荐顺序。
 
-`ProductComparisonService` 只接受当前正式推荐的 1–3 件商品。服务先按当前推荐 allowlist 校验产品 ID，再使用完整 `Product` 记录重新确认 `catalog_role=recommendation_demo` 以及产品、演示主体和工艺分类均为 `active`。当前 21 件正式演示商品与 30 件 `inactive/catalog_reference` 的边界不变，reference-only 记录不能进入正式比较或购买路径。
+`ProductComparisonService` 只接受当前正式推荐的 1–3 件商品。服务先按当前推荐 allowlist 校验产品 ID，再使用完整 `Product` 记录重新确认 `catalog_role=recommendation_demo` 以及产品、演示主体和工艺分类均为 `active`。当前 23 件正式演示商品与 30 件 `inactive/catalog_reference` 的边界不变，reference-only 记录不能进入正式比较或购买路径。
 
 比较结果是结构化对象，覆盖适合谁、适用场景、风格、文化表达、预算、定制和实用考虑。每项事实使用 `verified_yes`、`verified_no`、`unknown`、`not_applicable` 四态证据模型；缺少来源时保持 `unknown`，不得把空值解释为“不支持”。服务不生成 `comparison_score`，不重排推荐；所谓“当前会先考虑”始终沿用被比较商品中的原正式推荐顺序，并结合结构化差异解释取舍。
 
@@ -58,7 +58,7 @@ Artisan 草稿使用独立 Repository，不写入 Buyer 匿名行为分析，也
 draft → pending_review → reference_only / recommendable / archived
 ```
 
-即使评审模式模拟得到 `recommendable`，也不会自动创建 canonical `Product`。Skill 3 只接受逻辑发布状态为 `recommendable` 且通过统一资格门控的 canonical 产品；兼容适配层把现有 21 条 `recommendation_demo/active` 视为 legacy `recommendable`，把 30 条 `catalog_reference/inactive` 视为 `reference_only`。所有待审核草稿和仅参考记录都被排除，51 条 canonical 目录边界保持不变。
+即使评审模式模拟得到 `recommendable`，也不会自动创建 canonical `Product`。Skill 3 只接受逻辑发布状态为 `recommendable` 且通过统一资格门控的 canonical 产品；兼容适配层把现有 23 条 `recommendation_demo/active` 视为 legacy `recommendable`，把 30 条 `catalog_reference/inactive` 视为 `reference_only`。所有待审核草稿和仅参考记录都被排除，54 条 canonical 目录边界保持不变。
 
 Artisan Studio 使用独立 application action `artisan_product_onboarding`，不是第八项 Skill。现有七项 Skills、Agent manifest、硬过滤、八维固定权重、稳定排序和 Buyer `AgentTurnResult` 合同均不改变。Application trace 和模拟审核继续受已有环境开关与 `review_mode=1` 双门控制。
 
@@ -66,7 +66,7 @@ Artisan Studio 使用独立 application action `artisan_product_onboarding`，�
 
 ## 1. 产品定位
 
-HAHA 代表 Heritage Artisans, Horizons Ahead，中文定位是“连接非遗手艺人、文化礼品与全球买家的 AI 出海智能体”。当前 Demo 同时验证 Buyer 侧需求理解、可信推荐、双语文化表达与商业询单闭环，以及 Artisan 侧资料整理、来源追溯与人工审核闭环。目录共 51 件，其中 21 件正式演示商品参与推荐，30 件馆藏或文化参考不参与推荐；Artisan 草稿不计入目录，全部商业字段仍需真实商家确认。
+HAHA 代表 Heritage Artisans, Horizons Ahead，中文定位是“连接非遗手艺人、文化礼品与全球买家的 AI 出海智能体”。当前 Demo 同时验证 Buyer 侧需求理解、可信推荐、双语文化表达与商业询单闭环，以及 Artisan 侧资料整理、来源追溯与人工审核闭环。目录共 54 件，其中 23 件正式演示商品参与推荐，30 件馆藏或文化参考与 1 件合作方待核验作品不参与推荐；Artisan 草稿不计入目录，全部商业字段仍需真实商家确认。
 
 当前 Agent 统一入口编排七项正式 Skills：礼赠需求理解、受控软偏好推断、非遗礼品硬过滤与稳定推荐、有事实边界的双语文化内容组织、最终礼品方案生成、匿名授权选择记录和匿名礼品选择信号分析。Wave 2 的四项 Submitted Skills 继续作为历史评审基线保留。
 
@@ -191,7 +191,7 @@ Wave 2 当时提交以下四个 Skills。每个 Skill 的输入、输出、运�
 
 ### Skill 3：Grounded Bilingual Heritage Content / 有事实边界的双语文化内容组织
 
-从本地 CSV 中已有的中文、英文、来源说明和审核状态组织文化内容，不在运行时翻译或补写未知事实。当前 51 件目录记录对应 102 条双语资料，全部为 `review_status=draft`；页面必须区分 MVP 演示方案与馆藏探索参考，不能称为商家已审核事实。
+从本地 CSV 中已有的中文、英文、来源说明和审核状态组织文化内容，不在运行时翻译或补写未知事实。当前 54 件目录记录对应 108 条双语资料，全部为 `review_status=draft`；页面必须区分 MVP 演示方案与馆藏探索参考，不能称为商家已审核事实。
 
 详细说明：[`03-grounded-bilingual-heritage-content.md`](wave2/skills/03-grounded-bilingual-heritage-content.md)。
 
@@ -577,7 +577,7 @@ AI 表达可以用于整理定制概念，但概念对象由本地确定性代�
 * 审核状态；
 * 待商家确认标记。
 
-当前 51 件目录记录对应 102 条本地中英文文化资料，全部为 `review_status=draft`。Buyer 正式内容组织不调用 DeepSeek、机器翻译或 RAG 生成文化事实；页面必须把这些内容标为演示文案、待商家审核，并区分 21 件正式演示推荐与 30 件文化参考。
+当前 54 件目录记录对应 108 条本地中英文文化资料，全部为 `review_status=draft`。Buyer 正式内容组织不调用 DeepSeek、机器翻译或 RAG 生成文化事实；页面必须把这些内容标为演示文案、待商家审核，并区分 23 件正式演示推荐与 30 件文化参考。
 
 ### E. Artisan 草稿与确认事实
 
@@ -687,8 +687,8 @@ Artisan Studio 将 `artisan_provided`、`ai_inferred` 与 `artisan_confirmed` �
 
 * 1 个平台演示选品主体，不代表真实商家入驻；
 * 11 个工艺分类，其中 10 个 `official_level=unverified`，1 个 `national`（芜湖铁画）；
-* 51 件带图目录记录，其中 21 件正式演示推荐、30 件参考；
-* 102 条 `review_status=draft` 的本地双语资料；
+* 54 件带图目录记录，其中 23 件正式演示推荐、30 件参考、1 件合作方待核验；
+* 108 条 `review_status=draft` 的本地双语资料；
 * 51 条 MVP 定制选项；
 * 支持多商家和多品类扩展的数据模型；
 * CSV 和 JSON 数据；
@@ -828,7 +828,7 @@ Streamlit session state 用于保存当前会话的累计需求、连续补充�
 * 每个 active 目录方案必须有本地中文和英文记录；
 * 内容模块只组织存储字段，不在运行时调用模型、机器翻译或 RAG 补写事实；
 * 来源说明、`review_status` 和待确认字段随内容展示；
-* 当前 102 条 `draft` 资料必须标为 MVP 演示文案、待商家审核；
+* 当前 108 条 `draft` 资料必须标为 MVP 演示文案、待商家审核；
 * 30 件 `catalog_reference/inactive` 只能展示文化参考，不得进入推荐、比较或购买路径。
 
 ### 16.4 Merchant-Ready Customization Brief

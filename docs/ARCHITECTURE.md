@@ -94,7 +94,7 @@ Artisan Streamlit mode
 
 发布状态为 `draft → pending_review → reference_only/recommendable/archived`。提交只进入 `pending_review`。评审模式的模拟审核不会把草稿转换成 canonical `Product`，也不会修改 CSV。生产环境还需要一条有身份、商家、来源和商业能力审核的显式发布事务。
 
-Skill 3 前的统一资格门控只接受逻辑发布状态为 `recommendable` 的 canonical 产品。为保持现有 CSV 合同不变，资格适配层把 `recommendation_demo` 且产品、商家与工艺状态均为 `active` 的记录视为 legacy `recommendable`，把 `catalog_reference/inactive` 视为 `reference_only`。因此 `draft`、`pending_review`、`reference_only`、`archived` 和所有未显式接入目录的 Artisan 记录都被排除。21 条正式演示推荐、30 条参考、51 条 canonical 总数保持不变。
+Skill 3 前的统一资格门控只接受逻辑发布状态为 `recommendable` 的 canonical 产品。为保持现有 CSV 合同不变，资格适配层把 `recommendation_demo` 且产品、商家与工艺状态均为 `active` 的记录视为 legacy `recommendable`，把 `catalog_reference/inactive` 视为 `reference_only`。因此 `draft`、`pending_review`、`reference_only`、`archived` 和所有未显式接入目录的 Artisan 记录都被排除。23 条正式演示推荐、30 条参考、1 条合作方待核验、54 条 canonical 总数保持不变。
 
 ## 2. 当前仓库结构
 
@@ -334,8 +334,8 @@ DeepSeek 只提供候选结构化字段。模型返回的 `ready_to_recommend`�
 
 - 1 个平台演示选品主体；
 - 11 个工艺分类，其中 10 个 `official_level=unverified`，1 个 `national`（芜湖铁画）；
-- 51 件带图目录记录，其中 21 件 `recommendation_demo/active`、30 件 `catalog_reference/inactive`；
-- 102 条中英文文化资料，全部为 `review_status=draft`；
+- 54 件带图目录记录，其中 23 件 `recommendation_demo/active`、30 件 `catalog_reference/inactive`、1 件 `partner_pending_verification/inactive`；
+- 108 条中英文文化资料，全部为 `review_status=draft`；
 - 51 条 MVP 定制选项。
 
 方案价格、数量、交期、运输和定制能力均为 MVP 演示字段，需要商家复核，不是正式报价或产能承诺。
@@ -351,7 +351,7 @@ DeepSeek 只提供候选结构化字段。模型返回的 `ready_to_recommend`�
 - `approved` 才能表示已完成相应审核；
 - `draft` 必须显示“演示文案，待商家审核”；
 - 缺失字段显示“待商家确认 / Pending merchant confirmation”；
-- 当前 102 条资料全部为 `draft`，不得称为商家已审核内容；
+- 当前 108 条资料全部为 `draft`，不得称为商家已审核内容；
 - 当前不使用运行时机器翻译、RAG 或模型生成文化事实。
 
 ## 7. 商家需求单

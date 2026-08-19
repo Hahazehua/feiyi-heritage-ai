@@ -207,7 +207,7 @@ def test_blank_optional_artisan_flow_submits_pending_without_touching_catalog_or
 
     bundle = load_data(ROOT / "data" / "demo")
     products = build_products(bundle)
-    assert sum(product.catalog_role == "recommendation_demo" for product in products) == 21
+    assert sum(product.catalog_role == "recommendation_demo" for product in products) == 23
     assert sum(product.catalog_role == "catalog_reference" for product in products) == 30
 
 

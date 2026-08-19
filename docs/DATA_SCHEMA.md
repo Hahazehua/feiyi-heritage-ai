@@ -465,7 +465,7 @@ draft → pending_review → reference_only / recommendable / archived
 - `recommendable`：满足独立审核门槛，可进入显式目录发布步骤；
 - `archived`：撤回或停用。
 
-`recommendable` 不触发自动目录写入。当前 Skill 3 候选仍由 canonical `Product` 的统一资格门控制，并且只接受逻辑发布状态 `recommendable`。为避免修改现有 CSV 合同，适配层把 `catalog_role=recommendation_demo` 且产品、商家和工艺状态全部为 `active` 的记录视为 legacy `recommendable`；`catalog_reference/inactive` 视为 `reference_only`。因此 21 条正式演示记录、30 条参考和 51 条总目录边界不因 Artisan 草稿而改变。
+`recommendable` 不触发自动目录写入。当前 Skill 3 候选仍由 canonical `Product` 的统一资格门控制，并且只接受逻辑发布状态 `recommendable`。为避免修改现有 CSV 合同，适配层把 `catalog_role=recommendation_demo` 且产品、商家和工艺状态全部为 `active` 的记录视为 legacy `recommendable`；`catalog_reference/inactive` 视为 `reference_only`。因此 23 条正式演示记录、30 条参考和 54 条总目录边界不因 Artisan 草稿而改变。
 
 当前模拟审核要求规定的身份、文化与商业字段逐项为非空 `confirmed`，至少一个 `_source_url` 字段为 `confirmed`，并且存在图片；任一条件不足时结果为 `reference_only`。该规则只用于原型状态演示，不替代生产级身份、来源与商家审核。
 

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from html import escape
 from pathlib import Path, PurePosixPath
 
@@ -70,7 +71,10 @@ def product_image(image_path: str, image_alt: str, *, uncropped: bool = False) -
     # A keyed container is the only reliable CSS hook here: Streamlit wraps
     # each element in its own node, so a sibling marker div never lands next
     # to the image it was meant to describe.
-    with st.container(key="hl-uncropped-image"):
+    # Streamlit rejects a duplicate key and one page can hold several uncropped
+    # works, so the key carries the image name. The theme matches it by prefix.
+    slug = re.sub(r"[^a-z0-9]+", "-", PurePosixPath(image_path).stem.lower()).strip("-")
+    with st.container(key=f"hl-uncropped-image-{slug}"):
         st.image(source, caption=image_alt, width="stretch")
 
 

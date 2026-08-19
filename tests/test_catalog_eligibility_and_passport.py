@@ -34,7 +34,7 @@ def _broad_context():  # type: ignore[no-untyped-def]
     )
 
 
-def test_catalog_keeps_exactly_twentyone_formal_and_thirty_reference_products(
+def test_catalog_keeps_exactly_twentythree_formal_and_thirty_reference_products(
     catalog_data,
 ) -> None:  # type: ignore[no-untyped-def]
     _, products = catalog_data
@@ -43,10 +43,10 @@ def test_catalog_keeps_exactly_twentyone_formal_and_thirty_reference_products(
         product for product in products if product.catalog_role == "catalog_reference"
     )
 
-    assert len(products) == 51
-    assert len(formal) == 21
+    assert len(products) == 54
+    assert len(formal) == 23
     assert len(references) == 30
-    assert len({product.product_id for product in formal}) == 21
+    assert len({product.product_id for product in formal}) == 23
     assert len({product.product_id for product in references}) == 30
     assert {product.product_id for product in formal}.isdisjoint(
         product.product_id for product in references
@@ -191,14 +191,14 @@ def test_catalog_passport_adapter_covers_all_products_without_changing_boundarie
 
     passports = build_catalog_passports(products, bundle)
 
-    assert len(passports) == 51
+    assert len(passports) == 54
     assert set(passports) == {product.product_id for product in products}
     assert (
         sum(
             passport.publication_status is PublicationStatus.RECOMMENDABLE
             for passport in passports.values()
         )
-        == 21
+        == 23
     )
     assert (
         sum(

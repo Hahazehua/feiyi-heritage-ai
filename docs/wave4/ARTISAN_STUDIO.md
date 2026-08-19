@@ -141,8 +141,8 @@ Application Action: artisan_product_onboarding
 
 当前目录边界保持不变：
 
-- 51 条 canonical 产品记录；
-- 21 条 `recommendation_demo/active` 可参与演示推荐；
+- 54 条 canonical 产品记录；
+- 23 条 `recommendation_demo/active` 可参与演示推荐；
 - 30 条 `catalog_reference/inactive` 只作参考；
 - 新提交的手艺人草稿不改变以上计数。
 

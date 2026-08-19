@@ -32,12 +32,12 @@ def test_loads_expected_demo_dataset() -> None:
 
     assert len(bundle.merchants) == 1
     assert len(bundle.heritage_items) == 11
-    assert len(products) == 51
-    assert len(bundle.product_texts) == 102
+    assert len(products) == 54
+    assert len(bundle.product_texts) == 108
     assert all(product.is_demo for product in products)
     assert all(product.demo_disclaimer.startswith(DEMO_DISCLAIMER) for product in products)
     assert all((Path(__file__).parents[1] / product.image_path).is_file() for product in products)
-    assert len({product.image_path for product in products}) == 51
+    assert len({product.image_path for product in products}) == 54
     assert (bundle.customization_options["demo_disclaimer"] == DEMO_DISCLAIMER).all()
     # Claiming an official heritage level is allowed only with a note naming
     # the listing behind it; everything else stays "unverified".
@@ -170,5 +170,5 @@ def test_loader_supports_more_than_one_merchant(tmp_path: Path) -> None:
 
     products = build_products(load_data(data_dir))
 
-    assert len(products) == 52
+    assert len(products) == 55
     assert any(product.merchant_id == "mer_demo_other" for product in products)

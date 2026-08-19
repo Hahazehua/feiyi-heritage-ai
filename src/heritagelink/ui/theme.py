@@ -277,7 +277,8 @@ def apply_theme() -> None:
           border-radius:var(--r-md);border:1px solid var(--line);background:var(--line-soft);}
         /* A framed artwork loses its frame, inscription and seals to a 4:3 crop,
            so works that must be seen whole opt out of the grid ratio. */
-        .st-key-hl-uncropped-image [data-testid="stImage"] img {
+        [class*="st-key-hl-uncropped-image"][class*="st-key-hl-uncropped-image"]
+          [data-testid="stImage"] img {
           aspect-ratio:auto;object-fit:contain;height:auto;max-height:34rem;
           width:auto;max-width:100%;margin:0 auto;display:block;
           background:var(--surface);padding:var(--sp-2);}

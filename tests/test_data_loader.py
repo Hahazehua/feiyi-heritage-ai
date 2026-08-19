@@ -30,7 +30,7 @@ def test_loads_expected_demo_dataset() -> None:
     bundle = load_data(DATA_DIR)
     products = build_products(bundle)
 
-    assert len(bundle.merchants) == 1
+    assert len(bundle.merchants) == 2
     assert len(bundle.heritage_items) == 11
     assert len(products) == 54
     assert len(bundle.product_texts) == 108

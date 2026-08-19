@@ -54,7 +54,14 @@ def test_work_without_a_museum_record_says_so() -> None:
         product = row["product_id"]
         assert product not in backed, f"{product} claims a museum record it does not have"
         assert "CC0" not in row["image_license"], f"{product} may not claim an open museum licence"
-        assert row["commercial_data_status"] == "demo_assumption", product
+        # Commercial terms sit on a different axis from the object's provenance:
+        # a partner can confirm price and delivery for a work whose authorship
+        # is still unverified. Confirmation counts only when a real merchant
+        # stands behind it, never the platform's own demo curation entity.
+        if row["commercial_data_status"] == "verified_merchant_fact":
+            assert row["merchant_id"] != "mer_demo_feiyi", product
+        else:
+            assert row["commercial_data_status"] == "demo_assumption", product
 
 
 def test_every_museum_record_can_actually_be_looked_up() -> None:
@@ -99,10 +106,21 @@ def test_every_museum_record_records_when_it_was_checked() -> None:
 def test_sale_products_keep_commercial_terms_marked_as_assumptions() -> None:
     """The credential covers craft and image facts only.
 
-    Cultural data is sourced, commercial data is invented for the demo, and the
-    two must not drift into looking equally verified.
+    Cultural data is sourced. Commercial data is invented for the demo wherever
+    no merchant exists to confirm it, and the two must not drift into looking
+    equally verified. Partner-supplied work is the one exception: a named
+    merchant can confirm its terms, so it may say so.
     """
+    backed = {row["demo_product_id"] for row in _rows(REFERENCE) if row["demo_product_id"]}
     for row in _rows(PRODUCTS):
         assert row["cultural_data_status"] == "verified_public_cultural_fact"
-        assert row["commercial_data_status"] == "demo_assumption"
         assert row["is_demo"] == "true"
+        if row["product_id"] in backed:
+            # A museum record has no merchant behind it, so its commercial terms
+            # are invented for the demo and have to keep saying so.
+            assert row["commercial_data_status"] == "demo_assumption", row["product_id"]
+        else:
+            assert row["commercial_data_status"] in {
+                "demo_assumption",
+                "verified_merchant_fact",
+            }, row["product_id"]

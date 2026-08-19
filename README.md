@@ -203,7 +203,7 @@ heritagelink.skills.choice_analysis_skill:run_choice_signal_analysis
 | 文化内容记录 | 108，中文与英文各 54 条 |
 | 类别覆盖 | 11 类 |
 | 数据质量 | 54 件均为 C 级演示数据 |
-| 已核验真实商家 | 0 |
+| 已核验真实商家 | 1（芜湖铁画合作方，工商登记名称待补） |
 
 类别覆盖 `bamboo`、`calligraphy`、`ceramics`、`fan`、`iron_painting`、`jade`、`lacquer`、`seal`、`tea`、`textile` 和 `woodblock`。来源注册表保存来源网址、发布者、访问日期、支持事实和可信等级；覆盖矩阵用于审计类别、地区、价格带与标签分布。
 

@@ -69,7 +69,7 @@ Artisan draft publication status
   = may enter Skill 3
 ```
 
-`draft`、`pending_review`、`reference_only` 和 `archived` 均不得进入 Skill 3。`recommendable` 只表示审核流程允许进入下一步；在当前原型中，它仍不会自动插入 canonical catalog。现有 CSV 通过兼容适配映射发布语义：20 条 `recommendation_demo/active` 视为 legacy `recommendable`，30 条 `catalog_reference/inactive` 视为 `reference_only`。因此 Buyer 正式推荐只读取前者，后者与所有 Artisan 草稿都被排除。
+`draft`、`pending_review`、`reference_only` 和 `archived` 均不得进入 Skill 3。`recommendable` 只表示审核流程允许进入下一步；在当前原型中，它仍不会自动插入 canonical catalog。现有 CSV 通过兼容适配映射发布语义：21 条 `recommendation_demo/active` 视为 legacy `recommendable`，30 条 `catalog_reference/inactive` 视为 `reference_only`。因此 Buyer 正式推荐只读取前者，后者与所有 Artisan 草稿都被排除。
 
 ## 6. Buyer 侧展示规则
 

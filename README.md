@@ -93,11 +93,11 @@ HAHA 不是替手艺人讲故事，而是帮助不同语言和文化背景的人
 
 双语内容 Skill 只组织本地已有的 `zh-CN` 与 `en` 内容、来源说明和审核状态。它不会在运行时机器翻译或补写未知事实，也不会把馆藏参考误写成当代商品资质。
 
-项目尝试保留文化含义，并按礼赠语境解释“为什么适合送给谁、用于什么场景”。所有 100 条双语内容目前均为 `draft`，仍需真实商家或文化审核者确认。这个边界降低了海外客户的理解门槛，也避免为了传播而牺牲准确性。
+项目尝试保留文化含义，并按礼赠语境解释“为什么适合送给谁、用于什么场景”。所有 102 条双语内容目前均为 `draft`，仍需真实商家或文化审核者确认。这个边界降低了海外客户的理解门槛，也避免为了传播而牺牲准确性。
 
 ### 3. 商业机会连接
 
-Agent 把自然语言需求转换为结构化条件，在 20 件正式演示商品中执行硬约束过滤和稳定排序，解释推荐理由，并在用户选品后生成包含预算、数量、定制、目的地、交期和待确认事项的 Inquiry JSON。
+Agent 把自然语言需求转换为结构化条件，在 21 件正式演示商品中执行硬约束过滤和稳定排序，解释推荐理由，并在用户选品后生成包含预算、数量、定制、目的地、交期和待确认事项的 Inquiry JSON。
 
 这条路径帮助文化兴趣进入商业沟通，但仓库没有真实订单、成交、收入增长或合作商家的可验证证据。当前成果是一个销售支持原型，不是已经完成的商业验证。
 
@@ -196,19 +196,20 @@ heritagelink.skills.choice_analysis_skill:run_choice_signal_analysis
 
 | 项目 | 当前值 |
 |---|---:|
-| 产品目录总数 | 50 |
-| 正式参与演示推荐 | 20 |
+| 产品目录总数 | 51 |
+| 正式参与演示推荐 | 21 |
 | 文化或馆藏参考 | 30 |
-| 文化内容记录 | 100，中文与英文各 50 条 |
-| 类别覆盖 | 10 类 |
-| 数据质量 | 50 件均为 C 级演示数据 |
+| 其中合作方提供、尚待核验 | 1 |
+| 文化内容记录 | 102，中文与英文各 51 条 |
+| 类别覆盖 | 11 类 |
+| 数据质量 | 51 件均为 C 级演示数据 |
 | 已核验真实商家 | 0 |
 
-类别覆盖 `bamboo`、`calligraphy`、`ceramics`、`fan`、`jade`、`lacquer`、`seal`、`tea`、`textile` 和 `woodblock`。来源注册表保存来源网址、发布者、访问日期、支持事实和可信等级；覆盖矩阵用于审计类别、地区、价格带与标签分布。
+类别覆盖 `bamboo`、`calligraphy`、`ceramics`、`fan`、`iron_painting`、`jade`、`lacquer`、`seal`、`tea`、`textile` 和 `woodblock`。来源注册表保存来源网址、发布者、访问日期、支持事实和可信等级；覆盖矩阵用于审计类别、地区、价格带与标签分布。
 
-20 件 `recommendation_demo` 记录处于 `active` 状态。30 件 `catalog_reference` 记录处于 `inactive` 状态，不具备已核验的价格、产能、定制或交付信息。参考产品用于扩展文化视野和研究，不会在缺少商业可行性信息时被推荐为可购买商品。
+21 件 `recommendation_demo` 记录处于 `active` 状态。30 件 `catalog_reference` 记录处于 `inactive` 状态，不具备已核验的价格、产能、定制或交付信息。参考产品用于扩展文化视野和研究，不会在缺少商业可行性信息时被推荐为可购买商品。
 
-当前图片和馆藏事实来自大都会艺术博物馆开放馆藏，目录记录为 CC0 1.0 / Public Domain。馆藏来源不代表馆方参与本项目，也不证明当代商品与馆藏对象存在商业关联。
+51 件中的 50 件，图片和馆藏事实来自大都会艺术博物馆开放馆藏，目录记录为 CC0 1.0 / Public Domain。剩余 1 件为合作方提供的当代作品，没有对应馆藏记录，图片许可为 `partner_supplied_photo`，`verification_status` 为 `needs_verification`；仓库不为其编造藏品号或来源链接。馆藏来源不代表馆方参与本项目，也不证明当代商品与馆藏对象存在商业关联。
 
 ## Evidence｜可验证证据
 
@@ -267,7 +268,7 @@ HAHA 是我对这个问题的一次技术回答。我希望探索 AI 能否成�
 
 HAHA, short for Heritage Artisans, Horizons Ahead, is a Streamlit prototype with two coordinated entrances: AI Shopping for buyers and Artisan Studio for source-aware product onboarding drafts. The buyer path keeps seven gated Skills for grounded discovery and inquiry generation. The artisan path is an application-layer workflow with per-field provenance, explicit human confirmation, a Heritage Passport, and a publication lifecycle; it does not create an eighth Skill or auto-publish products.
 
-The current evidence is engineering evidence: 50 canonical catalog records, 20 recommendation-eligible demo products, 30 non-recommendable cultural references, two content locales, consent-aware anonymous events, and offline aggregate analysis. Artisan drafts remain outside those catalog counts. The repository does not claim verified artisans, merchants, customers, orders, revenue, or market impact.
+The current evidence is engineering evidence: 51 canonical catalog records, 21 recommendation-eligible demo products, 30 non-recommendable cultural references, one partner-supplied record still marked `needs_verification`, two content locales, consent-aware anonymous events, and offline aggregate analysis. Artisan drafts remain outside those catalog counts. The repository does not claim verified artisans, merchants, customers, orders, revenue, or market impact.
 
 ## Local Setup
 

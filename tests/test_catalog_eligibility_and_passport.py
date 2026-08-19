@@ -34,7 +34,7 @@ def _broad_context():  # type: ignore[no-untyped-def]
     )
 
 
-def test_catalog_keeps_exactly_twenty_formal_and_thirty_reference_products(
+def test_catalog_keeps_exactly_twentyone_formal_and_thirty_reference_products(
     catalog_data,
 ) -> None:  # type: ignore[no-untyped-def]
     _, products = catalog_data

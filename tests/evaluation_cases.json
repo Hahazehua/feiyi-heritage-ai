@@ -273,7 +273,7 @@
     "expected_empty": false
   },
   {
-    "case_id": "unsupported_size_customization",
+    "case_id": "size_customization_matches_only_partner_work",
     "request": {
       "request_id": "req_eval_014",
       "unit_budget_min_fen": 0,
@@ -290,7 +290,7 @@
       "international_shipping_required": false,
       "available_lead_days": 90
     },
-    "expected_contains": [],
-    "expected_empty": true
+    "expected_contains": ["prod_wuhu_iron_guo_dashi"],
+    "expected_empty": false
   }
 ]

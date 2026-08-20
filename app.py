@@ -36,7 +36,9 @@ from heritagelink.artisan_studio import (
     confirm_facts,
     create_draft,
     enrich_draft,
+    is_ai_proposed,
     merge_artisan_values,
+    requires_individual_confirmation,
     simulate_review_approval,
     submit_for_review,
     update_bilingual_draft,
@@ -62,6 +64,7 @@ from heritagelink.heritage_passport import build_catalog_passports
 from heritagelink.heritage_passport_models import (
     ArtisanProductDraft,
     HeritagePassport,
+    ProvenancedFact,
     PublicationStatus,
 )
 from heritagelink.i18n import (
@@ -1006,22 +1009,50 @@ def _render_artisan_review() -> None:
         for fact in draft.facts
         if fact.field_name in _artisan_fact_labels() and fact.field_name != "free_description"
     )
-    with st.form(f"artisan_review_form_{draft.updated_at.timestamp()}", border=True):
-        edited: dict[str, str] = {}
-        confirmed: list[str] = []
-        for fact in facts:
-            label = _artisan_fact_labels()[fact.field_name]
-            edited[fact.field_name] = st.text_input(
-                label,
-                value=_fact_to_text(fact.value),
-                key=f"artisan_review_{draft.updated_at.timestamp()}_{fact.field_name}",
-            )
-            if fact.value is not None and st.checkbox(
-                t("artisan.review.confirm_field"),
-                value=fact.verification_status.value == "confirmed",
-                key=f"artisan_confirm_{draft.updated_at.timestamp()}_{fact.field_name}",
+    # Split by consequence. Commercial and externally checkable facts keep their
+    # own confirmation; descriptive ones are confirmed in a single action, so
+    # reducing friction does not quietly reduce provenance.
+    individual = tuple(fact for fact in facts if requires_individual_confirmation(fact))
+    routine = tuple(fact for fact in facts if not requires_individual_confirmation(fact))
+    stamp = draft.updated_at.timestamp()
+    edited: dict[str, str] = {}
+    confirmed: list[str] = []
+
+    def _field_input(fact: ProvenancedFact) -> None:
+        label = _artisan_fact_labels()[fact.field_name]
+        if is_ai_proposed(fact):
+            label = f"{label}　· {t('artisan.review.ai_proposed')}"
+        edited[fact.field_name] = st.text_input(
+            label,
+            value=_fact_to_text(fact.value),
+            key=f"artisan_review_{stamp}_{fact.field_name}",
+        )
+
+    with st.form(f"artisan_review_form_{stamp}", border=True):
+        if routine:
+            fillable = tuple(fact for fact in routine if fact.value is not None)
+            st.markdown(f"### {t('artisan.review.routine_title')}")
+            st.caption(t("artisan.review.routine_note"))
+            for fact in routine:
+                _field_input(fact)
+            if fillable and st.checkbox(
+                t("artisan.review.confirm_all", count=len(fillable)),
+                value=all(fact.verification_status.value == "confirmed" for fact in fillable),
+                key=f"artisan_confirm_all_{stamp}",
             ):
-                confirmed.append(fact.field_name)
+                confirmed.extend(fact.field_name for fact in fillable)
+
+        if individual:
+            st.markdown(f"### {t('artisan.review.individual_title')}")
+            st.caption(t("artisan.review.individual_note"))
+            for fact in individual:
+                _field_input(fact)
+                if fact.value is not None and st.checkbox(
+                    t("artisan.review.confirm_field"),
+                    value=fact.verification_status.value == "confirmed",
+                    key=f"artisan_confirm_{stamp}_{fact.field_name}",
+                ):
+                    confirmed.append(fact.field_name)
 
         bilingual = draft.bilingual_draft
         if bilingual is not None:

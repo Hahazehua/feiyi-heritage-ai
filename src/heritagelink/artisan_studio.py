@@ -265,6 +265,66 @@ def merge_artisan_values(
     )
 
 
+# A fact the buyer transacts on, or that looks externally checkable, is confirmed
+# one at a time. Bulk-confirming those would turn "the artisan vouched for this"
+# into "the artisan clicked once", which is the whole point of the review step.
+# Descriptive facts the artisan supplied themselves carry less consequence and may
+# be confirmed together, so that reducing friction does not cost provenance.
+INDIVIDUAL_CONFIRMATION_FIELDS = frozenset(
+    {
+        "price_min_fen",
+        "price_max_fen",
+        "currency",
+        "moq",
+        "lead_time_days",
+        "quantity_capacity",
+        "domestic_shipping",
+        "international_shipping",
+        "logo_supported",
+        "customization",
+        "cultural_source_url",
+        "heritage_item",
+    }
+)
+
+
+def requires_individual_confirmation(fact: ProvenancedFact) -> bool:
+    """Whether this fact has to be confirmed on its own rather than in bulk.
+
+    The line is consequence, not origin. A wrong price or lead time is acted on
+    by a buyer; a wrong symbolism tag is not. Holding back every AI-proposed
+    field would make the bulk action pointless and leave the artisan doing the
+    same field-by-field work under a new name.
+
+    Origin still matters where a model could invent something that looks
+    checkable — a source URL, a named ICH project — and those sit in the field
+    list above. For everything else the artisan reads the value on screen either
+    way, and ``source`` keeps recording that a model proposed it.
+    """
+    return fact.field_name in INDIVIDUAL_CONFIRMATION_FIELDS
+
+
+def is_ai_proposed(fact: ProvenancedFact) -> bool:
+    """Whether to draw the artisan's eye to this value as a model's suggestion."""
+    return fact.source is FactSource.AI_INFERRED
+
+
+def bulk_confirmable_fields(draft: ArtisanProductDraft) -> tuple[str, ...]:
+    """Fields eligible for one combined confirmation action.
+
+    Excludes anything unknown (there is nothing to vouch for), anything already
+    confirmed, and anything the rule above holds back for individual review.
+    """
+    return tuple(
+        fact.field_name
+        for fact in draft.facts
+        if fact.field_name != "free_description"
+        and not _is_unknown(fact.value)
+        and fact.verification_status is not VerificationStatus.CONFIRMED
+        and not requires_individual_confirmation(fact)
+    )
+
+
 def confirm_facts(
     draft: ArtisanProductDraft,
     field_names: tuple[str, ...],

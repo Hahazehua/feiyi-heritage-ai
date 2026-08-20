@@ -40,6 +40,8 @@ COPY src/ ./src/
 COPY app.py ./
 COPY data/ ./data/
 COPY assets/ ./assets/
+# The pitch deck is served from here so the presenter reaches it in one click.
+COPY static/ ./static/
 COPY skills/ ./skills/
 COPY .streamlit/config.toml ./.streamlit/config.toml
 

@@ -22,6 +22,9 @@ class HeaderAction:
     reset_demo: bool = False
 
 
+DECK_URL = "app/static/pitch-deck.pdf"
+
+
 def render_global_header(*, role: str, demo_active: bool) -> HeaderAction:
     """Render the masthead for the active role and report demo controls."""
     role_label = t("entry.artisan_title") if role == "artisan" else t("entry.buyer_title")
@@ -39,7 +42,7 @@ def render_global_header(*, role: str, demo_active: bool) -> HeaderAction:
         unsafe_allow_html=True,
     )
 
-    language_column, demo_column, reset_column = st.columns([1.2, 1, 1])
+    language_column, deck_column, demo_column, reset_column = st.columns([1.2, 1, 1, 1])
     current = get_language()
     selected_language = language_column.selectbox(
         t("nav.language"),
@@ -56,6 +59,13 @@ def render_global_header(*, role: str, demo_active: bool) -> HeaderAction:
         set_language(selected_language, st.session_state)
         st.rerun()
 
+    # Served from the app's own static directory, so the deck and the live demo
+    # sit behind one URL. Switching windows on stage costs time and composure.
+    deck_column.link_button(
+        t("nav.deck"),
+        DECK_URL,
+        width="stretch",
+    )
     toggle_demo = demo_column.button(
         t("nav.demo_active") if demo_active else t("nav.competition_demo"),
         key="toggle_competition_demo",

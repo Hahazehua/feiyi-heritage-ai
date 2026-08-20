@@ -14,3 +14,8 @@ font = "sans serif"
 
 [browser]
 gatherUsageStats = false
+
+# The pitch deck is served beside the app so a presenter can reach it in
+# one click instead of switching windows mid-roadshow.
+[server]
+enableStaticServing = true

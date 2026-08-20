@@ -13,6 +13,7 @@ TRANSLATIONS = {
     "nav.about": "了解 HAHA",
     "nav.language": "界面语言",
     "nav.competition_demo": "比赛演示",
+    "nav.deck": "路演 PPT",
     "nav.reset_demo": "重置演示",
     "nav.demo_active": "比赛演示模式",
     "entry.title": "你从哪一侧进入？",

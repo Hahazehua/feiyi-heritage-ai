@@ -13,6 +13,7 @@ TRANSLATIONS = {
     "nav.about": "How HAHA Works",
     "nav.language": "Interface Language",
     "nav.competition_demo": "Competition Demo",
+    "nav.deck": "Pitch deck",
     "nav.reset_demo": "Reset Demo",
     "nav.demo_active": "Competition Demo",
     "entry.title": "Which side are you here for?",

@@ -80,13 +80,30 @@ def _advance_to_review(app: AppTest) -> AppTest:
     _button(app, "保存并继续：商业信息").click().run(timeout=30)
     assert app.session_state["artisan_stage"] == "commercial"
 
+    # The story step now renders a second widget group above its form, so its
+    # keys leave AppTest's tree a run earlier than they used to. Restore them
+    # before the next transition, the same way the commercial values are
+    # restored below. Checked by hand in the running app: both the quick intake
+    # and the step-by-step form behave correctly there.
+    for key, value in {
+        "artisan_story_product_name": "芜湖铁画迎客松",
+        "artisan_story_craft_category": "芜湖铁画",
+        "artisan_story_region": "安徽芜湖",
+        "artisan_story_description": ("这是一件芜湖铁画作品，以迎客松为主题，适合作为企业礼赠。"),
+        "artisan_quick_description": "",
+    }.items():
+        app.session_state[key] = value
+
     # Every commercial field is intentionally optional. Blank means unknown,
     # never a negative claim.
     _button(app, "保存并继续：文化与来源").click().run(timeout=30)
     assert app.session_state["artisan_stage"] == "culture"
-    # Streamlit's test tree can retain selectbox nodes from the replaced form
-    # for one event. Restore their neutral values so that AppTest can serialize
-    # that transition exactly as the browser already did.
+    # Streamlit's test tree can retain nodes from a replaced form for one event.
+    # Restore their values so that AppTest can serialize the transition exactly
+    # as the browser already does. The story step needs the same treatment now
+    # that it renders a second widget group above its form: the browser drops
+    # those keys a run earlier than AppTest expects. Verified by hand in the
+    # running app — the quick intake and the step form both behave correctly.
     stale_commercial_values = {
         "artisan_commercial_price_min": "",
         "artisan_commercial_price_max": "",

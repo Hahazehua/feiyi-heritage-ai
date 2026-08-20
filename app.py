@@ -584,6 +584,70 @@ def _process_message(message: str, *, entry_source: str = "chat") -> None:
         st.session_state["friendly_error"] = str(exc)
 
 
+def _artisan_llm_client():  # type: ignore[no-untyped-def]
+    """The extraction client, or None when the model is off or unconfigured."""
+    if os.getenv("LLM_ENABLED", "true").lower() != "true" or not deepseek_is_configured():
+        return None
+    try:
+        return DeepSeekClient.from_env()
+    except Exception:
+        return None
+
+
+def _render_artisan_quick_intake(draft: ArtisanProductDraft) -> None:
+    """One spoken or written account instead of twenty separate boxes.
+
+    The domain layer already extracts many fields from a single description; it
+    was only ever reached after the artisan had filled the detail forms by hand.
+    Running it first turns those forms into a correction surface rather than
+    data entry. Nothing is confirmed here — extraction only proposes, and the
+    review step still requires a human to vouch for each value.
+    """
+    with st.container(border=True):
+        st.markdown(f"### {t('artisan.quick.title')}")
+        st.caption(t("artisan.quick.copy"))
+        spoken = st.text_area(
+            t("artisan.quick.label"),
+            value=str(_fact_value(draft, "free_description")),
+            placeholder=t("artisan.quick.placeholder"),
+            height=190,
+            key="artisan_quick_description",
+        )
+        st.caption(t("artisan.quick.dictation_hint"))
+        recording = st.audio_input(t("artisan.quick.voice"), key="artisan_quick_audio")
+        if recording is not None:
+            # Captured, but this deployment has no speech-to-text service. Saying
+            # so beats silently dropping it or pretending it was understood.
+            st.warning(t("artisan.quick.voice_unavailable"))
+        image = st.file_uploader(
+            t("artisan.field.image"),
+            type=("jpg", "jpeg", "png", "webp"),
+            key="artisan_quick_image",
+        )
+        if st.button(
+            t("artisan.quick.submit"),
+            type="primary",
+            width="stretch",
+            key="artisan_quick_submit",
+        ):
+            if not spoken.strip():
+                st.info(t("artisan.quick.required"))
+                return
+            base = create_draft(
+                draft.session_id,
+                {},
+                description=spoken,
+                image_name=image.name if image is not None else draft.image_name,
+                image_bytes=image.getvalue() if image is not None else draft.image_bytes,
+            )
+            updated, trace = enrich_draft(base, client=_artisan_llm_client())
+            st.session_state["artisan_draft"] = updated
+            st.session_state["artisan_application_trace"] = (trace,)
+            st.session_state["artisan_ai_status"] = trace.status.value
+            st.session_state["artisan_stage"] = "review"
+            st.rerun()
+
+
 def _render_artisan_story() -> None:
     render_artisan_section(
         t("artisan.story.kicker"),
@@ -591,6 +655,8 @@ def _render_artisan_story() -> None:
         t("artisan.story.copy"),
     )
     draft = _current_artisan_draft()
+    _render_artisan_quick_intake(draft)
+    st.caption(t("artisan.quick.manual_divider"))
     with st.form("artisan_story_form", border=True):
         product_name = st.text_input(
             t("artisan.field.product_name"),

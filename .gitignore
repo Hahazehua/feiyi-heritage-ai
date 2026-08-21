@@ -15,6 +15,7 @@ venv/
 *.sqlite3
 *.db
 .local/
+artifacts/
 .idea/
 .vscode/
 .DS_Store

@@ -18,16 +18,46 @@ STEPS = (
 )
 
 
-def render_hero() -> None:
+def render_hero(*, compact: bool = False) -> None:
+    """Render the expansive landing hero or its compact conversation variant."""
+    if compact:
+        st.markdown(
+            """
+            <header class="hl-brandbar" data-ui-state="conversation">
+              <div><strong>HAHA</strong><span>Heritage Artisans, Horizons Ahead</span></div>
+              <span class="hl-brandbar-note">您的礼赠顾问</span>
+            </header>
+            """,
+            unsafe_allow_html=True,
+        )
+        return
     st.markdown(
         """
-        <section class="hl-hero">
-          <div class="hl-eyebrow">HAHA · HELP ARTISAN HAPPY AGAIN</div>
-          <h1 class="hl-brand">HAHA｜飞颐礼遇</h1>
-          <div class="hl-value">连接非遗手艺人与全球礼赠及商业机会</div>
-          <p class="hl-copy">让手艺人因被看见、被尊重、获得持续机会而再次绽放笑容。我们以 AI 连接全国 20 万件非遗产品资源的长期愿景，从一份真实礼赠需求开始，为您匹配有文化依据的礼品方案。</p>
+        <section class="hl-hero" data-ui-state="landing">
+          <div class="hl-wordmark"><strong>HAHA</strong><span>Heritage Artisans, Horizons Ahead</span></div>
+          <div class="hl-eyebrow">AI GIFT CONCIERGE · 飞颐礼遇</div>
+          <h1 class="hl-brand">选一份真正有意义的礼物</h1>
+          <p class="hl-value">告诉我送给谁、为什么送，<br>我会从传统匠艺中帮你找到合适的选择。</p>
         </section>
         """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_section_header(
+    title: str,
+    *,
+    kicker: str,
+    copy: str | None = None,
+    section: str,
+) -> None:
+    """Render a consistent, semantic heading for a major advisor section."""
+    description = f'<p class="hl-section-copy">{escape(copy)}</p>' if copy else ""
+    st.markdown(
+        f'<header class="hl-section-header" data-ui-section="{escape(section, quote=True)}">'
+        '<div class="hl-section-heading-copy">'
+        f'<span class="hl-section-kicker">{escape(kicker)}</span>'
+        f'<h2>{escape(title)}</h2>{description}</div></header>',
         unsafe_allow_html=True,
     )
 

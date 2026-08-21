@@ -43,9 +43,11 @@ def test_readme_product_counts_match_the_catalogue(readme_table) -> None:  # typ
     products = load_data(DATA_DIR).products
     roles = products["catalog_role"]
 
-    assert _cell(readme_table, "产品目录总数") == (len(products),)
-    assert _cell(readme_table, "正式参与演示推荐") == (int((roles == "recommendation_demo").sum()),)
-    assert _cell(readme_table, "文化或馆藏参考") == (int((roles == "catalog_reference").sum()),)
+    assert _cell(readme_table, "Catalogue records") == (len(products),)
+    recommendable = int((roles == "recommendation_demo").sum())
+    reference = int((roles == "catalog_reference").sum())
+    assert _cell(readme_table, "Recommendation-eligible") == (recommendable,)
+    assert _cell(readme_table, "Museum or cultural reference") == (reference,)
 
 
 def test_readme_reports_every_unverified_record(readme_table) -> None:  # type: ignore[no-untyped-def]
@@ -54,7 +56,7 @@ def test_readme_reports_every_unverified_record(readme_table) -> None:  # type: 
     products = load_data(DATA_DIR).products
     pending = int((products["verification_status"] == "needs_verification").sum())
 
-    assert _cell(readme_table, "其中合作方提供、尚待核验") == (pending,)
+    assert _cell(readme_table, "Partner-supplied, pending verification") == (pending,)
 
 
 def test_readme_content_and_category_counts_match(readme_table) -> None:  # type: ignore[no-untyped-def]
@@ -63,8 +65,8 @@ def test_readme_content_and_category_counts_match(readme_table) -> None:  # type
     per_locale = {int(count) for count in texts["locale"].value_counts()}
 
     assert len(per_locale) == 1, "the two locales no longer carry equal text counts"
-    assert _cell(readme_table, "文化内容记录") == (len(texts), per_locale.pop())
-    assert _cell(readme_table, "类别覆盖") == (bundle.products["category_code"].nunique(),)
+    assert _cell(readme_table, "Bilingual content records") == (len(texts), per_locale.pop())
+    assert _cell(readme_table, "Category coverage") == (bundle.products["category_code"].nunique(),)
 
 
 def test_readme_data_quality_row_covers_the_whole_catalogue(readme_table) -> None:  # type: ignore[no-untyped-def]
@@ -72,7 +74,7 @@ def test_readme_data_quality_row_covers_the_whole_catalogue(readme_table) -> Non
     level_c = int((products["data_quality_level"] == "C").sum())
 
     assert level_c == len(products), "the table claims every record is Level C"
-    assert _cell(readme_table, "数据质量") == (level_c,)
+    assert _cell(readme_table, "Data quality") == (level_c,)
 
 
 def test_readme_category_list_names_every_category() -> None:
@@ -82,7 +84,7 @@ def test_readme_category_list_names_every_category() -> None:
     sentences = [
         line
         for line in README.read_text(encoding="utf-8").splitlines()
-        if line.startswith("类别覆盖 `")
+        if line.startswith("Categories: `")
     ]
     assert len(sentences) == 1, "expected exactly one category-list sentence in the README"
     listed = set(re.findall(r"`([a-z_]+)`", sentences[0]))

@@ -4,7 +4,7 @@
 intangible-cultural-heritage (非遗) artisans with global gifting demand.
 
 > **3rd place — S3 Final · Buildathon**, 21 August 2026
-> 滴水湖全球 OPC 人工智能挑战赛暨第二届燕缘·协创者号 AI+国际创业大赛
+> Dishui Lake Global OPC AI Challenge & The 2nd Yanyuan "Xiechuangzhe" AI+ International Entrepreneurship Competition
 >
 > **Selected for incubation and investment at Shanghai Lingang New Area.**
 > Terms are still being negotiated as of 21 August 2026 and nothing has been

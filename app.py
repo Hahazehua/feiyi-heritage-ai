@@ -116,6 +116,7 @@ from heritagelink.ui.requirements import (
     parsed_from_widgets,
     render_structured_form,
 )
+from heritagelink.ui.story_studio import render_story_studio_app
 from heritagelink.ui.system import render_metric_strip
 from heritagelink.ui.theme import apply_theme
 
@@ -263,6 +264,10 @@ def _init_state() -> None:
     st.session_state.setdefault("growth_campaign", None)
     st.session_state.setdefault("growth_context", None)
     st.session_state.setdefault("growth_execution_trace", ())
+    st.session_state.setdefault("story_project", None)
+    st.session_state.setdefault("story_context_id", None)
+    st.session_state.setdefault("story_visual_package", None)
+    st.session_state.setdefault("story_visual_provider_mode", "demo")
     st.session_state.setdefault(
         "competition_demo",
         str(st.query_params.get("demo", "")) == "1",
@@ -1303,8 +1308,12 @@ def _render_growth_studio() -> None:
     )
 
 
+def _render_story_studio() -> None:
+    render_story_studio_app(_growth_context_options())
+
+
 def _render_artisan_app() -> None:
-    onboarding_column, growth_column = st.columns(2)
+    onboarding_column, growth_column, story_column = st.columns(3)
     if onboarding_column.button(
         t("artisan.workspace_onboarding"),
         key="artisan_workspace_onboarding",
@@ -1325,8 +1334,19 @@ def _render_artisan_app() -> None:
         if st.session_state.get("competition_demo"):
             st.session_state["competition_demo_step"] = 4
         st.rerun()
+    if story_column.button(
+        t("artisan.workspace_story"),
+        key="artisan_workspace_story",
+        type=("primary" if st.session_state.get("artisan_workspace") == "story" else "secondary"),
+        width="stretch",
+    ):
+        st.session_state["artisan_workspace"] = "story"
+        st.rerun()
     if st.session_state.get("artisan_workspace") == "growth":
         _render_growth_studio()
+        return
+    if st.session_state.get("artisan_workspace") == "story":
+        _render_story_studio()
         return
     render_artisan_hero()
     stage = st.session_state.get("artisan_stage", "landing")

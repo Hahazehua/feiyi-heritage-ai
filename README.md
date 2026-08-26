@@ -80,6 +80,21 @@ and source URLs each need their own confirmation, because a buyer transacts on
 those. A guard test blocks a single bulk confirmation from ever marking a price
 confirmed.
 
+**Story Studio.** The artisan can turn confirmed Heritage Passport facts into a
+deterministic 60-second Xiaohongshu package: one Story Core, six timed 9:16 scenes,
+voiceover, on-screen copy, camera direction, and provider-neutral image/video
+prompts. Every factual scene carries a stable fact reference. A separate Story
+Guardian blocks pending facts and unsupported credentials, history, or logistics
+claims; the package cannot become approved until a named human approves it.
+
+After script approval, a second gated stage creates a six-image visual storyboard.
+It supports a no-key deterministic demo provider and an OpenAI Image API adapter,
+including rights-confirmed artisan, product, and workshop reference images. Every
+candidate retains its provider, model, prompt, hash, selection, and human approval.
+Approved packages export as JSON plus selected images and references in one ZIP.
+See [`docs/STORY_STUDIO_PHASE1.md`](docs/STORY_STUDIO_PHASE1.md) and
+[`docs/STORY_STUDIO_PHASE2.md`](docs/STORY_STUDIO_PHASE2.md).
+
 ## The seven Skills
 
 The buyer chain (`customer_flow`). Each step's input, output, duration and safety
@@ -133,7 +148,7 @@ does not imply the museum endorses this project.
 
 ## Evidence
 
-**350 automated tests.** More important than the count is what several guard:
+**368 automated tests.** More important than the count is what several guard:
 
 - A record declaring itself unverified may not appear in the museum table, may
   not claim an open museum licence, and may not present commercial terms as

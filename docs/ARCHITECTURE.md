@@ -228,7 +228,7 @@ feiyi-heritage-ai-publish/
 │   ├── repositories/
 │   ├── i18n/{zh_CN,en_US}.py         # interface copy, key-for-key identical
 │   └── ui/                           # theme, components, cards, gallery, passport
-├── tests/                            # 39 test modules, 350 tests
+├── tests/                            # 42 test modules, 368 tests
 │   ├── conftest.py                   # blocks real DeepSeek network calls
 │   └── evaluation_cases.json         # 14 deterministic regression cases
 ├── deploy/                           # Dockerfile, compose, nginx, deploy.sh
@@ -498,7 +498,7 @@ delivery commitment.**
 
 ## 9. Test architecture
 
-**350 tests across 39 modules**, grouped as parsing and dialogue; recommendation
+**368 tests across 42 modules**, grouped as parsing and dialogue; recommendation
 (including `evaluation_cases.json`); shopping routing and comparison; artisan
 domain, repository, confirmation and publication gating; data and provenance;
 content and inquiry; end-to-end UI; and import boundaries.
@@ -552,3 +552,36 @@ unchanged. Campaign storage uses repository adapters, isolated from anonymous
 buyer analytics and from catalogue publication. See
 [`wave4/GROWTH_STUDIO.md`](wave4/GROWTH_STUDIO.md) for the detailed mapping and
 safety boundaries.
+
+## Story Studio Phase 1 extension
+
+Story Studio consumes the same verified/unverified/unknown partition as Growth
+Studio, but produces a provider-neutral production package:
+
+```text
+Heritage Passport facts → Story Core + claim ledger → 60s / 6-scene storyboard
+                                                → Story Guardian → human decision
+                                                                    → JSON export
+```
+
+`story_service.py` owns deterministic generation, fact-reference construction,
+Guardian checks, and approval transitions. `ui/story_studio.py` only renders
+those domain objects. Image and video prompts are data fields rather than API
+calls, so a future provider adapter cannot bypass provenance or approval rules.
+See [`STORY_STUDIO_PHASE1.md`](STORY_STUDIO_PHASE1.md) for the runnable demo path
+and current boundary.
+
+Phase 2 adds provider-neutral visual production after the human script gate:
+
+```text
+approved StoryProject + VisualBible
+        → ImageProvider (demo | OpenAI | future adapter)
+        → scene variants → human selection → per-scene approval → ZIP export
+```
+
+`image_providers.py` contains the provider contract and adapters;
+`story_visual_models.py` owns visual continuity, artifact, selection, and approval
+state; `story_visual_service.py` owns constrained media storage and transitions.
+External providers cannot run against an unapproved story. Provider failures are
+stored as recoverable scene errors and do not erase other generated versions. See
+[`STORY_STUDIO_PHASE2.md`](STORY_STUDIO_PHASE2.md).

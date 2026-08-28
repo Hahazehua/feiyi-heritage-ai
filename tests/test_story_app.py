@@ -35,6 +35,8 @@ def test_artisan_can_generate_review_approve_and_export_story() -> None:
     assert not app.exception
     assert app.session_state["story_project"].status is StoryProjectStatus.APPROVED
     assert app.get("download_button")
+    assert any("海外多平台发布包" in str(item.value) for item in app.markdown)
+    assert any(button.label == "导出四平台发布包 ZIP" for button in app.get("download_button"))
 
     _button(app, "保存视觉设定并建立故事板").click().run(timeout=30)
 

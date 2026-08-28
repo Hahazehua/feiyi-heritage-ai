@@ -202,6 +202,7 @@ def review_story_script(
     issues: list[StoryReviewIssue] = []
     verified = context.verified_by_name
     verified_reference_ids: list[str] = []
+    list_separator = story_phrases_for(script.story_core.language).list_separator
 
     if script.story_core.product_id != context.product_id:
         issues.append(
@@ -220,7 +221,7 @@ def review_story_script(
         if (
             fact is None
             or reference.reference_id != expected_id
-            or reference.display_value != _display_value(fact.value, "、")
+            or reference.display_value != _display_value(fact.value, list_separator)
         ):
             issues.append(
                 _issue(
@@ -358,6 +359,7 @@ def _fact_references(
 ) -> tuple[StoryFactReference, ...]:
     references: list[StoryFactReference] = []
     seen: set[str] = set()
+    list_separator = story_phrases_for(core.language).list_separator
     for entry in core.all_entries:
         if entry.use is not ClaimUse.GROUNDED or entry.field_name is None:
             continue
@@ -369,7 +371,7 @@ def _fact_references(
             StoryFactReference(
                 reference_id=_reference_id(context.product_id, fact.field_name),
                 field_name=fact.field_name,
-                display_value=_display_value(fact.value, "、"),
+                display_value=_display_value(fact.value, list_separator),
                 source_note=fact.source_note or fact.source.value,
                 source_url=fact.source_url,
             )

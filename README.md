@@ -92,8 +92,16 @@ It supports a no-key deterministic demo provider and an OpenAI Image API adapter
 including rights-confirmed artisan, product, and workshop reference images. Every
 candidate retains its provider, model, prompt, hash, selection, and human approval.
 Approved packages export as JSON plus selected images and references in one ZIP.
-See [`docs/STORY_STUDIO_PHASE1.md`](docs/STORY_STUDIO_PHASE1.md) and
-[`docs/STORY_STUDIO_PHASE2.md`](docs/STORY_STUDIO_PHASE2.md).
+
+After human script approval, a distribution adapter derives four publication
+packages from the same closed fact set: Xiaohongshu, TikTok, Instagram Reels, and
+YouTube Shorts. Each package includes platform-shaped copy, a controlled CTA,
+generic discovery hashtags, the complete fact-reference snapshot, and a six-scene
+SRT track ending at exactly 60 seconds. The adapter never translates or invents
+facts; a translated story must pass Guardian and human approval as its own master.
+See [`docs/STORY_STUDIO_PHASE1.md`](docs/STORY_STUDIO_PHASE1.md),
+[`docs/STORY_STUDIO_PHASE2.md`](docs/STORY_STUDIO_PHASE2.md), and
+[`docs/STORY_STUDIO_MULTIPLATFORM.md`](docs/STORY_STUDIO_MULTIPLATFORM.md).
 
 ## The seven Skills
 
@@ -148,7 +156,7 @@ does not imply the museum endorses this project.
 
 ## Evidence
 
-**368 automated tests.** More important than the count is what several guard:
+**373 automated tests.** More important than the count is what several guard:
 
 - A record declaring itself unverified may not appear in the museum table, may
   not claim an open museum licence, and may not present commercial terms as

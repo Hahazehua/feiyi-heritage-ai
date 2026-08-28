@@ -21,9 +21,14 @@ from heritagelink.image_providers import (
     image_provider_for,
     openai_image_is_configured,
 )
+from heritagelink.story_distribution_service import (
+    build_distribution_package,
+    export_distribution_package_zip,
+)
 from heritagelink.story_models import (
     NarrativeTemplate,
     StoryDecision,
+    StoryPlatform,
     StoryProject,
     StoryProjectStatus,
 )
@@ -58,6 +63,12 @@ _STATUS_KEYS = {
     StoryProjectStatus.NEEDS_REVISION: "story.status.revision",
     StoryProjectStatus.APPROVED: "story.status.approved",
     StoryProjectStatus.REJECTED: "story.status.rejected",
+}
+_DISTRIBUTION_PLATFORM_KEYS = {
+    StoryPlatform.XIAOHONGSHU: "story.distribution.platform.xiaohongshu",
+    StoryPlatform.TIKTOK: "story.distribution.platform.tiktok",
+    StoryPlatform.INSTAGRAM_REELS: "story.distribution.platform.instagram_reels",
+    StoryPlatform.YOUTUBE_SHORTS: "story.distribution.platform.youtube_shorts",
 }
 _VISUAL_STATUS_KEYS = {
     VisualPackageStatus.DRAFT: "story.visual.status.draft",
@@ -159,7 +170,11 @@ def _render_project(project: StoryProject, context: GrowthProductContext) -> Non
     render_status_badge(project.status, label=t(_STATUS_KEYS[project.status]))
     render_metric_strip(
         (
-            (t("story.platform"), "小红书 / Xiaohongshu", script.aspect_ratio),
+            (
+                t("story.platform"),
+                t("story.distribution.platform.xiaohongshu"),
+                script.aspect_ratio,
+            ),
             (t("story.duration"), f"{script.total_duration_seconds}s", None),
             (t("story.scenes"), str(len(script.scenes)), None),
             (t("story.fact_refs"), str(len(script.fact_references)), None),
@@ -207,6 +222,7 @@ def _render_project(project: StoryProject, context: GrowthProductContext) -> Non
         mime="application/json",
         key="story_export_json",
     )
+    _render_distribution_stage(project)
     _render_visual_stage(project, context)
 
 
@@ -274,6 +290,54 @@ def _apply_decision(
         st.error(str(exc))
         return
     st.rerun()
+
+
+def _render_distribution_stage(project: StoryProject) -> None:
+    st.divider()
+    st.markdown(f"## {t('story.distribution.title')}")
+    st.caption(t("story.distribution.subtitle"))
+    if project.status is not StoryProjectStatus.APPROVED:
+        st.info(t("story.distribution.approval_gate"))
+        return
+
+    package = build_distribution_package(project, now=project.updated_at)
+    render_metric_strip(
+        (
+            (t("story.distribution.platforms"), str(len(package.assets)), "9:16"),
+            (
+                t("story.distribution.source_approval"),
+                package.approved_by,
+                package.approved_at.strftime("%Y-%m-%d"),
+            ),
+            (
+                t("story.fact_refs"),
+                str(len(package.fact_reference_ids)),
+                t("story.distribution.fact_safe"),
+            ),
+        )
+    )
+    selected_platform = st.selectbox(
+        t("story.distribution.preview"),
+        tuple(_DISTRIBUTION_PLATFORM_KEYS),
+        format_func=lambda value: t(_DISTRIBUTION_PLATFORM_KEYS[value]),
+        key="story_distribution_platform",
+    )
+    asset = package.assets_by_platform[selected_platform]
+    st.markdown(f"### {escape(asset.platform_label)}")
+    st.markdown(f"**{t('story.distribution.post_title')}**  \n{escape(asset.title)}")
+    st.markdown(f"**{t('story.distribution.hook')}**  \n{escape(asset.hook)}")
+    st.markdown(f"**{t('story.distribution.caption')}**")
+    st.code(asset.caption, language="text")
+    st.markdown(f"**{t('story.distribution.cta')}**  \n{escape(asset.call_to_action)}")
+    st.markdown(f"**{t('story.distribution.hashtags')}**  \n{escape(asset.hashtag_line)}")
+    st.success(t("story.distribution.package_ready"))
+    st.download_button(
+        t("story.distribution.export_zip"),
+        data=export_distribution_package_zip(package),
+        file_name=f"{package.package_id}.zip",
+        mime="application/zip",
+        key="story_distribution_export_zip",
+    )
 
 
 def _render_visual_stage(project: StoryProject, context: GrowthProductContext) -> None:

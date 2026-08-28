@@ -46,9 +46,12 @@ class ClaimUse(StrEnum):
 
 
 class StoryPlatform(StrEnum):
-    """The first export target supported by Story Studio."""
+    """Vertical-video publication targets supported by Story Studio."""
 
     XIAOHONGSHU = "xiaohongshu"
+    TIKTOK = "tiktok"
+    INSTAGRAM_REELS = "instagram_reels"
+    YOUTUBE_SHORTS = "youtube_shorts"
 
 
 class StorySceneKind(StrEnum):

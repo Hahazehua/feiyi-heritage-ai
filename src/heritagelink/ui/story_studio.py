@@ -50,12 +50,14 @@ from heritagelink.story_visual_service import (
     generate_scene_variant,
     select_scene_variant,
 )
+from heritagelink.ui.oral_story_studio import render_oral_story_studio
 from heritagelink.ui.system import render_demo_badge, render_metric_strip, render_status_badge
 
 _TEMPLATE_KEYS = {
     NarrativeTemplate.OBJECT_RECORD: "story.template.object_record",
     NarrativeTemplate.ARTISAN_LIFE: "story.template.artisan_life",
     NarrativeTemplate.TIME_DIALOGUE: "story.template.time_dialogue",
+    NarrativeTemplate.ORAL_HISTORY: "story.template.oral_history",
 }
 _STATUS_KEYS = {
     StoryProjectStatus.DRAFT: "story.status.draft",
@@ -116,6 +118,8 @@ def render_story_studio_app(contexts: Mapping[str, GrowthProductContext]) -> Non
     )
     context = contexts[selected_id]
     _render_context_boundary(context)
+    render_oral_story_studio(context)
+    st.divider()
     _render_generator(context)
 
     project = st.session_state.get("story_project")
@@ -141,7 +145,11 @@ def _render_generator(context: GrowthProductContext) -> None:
         st.markdown(f"### {t('story.generator_title')}")
         template = st.selectbox(
             t("story.template"),
-            tuple(NarrativeTemplate),
+            tuple(
+                template
+                for template in NarrativeTemplate
+                if template is not NarrativeTemplate.ORAL_HISTORY
+            ),
             format_func=lambda value: t(_TEMPLATE_KEYS[value]),
         )
         language = st.selectbox(

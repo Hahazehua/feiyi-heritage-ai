@@ -169,6 +169,44 @@ ZH = StoryPhrases(
                 without_fact="它们还在等一次重新遇上的机会。",
             ),
         ),
+        NarrativeTemplate.ORAL_HISTORY: (
+            BeatBlueprint(
+                beat_id="voice",
+                title="我是谁",
+                intent="让手艺人用自己的话进入故事",
+                emotion="真诚",
+                fields=("maker_identity", "artisan_journey"),
+                with_fact="手艺人确认：{value}",
+                without_fact="这段自我介绍还没有得到本人确认。",
+            ),
+            BeatBlueprint(
+                beat_id="memory",
+                title="为什么开始",
+                intent="保留一段有来源定位的个人记忆",
+                emotion="温暖",
+                fields=("artisan_journey", "personal_memory"),
+                with_fact="他回忆：{value}",
+                without_fact="开始学艺的记忆还没有补录。",
+            ),
+            BeatBlueprint(
+                beat_id="hands",
+                title="手上的难处",
+                intent="用一个真实动作或难点表现手艺",
+                emotion="专注",
+                fields=("craft_challenge", "oral_craft_process", "craft_process"),
+                with_fact="说到手上功夫，他特别提到：{value}",
+                without_fact="最难的一道工序还没有得到本人确认。",
+            ),
+            BeatBlueprint(
+                beat_id="tomorrow",
+                title="想交给未来的话",
+                intent="用手艺人确认过的转折、意义或愿望结束故事",
+                emotion="明亮",
+                fields=("future_wish", "turning_point", "personal_meaning"),
+                with_fact="说到为什么继续、又想留下什么，他说：{value}",
+                without_fact="他想留给未来的话，正在等待补录。",
+            ),
+        ),
     },
 )
 
@@ -295,15 +333,53 @@ EN = StoryPhrases(
                 without_fact="They are still waiting to meet again.",
             ),
         ),
+        NarrativeTemplate.ORAL_HISTORY: (
+            BeatBlueprint(
+                beat_id="voice",
+                title="Who I am",
+                intent="let the maker enter in their own words",
+                emotion="sincere",
+                fields=("maker_identity", "artisan_journey"),
+                with_fact="The maker confirms: {value}",
+                without_fact="This introduction has not yet been confirmed by the maker.",
+            ),
+            BeatBlueprint(
+                beat_id="memory",
+                title="Why it began",
+                intent="retain one located personal memory",
+                emotion="warm",
+                fields=("artisan_journey", "personal_memory"),
+                with_fact="The maker recalls: {value}",
+                without_fact="The memory of starting out has not yet been recorded.",
+            ),
+            BeatBlueprint(
+                beat_id="hands",
+                title="What the hands learn",
+                intent="show the craft through one real action or difficulty",
+                emotion="attentive",
+                fields=("craft_challenge", "oral_craft_process", "craft_process"),
+                with_fact="On the hand skill, the maker says: {value}",
+                without_fact="The hardest step has not yet been confirmed.",
+            ),
+            BeatBlueprint(
+                beat_id="tomorrow",
+                title="A word for tomorrow",
+                intent="close on a confirmed turn, meaning, or wish",
+                emotion="bright",
+                fields=("future_wish", "turning_point", "personal_meaning"),
+                with_fact=(
+                    "On why the work continues and what should remain, the maker says: {value}"
+                ),
+                without_fact="The maker's words for the future are still to be recorded.",
+            ),
+        ),
     },
 )
 
 
 #: Kept identical to :func:`heritagelink.growth_phrases.phrases_for` so a campaign
 #: and its story never disagree about which language they are in.
-_ZH_LANGUAGES = frozenset(
-    {"chinese", "zh", "zh-cn", "简体中文", "中文", "bilingual", "中英双语"}
-)
+_ZH_LANGUAGES = frozenset({"chinese", "zh", "zh-cn", "简体中文", "中文", "bilingual", "中英双语"})
 
 
 def story_phrases_for(language: str | None) -> StoryPhrases:

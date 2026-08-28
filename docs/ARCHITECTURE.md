@@ -228,7 +228,7 @@ feiyi-heritage-ai-publish/
 │   ├── repositories/
 │   ├── i18n/{zh_CN,en_US}.py         # interface copy, key-for-key identical
 │   └── ui/                           # theme, components, cards, gallery, passport
-├── tests/                            # 43 test modules, 373 tests
+├── tests/                            # 44 test modules, 380 tests
 │   ├── conftest.py                   # blocks real DeepSeek network calls
 │   └── evaluation_cases.json         # 14 deterministic regression cases
 ├── deploy/                           # Dockerfile, compose, nginx, deploy.sh
@@ -498,7 +498,7 @@ delivery commitment.**
 
 ## 9. Test architecture
 
-**373 tests across 43 modules**, grouped as parsing and dialogue; recommendation
+**380 tests across 44 modules**, grouped as parsing and dialogue; recommendation
 (including `evaluation_cases.json`); shopping routing and comparison; artisan
 domain, repository, confirmation and publication gating; data and provenance;
 content and inquiry; end-to-end UI; and import boundaries.
@@ -552,6 +552,22 @@ unchanged. Campaign storage uses repository adapters, isolated from anonymous
 buyer analytics and from catalogue publication. See
 [`wave4/GROWTH_STUDIO.md`](wave4/GROWTH_STUDIO.md) for the detailed mapping and
 safety boundaries.
+
+## Oral Story Studio intake
+
+```text
+source media fingerprint + transcript → located source segments → candidate claims
+                                      → maker decisions → oral-story fact context
+                                      → Story Studio / Guardian
+```
+
+`oral_story_models.py` keeps the transcript, SHA-256 source identity, source
+locators, candidate statements, risk state, and reviewer provenance.
+`oral_story_service.py` performs deterministic extraction, blocks credentials and
+fulfilment promises from testimony-only confirmation, and creates the dedicated
+oral-history context. `ui/oral_story_studio.py` renders intake and human review.
+Automatic speech-to-text remains a future provider adapter and cannot bypass these
+domain transitions. See [`ORAL_STORY_STUDIO.md`](ORAL_STORY_STUDIO.md).
 
 ## Story Studio Phase 1 extension
 

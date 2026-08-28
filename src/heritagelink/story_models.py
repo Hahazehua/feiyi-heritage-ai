@@ -30,11 +30,12 @@ MAX_BEATS = 5
 
 
 class NarrativeTemplate(StrEnum):
-    """The three story shapes the Story Studio ships with."""
+    """The story shapes the Story Studio ships with."""
 
     OBJECT_RECORD = "object_record"  # 器物志 — the object leads, the craft is the subject
     ARTISAN_LIFE = "artisan_life"  # 匠人传 — the maker leads, lineage is the subject
     TIME_DIALOGUE = "time_dialogue"  # 时空对话 — a museum piece answered by a modern remake
+    ORAL_HISTORY = "oral_history"  # 口述故事 — confirmed testimony keeps its source locator
 
 
 class ClaimUse(StrEnum):

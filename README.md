@@ -93,6 +93,14 @@ including rights-confirmed artisan, product, and workshop reference images. Ever
 candidate retains its provider, model, prompt, hash, selection, and human approval.
 Approved packages export as JSON plus selected images and references in one ZIP.
 
+Oral Story Studio provides the upstream interview intake: paste a maker transcript,
+optionally attach its audio or video fingerprint, extract timestamped candidate
+statements, and require explicit maker decisions before generating the 60-second
+master. Personal testimony retains its source quote and locator; credential,
+official-recognition, and fulfilment claims stay blocked without external evidence.
+The first release does not claim automatic speech-to-text: uploaded media is a
+traceable source attachment and the transcript remains an explicit input.
+
 After human script approval, a distribution adapter derives four publication
 packages from the same closed fact set: Xiaohongshu, TikTok, Instagram Reels, and
 YouTube Shorts. Each package includes platform-shaped copy, a controlled CTA,
@@ -101,7 +109,9 @@ SRT track ending at exactly 60 seconds. The adapter never translates or invents
 facts; a translated story must pass Guardian and human approval as its own master.
 See [`docs/STORY_STUDIO_PHASE1.md`](docs/STORY_STUDIO_PHASE1.md),
 [`docs/STORY_STUDIO_PHASE2.md`](docs/STORY_STUDIO_PHASE2.md), and
-[`docs/STORY_STUDIO_MULTIPLATFORM.md`](docs/STORY_STUDIO_MULTIPLATFORM.md).
+[`docs/STORY_STUDIO_MULTIPLATFORM.md`](docs/STORY_STUDIO_MULTIPLATFORM.md), plus
+[`docs/ORAL_STORY_STUDIO.md`](docs/ORAL_STORY_STUDIO.md) for the interview-to-script
+workflow.
 
 ## The seven Skills
 
@@ -156,7 +166,7 @@ does not imply the museum endorses this project.
 
 ## Evidence
 
-**373 automated tests.** More important than the count is what several guard:
+**380 automated tests.** More important than the count is what several guard:
 
 - A record declaring itself unverified may not appear in the museum table, may
   not claim an open museum licence, and may not present commercial terms as

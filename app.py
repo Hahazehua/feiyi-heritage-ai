@@ -267,6 +267,8 @@ def _init_state() -> None:
     st.session_state.setdefault("story_project", None)
     st.session_state.setdefault("story_context_id", None)
     st.session_state.setdefault("story_visual_package", None)
+    st.session_state.setdefault("oral_story_session", None)
+    st.session_state.setdefault("oral_story_context_id", None)
     st.session_state.setdefault("story_visual_provider_mode", "demo")
     st.session_state.setdefault(
         "competition_demo",

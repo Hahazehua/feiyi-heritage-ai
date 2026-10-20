@@ -1,0 +1,12 @@
+[
+  {
+    "file": "winutils.exe",
+    "source": "https://raw.githubusercontent.com/cdarlint/winutils/7386986d5d8a079b5cd4464f4599766dd27e7d13/hadoop-3.3.5/bin/winutils.exe",
+    "sha256": "A0CA6E358357C41EF56EBDB02C38E4A4D55DA7CA7A13001678BB2EF7D644ADEA"
+  },
+  {
+    "file": "hadoop.dll",
+    "source": "https://raw.githubusercontent.com/cdarlint/winutils/7386986d5d8a079b5cd4464f4599766dd27e7d13/hadoop-3.3.5/bin/hadoop.dll",
+    "sha256": "D3DD64AFDC85F2A7EB5345ABF2ECAA744B0A157DE40859313337D47F81EE1C7B"
+  }
+]

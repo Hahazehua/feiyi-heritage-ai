@@ -1,0 +1,339 @@
+{
+  "captured_at": "2026-09-08T18:23:47.015137+00:00",
+  "runs": [
+    {
+      "run_id": "scheduled__2026-09-07T00:00:00+00:00",
+      "run_type": "scheduled",
+      "state": "success",
+      "logical_date": "2026-09-07 00:00:00.000000",
+      "start_date": "2026-09-08 18:08:40.509935",
+      "end_date": "2026-09-08 18:09:56.832983"
+    },
+    {
+      "run_id": "step07_retry",
+      "run_type": "manual",
+      "state": "success",
+      "logical_date": null,
+      "start_date": "2026-09-08 18:09:56.798508",
+      "end_date": "2026-09-08 18:11:22.924718"
+    },
+    {
+      "run_id": "step07_idempotent",
+      "run_type": "manual",
+      "state": "success",
+      "logical_date": null,
+      "start_date": "2026-09-08 18:11:23.990260",
+      "end_date": "2026-09-08 18:11:30.835267"
+    },
+    {
+      "run_id": "backfill__2026-08-09T00:00:00+00:00",
+      "run_type": "backfill",
+      "state": "success",
+      "logical_date": "2026-08-08 00:00:00.000000",
+      "start_date": "2026-09-08 18:12:27.559000",
+      "end_date": "2026-09-08 18:12:34.116645"
+    },
+    {
+      "run_id": "backfill__2026-08-10T00:00:00+00:00",
+      "run_type": "backfill",
+      "state": "success",
+      "logical_date": "2026-08-09 00:00:00.000000",
+      "start_date": "2026-09-08 18:12:35.172044",
+      "end_date": "2026-09-08 18:12:42.725171"
+    },
+    {
+      "run_id": "backfill__2026-08-11T00:00:00+00:00",
+      "run_type": "backfill",
+      "state": "success",
+      "logical_date": "2026-08-10 00:00:00.000000",
+      "start_date": "2026-09-08 18:12:43.780463",
+      "end_date": "2026-09-08 18:12:51.790865"
+    },
+    {
+      "run_id": "step07_default_parameters",
+      "run_type": "manual",
+      "state": "success",
+      "logical_date": null,
+      "start_date": "2026-09-08 18:20:28.886720",
+      "end_date": "2026-09-08 18:21:44.042515"
+    }
+  ],
+  "tasks": [
+    {
+      "run_id": "backfill__2026-08-09T00:00:00+00:00",
+      "task_id": "compute_snapshot",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-09T00:00:00+00:00",
+      "task_id": "publish_metrics",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-09T00:00:00+00:00",
+      "task_id": "recovery_gate",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-10T00:00:00+00:00",
+      "task_id": "compute_snapshot",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-10T00:00:00+00:00",
+      "task_id": "publish_metrics",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-10T00:00:00+00:00",
+      "task_id": "recovery_gate",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-11T00:00:00+00:00",
+      "task_id": "compute_snapshot",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-11T00:00:00+00:00",
+      "task_id": "publish_metrics",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "backfill__2026-08-11T00:00:00+00:00",
+      "task_id": "recovery_gate",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "scheduled__2026-09-07T00:00:00+00:00",
+      "task_id": "compute_snapshot",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "scheduled__2026-09-07T00:00:00+00:00",
+      "task_id": "publish_metrics",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "scheduled__2026-09-07T00:00:00+00:00",
+      "task_id": "recovery_gate",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_default_parameters",
+      "task_id": "compute_snapshot",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_default_parameters",
+      "task_id": "publish_metrics",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_default_parameters",
+      "task_id": "recovery_gate",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_idempotent",
+      "task_id": "compute_snapshot",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_idempotent",
+      "task_id": "publish_metrics",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_idempotent",
+      "task_id": "recovery_gate",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_retry",
+      "task_id": "compute_snapshot",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_retry",
+      "task_id": "publish_metrics",
+      "state": "success",
+      "try_number": 1
+    },
+    {
+      "run_id": "step07_retry",
+      "task_id": "recovery_gate",
+      "state": "success",
+      "try_number": 2
+    }
+  ],
+  "scheduler": {
+    "dag_id": "haha_daily_publish",
+    "is_paused": 0,
+    "next_dagrun": "2026-09-08 00:00:00.000000",
+    "next_dagrun_create_after": "2026-09-09 00:00:00.000000"
+  },
+  "publications": [
+    {
+      "business_date": "2026-09-06",
+      "cache": "/mnt/f/HC/hackathon/haha-data-engineering/output/published/cache/6ae63fecf86c74149a97bbb9b802070618f2bb3a55e1749e90838318706ccdbe.json",
+      "catalog_sha256": "b28505c3b4a27c315d78af3f6ae5734277dc1f034356a83bf106ebf4e6dd6e34",
+      "changed": [],
+      "run_id": "step07_idempotent",
+      "stale_skipped": [],
+      "unchanged": [
+        "2026-09-06",
+        "2026-09-05",
+        "2026-09-04",
+        "2026-09-03",
+        "2026-09-02",
+        "2026-09-01",
+        "2026-08-31",
+        "2026-08-30",
+        "2026-08-29",
+        "2026-08-28",
+        "2026-08-27",
+        "2026-08-26",
+        "2026-08-25",
+        "2026-08-24",
+        "2026-08-23",
+        "2026-08-22",
+        "2026-08-21",
+        "2026-08-20",
+        "2026-08-19",
+        "2026-08-18",
+        "2026-08-17",
+        "2026-08-16",
+        "2026-08-15",
+        "2026-08-14",
+        "2026-08-13",
+        "2026-08-12",
+        "2026-08-11",
+        "2026-08-10",
+        "2026-08-09",
+        "2026-08-08"
+      ]
+    },
+    {
+      "business_date": "2026-09-06",
+      "cache": "/mnt/f/HC/hackathon/haha-data-engineering/output/published/cache/6ae63fecf86c74149a97bbb9b802070618f2bb3a55e1749e90838318706ccdbe.json",
+      "catalog_sha256": "b28505c3b4a27c315d78af3f6ae5734277dc1f034356a83bf106ebf4e6dd6e34",
+      "changed": [
+        "2026-09-06",
+        "2026-09-05",
+        "2026-09-04",
+        "2026-09-03",
+        "2026-09-02",
+        "2026-09-01",
+        "2026-08-31",
+        "2026-08-30",
+        "2026-08-29",
+        "2026-08-28",
+        "2026-08-27",
+        "2026-08-26",
+        "2026-08-25",
+        "2026-08-24",
+        "2026-08-23",
+        "2026-08-22",
+        "2026-08-21",
+        "2026-08-20",
+        "2026-08-19",
+        "2026-08-18",
+        "2026-08-17",
+        "2026-08-16",
+        "2026-08-15",
+        "2026-08-14",
+        "2026-08-13",
+        "2026-08-12",
+        "2026-08-11",
+        "2026-08-10",
+        "2026-08-09",
+        "2026-08-08"
+      ],
+      "run_id": "step07_retry",
+      "stale_skipped": [],
+      "unchanged": []
+    },
+    {
+      "business_date": "2026-08-09",
+      "cache": "/mnt/f/HC/hackathon/haha-data-engineering/output/published/cache/6ae63fecf86c74149a97bbb9b802070618f2bb3a55e1749e90838318706ccdbe.json",
+      "catalog_sha256": "b28505c3b4a27c315d78af3f6ae5734277dc1f034356a83bf106ebf4e6dd6e34",
+      "changed": [],
+      "run_id": "backfill__2026-08-10T00:00:00+00:00",
+      "stale_skipped": [],
+      "unchanged": [
+        "2026-08-09"
+      ]
+    },
+    {
+      "business_date": "2026-08-08",
+      "cache": "/mnt/f/HC/hackathon/haha-data-engineering/output/published/cache/6ae63fecf86c74149a97bbb9b802070618f2bb3a55e1749e90838318706ccdbe.json",
+      "catalog_sha256": "b28505c3b4a27c315d78af3f6ae5734277dc1f034356a83bf106ebf4e6dd6e34",
+      "changed": [],
+      "run_id": "backfill__2026-08-09T00:00:00+00:00",
+      "stale_skipped": [],
+      "unchanged": [
+        "2026-08-08"
+      ]
+    },
+    {
+      "business_date": "2026-09-07",
+      "cache": "/mnt/f/HC/hackathon/haha-data-engineering/output/published/cache/ccc155a63452e5518530d497a89e0f78e03b85aec67946aacf053257916862dd.json",
+      "catalog_sha256": "aab7ffbe08d870fe55bc7c920121aaefc51880a8ed55b58480604a9ef61d12cd",
+      "changed": [
+        "2026-09-07",
+        "2026-09-06",
+        "2026-09-05",
+        "2026-09-04"
+      ],
+      "run_id": "scheduled__2026-09-07T00:00:00+00:00",
+      "stale_skipped": [],
+      "unchanged": []
+    },
+    {
+      "business_date": "2026-09-07",
+      "cache": "/mnt/f/HC/hackathon/haha-data-engineering/output/published/cache/475138aed0036789b295758d34ecb3a349ed2749b2173b68434d4fc7ccb62721.json",
+      "catalog_sha256": "b53c095f69ff3dc43d14f836f272eef7ccf63ddffbdf1dea78ace5c5412d2d99",
+      "changed": [
+        "2026-09-07"
+      ],
+      "run_id": "step07_default_parameters",
+      "stale_skipped": [
+        "2026-09-06",
+        "2026-09-05",
+        "2026-09-04"
+      ],
+      "unchanged": []
+    },
+    {
+      "business_date": "2026-08-10",
+      "cache": "/mnt/f/HC/hackathon/haha-data-engineering/output/published/cache/6ae63fecf86c74149a97bbb9b802070618f2bb3a55e1749e90838318706ccdbe.json",
+      "catalog_sha256": "b28505c3b4a27c315d78af3f6ae5734277dc1f034356a83bf106ebf4e6dd6e34",
+      "changed": [],
+      "run_id": "backfill__2026-08-11T00:00:00+00:00",
+      "stale_skipped": [],
+      "unchanged": [
+        "2026-08-10"
+      ]
+    }
+  ]
+}

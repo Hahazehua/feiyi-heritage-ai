@@ -3,6 +3,11 @@
 **Heritage Artisans, Horizons Ahead** — an AI platform connecting Chinese
 intangible-cultural-heritage (非遗) artisans with global gifting demand.
 
+> **1st place · 一等奖 — Cultural Export Scenario Track (文化出海场景赛道)**, October 2026
+> 滴水湖全球OPC人工智能挑战赛——雪窦山AIGC品牌出海赛道
+> Prize: ¥30,000 cash plus ¥30,000 in compute credits. The award records the
+> month, not a day.
+>
 > **3rd place — S3 Final · Buildathon**, 21 August 2026
 > Dishui Lake Global OPC AI Challenge & The 2nd Yanyuan "Xiechuangzhe" AI+ International Entrepreneurship Competition
 >

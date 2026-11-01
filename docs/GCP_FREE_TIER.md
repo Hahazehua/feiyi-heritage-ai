@@ -7,6 +7,24 @@ It replaces the earlier buyer-only deployment at:
 
 https://haha-vector-demo-uv6mvvajyq-uc.a.run.app/
 
+English CV entry: https://haha-vector-demo-uv6mvvajyq-uc.a.run.app/?lang=en
+
+### Verified deployment — 2026-11-01
+
+- Application source: `c3b253e`, with container permissions recorded in `043dcac`.
+- Build: `da52edb6-b3fb-4c64-b62f-21d71f91d370` (successful).
+- Minimal permission-fix image build: `b558b08f-1cc8-4272-892d-3d263a706b12`
+  (successful; verifies the non-root user can write `/app/.local`).
+- Final image: `us-central1-docker.pkg.dev/project-0bc866cb-bf3a-4247-b63/haha-vectors/app:20261101180717-cvfix`.
+- Final Cloud Run revision: `haha-vector-demo-00003-57c`, 100% traffic.
+- Firestore corpus: `ad8e2932f9bc8609d81de3e2d08c117d74dfc95f58ae3de72511dfd4705e81ef`.
+- Local checks: Ruff check/format passed. The 419-test suite was covered across
+  the initial run and resumed runs; the English search-label regression was
+  fixed and its five gallery tests passed, followed by all 298 remaining tests.
+- Browser checks: both role entrances, bilingual UI, Story Studio and live
+  Firestore search. English `porcelain` returned six reference results without
+  keyword fallback.
+
 ## Deploy
 
 In an authenticated Google Cloud Shell, from this repository:

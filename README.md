@@ -10,9 +10,10 @@ intangible-cultural-heritage (非遗) artisans with global gifting demand.
 > Terms are still being negotiated as of 21 August 2026 and nothing has been
 > disbursed; this line will be made specific once an agreement is signed.
 
-**Live demo:** http://203.205.91.2:8000/ — no login, no registration.
-Ports 80/443 are blocked by the competition host, so the service runs on 8000
-and HTTPS is unavailable.
+**Live demo:** [Open HAHA in English](https://haha-vector-demo-uv6mvvajyq-uc.a.run.app/?lang=en)
+— HTTPS, no login or registration. [中文入口](https://haha-vector-demo-uv6mvvajyq-uc.a.run.app/).
+The complete application and Firestore catalogue search run on GCP Cloud Run;
+see [deployment status and free-tier limits](docs/GCP_FREE_TIER.md).
 
 ---
 

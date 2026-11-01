@@ -19,8 +19,11 @@ COPY data/ ./data/
 COPY assets/ ./assets/
 COPY static/ ./static/
 COPY .streamlit/config.toml ./.streamlit/config.toml
-RUN useradd --create-home --uid 10001 appuser
+RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/.local \
+    && chown appuser:appuser /app/.local
 USER appuser
+RUN test -w /app/.local
 EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=4)"

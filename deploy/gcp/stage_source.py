@@ -30,8 +30,16 @@ FILES = (
     "deploy/gcp/deploy.sh",
     "deploy/gcp/stage_source.py",
     "deploy/gcp/ensure_indexes.py",
+    "deploy/gcp/Dockerfile.web",
+    "deploy/gcp/cloudbuild.web.yaml",
+    "web/package.json",
+    "web/package-lock.json",
+    "web/tsconfig.json",
+    "web/vite.config.ts",
+    "web/index.html",
 )
 TREES = {
+    "web/src": {".tsx", ".ts", ".css"},
     "src/heritagelink": {".py"},
     "assets/catalog/products": {".jpg", ".jpeg", ".png", ".webp"},
 }

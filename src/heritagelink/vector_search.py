@@ -17,6 +17,7 @@ import sqlite3
 import unicodedata
 from collections import Counter
 from collections.abc import Sequence
+from contextlib import closing
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -235,7 +236,7 @@ class CatalogSearch:
         """Explicitly upsert this version without deleting other versions or collections."""
         try:
             if self.settings.backend == "sqlite":
-                with self._connect() as connection:
+                with closing(self._connect()) as connection, connection:
                     connection.execute(
                         "CREATE TABLE IF NOT EXISTS catalogue_vectors ("
                         "corpus_id TEXT NOT NULL, catalog_product_id TEXT NOT NULL, "
@@ -285,7 +286,7 @@ class CatalogSearch:
         if category is not None:
             sql += " AND category = ?"
             params.append(category)
-        with self._connect(read_only=True) as connection:
+        with closing(self._connect(read_only=True)) as connection:
             return [json.loads(row[0]) for row in connection.execute(sql, params)]
 
     def verify(self) -> int:

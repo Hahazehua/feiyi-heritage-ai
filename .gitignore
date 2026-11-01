@@ -20,3 +20,5 @@ artifacts/
 .vscode/
 .DS_Store
 Thumbs.db
+web/node_modules/
+web/dist/

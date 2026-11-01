@@ -1,0 +1,20 @@
+FROM node:22-slim AS frontend
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
+# Reuse the verified existing runtime layers to minimize Artifact Registry storage.
+FROM us-central1-docker.pkg.dev/project-0bc866cb-bf3a-4247-b63/haha-vectors/app:20261101180717-cvfix
+USER root
+COPY pyproject.toml /app/pyproject.toml
+COPY src/ /app/src/
+RUN python -m pip install -e '/app[gcp,web]'
+COPY --from=frontend /web/dist /app/web/dist
+USER appuser
+ENV PORT=8080
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz', timeout=4)"
+CMD ["uvicorn", "heritagelink.web.app:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]

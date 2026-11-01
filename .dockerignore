@@ -24,3 +24,5 @@ artifacts
 *.sqlite
 *.sqlite3
 *.db
+web/node_modules
+web/dist

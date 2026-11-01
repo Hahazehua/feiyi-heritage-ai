@@ -1,0 +1,143 @@
+{
+  "benchmark": "English lexical retrieval smoke set v1",
+  "limitations": "Hand-authored in-domain cases; not a general quality estimate. Term presence does not measure factual entailment or user value.",
+  "cases": [
+    {
+      "query": "carved lacquer box",
+      "expected_term": "lacquer",
+      "passed": true,
+      "source_ids": [
+        "CAT-LAC-003",
+        "CAT-LAC-002",
+        "CAT-LAC-004",
+        "CAT-LAC-001"
+      ],
+      "retrieval_ms": 15
+    },
+    {
+      "query": "blue white porcelain",
+      "expected_term": "porcelain",
+      "passed": true,
+      "source_ids": [
+        "CAT-REF-017",
+        "CAT-REF-010",
+        "CAT-REF-016",
+        "CAT-REF-018"
+      ],
+      "retrieval_ms": 14
+    },
+    {
+      "query": "silk embroidery",
+      "expected_term": "silk",
+      "passed": true,
+      "source_ids": [
+        "CAT-TEX-005",
+        "CAT-TEX-001",
+        "CAT-TEX-003",
+        "CAT-TEX-004"
+      ],
+      "retrieval_ms": 14
+    },
+    {
+      "query": "jade carving",
+      "expected_term": "jade",
+      "passed": true,
+      "source_ids": [
+        "CAT-JAD-001",
+        "CAT-JAD-005",
+        "CAT-JAD-002",
+        "CAT-JAD-003"
+      ],
+      "retrieval_ms": 12
+    },
+    {
+      "query": "bamboo brush holder",
+      "expected_term": "bamboo",
+      "passed": true,
+      "source_ids": [
+        "CAT-REF-012",
+        "CAT-REF-011",
+        "CAT-REF-013",
+        "CAT-REF-015"
+      ],
+      "retrieval_ms": 10
+    },
+    {
+      "query": "celadon tea bowl",
+      "expected_term": "celadon",
+      "passed": true,
+      "source_ids": [
+        "CAT-CEL-003",
+        "CAT-CEL-005",
+        "CAT-CEL-004",
+        "CAT-CEL-002"
+      ],
+      "retrieval_ms": 9
+    },
+    {
+      "query": "calligraphy happiness",
+      "expected_term": "calligraphy",
+      "passed": true,
+      "source_ids": [
+        "CAT-REF-030",
+        "CAT-REF-027",
+        "CAT-REF-026",
+        "CAT-REF-029"
+      ],
+      "retrieval_ms": 11
+    },
+    {
+      "query": "woodblock print",
+      "expected_term": "woodblock",
+      "passed": true,
+      "source_ids": [
+        "CAT-REF-025",
+        "CAT-REF-022",
+        "CAT-REF-021",
+        "CAT-REF-023"
+      ],
+      "retrieval_ms": 15
+    },
+    {
+      "query": "porcelain teapot",
+      "expected_term": "porcelain",
+      "passed": true,
+      "source_ids": [
+        "CAT-REF-018",
+        "CAT-REF-017",
+        "CAT-REF-020",
+        "CAT-REF-016"
+      ],
+      "retrieval_ms": 14
+    },
+    {
+      "query": "incense lacquer",
+      "expected_term": "lacquer",
+      "passed": true,
+      "source_ids": [
+        "CAT-LAC-002",
+        "CAT-LAC-003",
+        "CAT-CEL-003",
+        "CAT-LAC-005"
+      ],
+      "retrieval_ms": 15
+    },
+    {
+      "query": "zxqvnonexistent",
+      "expected_term": null,
+      "passed": true,
+      "source_ids": [],
+      "retrieval_ms": 14
+    },
+    {
+      "query": "cloisonne enamel",
+      "expected_term": null,
+      "passed": true,
+      "source_ids": [],
+      "retrieval_ms": 9
+    }
+  ],
+  "passed": 12,
+  "total": 12,
+  "median_retrieval_ms": 14.0
+}

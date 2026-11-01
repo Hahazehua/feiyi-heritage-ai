@@ -15,9 +15,10 @@ intangible-cultural-heritage (非遗) artisans with global gifting demand.
 > Terms are still being negotiated as of 21 August 2026 and nothing has been
 > disbursed; this line will be made specific once an agreement is signed.
 
-**Live demo:** http://203.205.91.2:8000/ — no login, no registration.
-Ports 80/443 are blocked by the competition host, so the service runs on 8000
-and HTTPS is unavailable.
+**Live demo:** [Open HAHA in English](https://haha-vector-demo-uv6mvvajyq-uc.a.run.app/?lang=en)
+— HTTPS, no login or registration. [中文入口](https://haha-vector-demo-uv6mvvajyq-uc.a.run.app/).
+The complete application and Firestore catalogue search run on GCP Cloud Run;
+see [deployment status and free-tier limits](docs/GCP_FREE_TIER.md).
 
 ---
 
@@ -85,6 +86,39 @@ and source URLs each need their own confirmation, because a buyer transacts on
 those. A guard test blocks a single bulk confirmation from ever marking a price
 confirmed.
 
+**Story Studio.** The artisan can turn confirmed Heritage Passport facts into a
+deterministic 60-second Xiaohongshu package: one Story Core, six timed 9:16 scenes,
+voiceover, on-screen copy, camera direction, and provider-neutral image/video
+prompts. Every factual scene carries a stable fact reference. A separate Story
+Guardian blocks pending facts and unsupported credentials, history, or logistics
+claims; the package cannot become approved until a named human approves it.
+
+After script approval, a second gated stage creates a six-image visual storyboard.
+It supports a no-key deterministic demo provider and an OpenAI Image API adapter,
+including rights-confirmed artisan, product, and workshop reference images. Every
+candidate retains its provider, model, prompt, hash, selection, and human approval.
+Approved packages export as JSON plus selected images and references in one ZIP.
+
+Oral Story Studio provides the upstream interview intake: paste a maker transcript,
+optionally attach its audio or video fingerprint, extract timestamped candidate
+statements, and require explicit maker decisions before generating the 60-second
+master. Personal testimony retains its source quote and locator; credential,
+official-recognition, and fulfilment claims stay blocked without external evidence.
+The first release does not claim automatic speech-to-text: uploaded media is a
+traceable source attachment and the transcript remains an explicit input.
+
+After human script approval, a distribution adapter derives four publication
+packages from the same closed fact set: Xiaohongshu, TikTok, Instagram Reels, and
+YouTube Shorts. Each package includes platform-shaped copy, a controlled CTA,
+generic discovery hashtags, the complete fact-reference snapshot, and a six-scene
+SRT track ending at exactly 60 seconds. The adapter never translates or invents
+facts; a translated story must pass Guardian and human approval as its own master.
+See [`docs/STORY_STUDIO_PHASE1.md`](docs/STORY_STUDIO_PHASE1.md),
+[`docs/STORY_STUDIO_PHASE2.md`](docs/STORY_STUDIO_PHASE2.md), and
+[`docs/STORY_STUDIO_MULTIPLATFORM.md`](docs/STORY_STUDIO_MULTIPLATFORM.md), plus
+[`docs/ORAL_STORY_STUDIO.md`](docs/ORAL_STORY_STUDIO.md) for the interview-to-script
+workflow.
+
 ## The seven Skills
 
 The buyer chain (`customer_flow`). Each step's input, output, duration and safety
@@ -138,7 +172,7 @@ does not imply the museum endorses this project.
 
 ## Evidence
 
-**350 automated tests.** More important than the count is what several guard:
+**380 automated tests.** More important than the count is what several guard:
 
 - A record declaring itself unverified may not appear in the museum table, may
   not claim an open museum licence, and may not present commercial terms as

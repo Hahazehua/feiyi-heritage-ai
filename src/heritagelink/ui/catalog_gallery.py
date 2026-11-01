@@ -82,7 +82,7 @@ def render_catalog_gallery(
     search_mode = st.radio(
         t("catalog.search_mode"),
         ("similar", "exact"),
-        format_func=lambda mode: t(f"catalog.search_{mode}"),
+        format_func=lambda mode: t(f"catalog.search_{mode}", language=language),
         horizontal=True,
         key="reference_catalog_search_mode",
     )

@@ -57,7 +57,7 @@ def render_section_header(
         f'<header class="hl-section-header" data-ui-section="{escape(section, quote=True)}">'
         '<div class="hl-section-heading-copy">'
         f'<span class="hl-section-kicker">{escape(kicker)}</span>'
-        f'<h2>{escape(title)}</h2>{description}</div></header>',
+        f"<h2>{escape(title)}</h2>{description}</div></header>",
         unsafe_allow_html=True,
     )
 

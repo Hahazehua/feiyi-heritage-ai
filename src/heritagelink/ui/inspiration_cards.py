@@ -96,7 +96,7 @@ def render_inspiration_cards(
     with st.container(key="inspiration_section"):
         st.markdown(
             '<div class="hl-section-heading" data-ui-section="inspiration">'
-            '<span>推荐灵感</span><small>从一个熟悉的场景开始</small></div>',
+            "<span>推荐灵感</span><small>从一个熟悉的场景开始</small></div>",
             unsafe_allow_html=True,
         )
         _render_scene_card(SCENES[0], project_root, on_select, hero=True)

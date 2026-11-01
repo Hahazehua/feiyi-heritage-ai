@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from html import escape
 from pathlib import Path
@@ -14,8 +15,35 @@ from heritagelink.catalog_eligibility import is_recommendation_eligible
 from heritagelink.i18n import Language, get_language, t
 from heritagelink.models import Product
 from heritagelink.ui.components import product_image
+from heritagelink.vector_search import VectorSearchSettings, create_catalog_search
 
 ALL_CATEGORIES = "__all_categories__"
+LOGGER = logging.getLogger(__name__)
+
+
+@st.cache_resource(show_spinner=False)
+def _catalog_search(
+    items: tuple[HeritageReferenceItem, ...], settings: VectorSearchSettings, project_root: Path
+):
+    return create_catalog_search(items, settings, project_root=project_root)
+
+
+@st.cache_data(show_spinner=False, ttl=300, max_entries=128)
+def _similar_ids(
+    items: tuple[HeritageReferenceItem, ...],
+    settings: VectorSearchSettings,
+    project_root: Path,
+    query: str,
+    category: str,
+) -> tuple[str, ...]:
+    service = _catalog_search(items, settings, project_root)
+    hits = service.search(
+        query, category=None if category == ALL_CATEGORIES else category, limit=12
+    )
+    known_ids = {item.catalog_product_id for item in items}
+    if any(hit.catalog_product_id not in known_ids for hit in hits):
+        raise ValueError("Search results do not match the current catalogue")
+    return tuple(hit.catalog_product_id for hit in hits)
 
 
 def _money(fen: int) -> str:
@@ -37,6 +65,7 @@ def _matches(item: HeritageReferenceItem, *, category: str, query: str) -> bool:
             item.material_text,
             item.introduction_zh,
             item.introduction_en,
+            item.region_text,
         )
     ).casefold()
     return query.casefold() in haystack
@@ -50,6 +79,13 @@ def render_catalog_gallery(
 ) -> None:
     """Render searchable product cards linked to their reference sources."""
     language = get_language()
+    search_mode = st.radio(
+        t("catalog.search_mode"),
+        ("similar", "exact"),
+        format_func=lambda mode: t(f"catalog.search_{mode}"),
+        horizontal=True,
+        key="reference_catalog_search_mode",
+    )
     categories = tuple(dict.fromkeys(item.craft_category_zh for item in items))
     category_labels_en = {
         item.craft_category_zh: item.craft_category_en for item in items if item.craft_category_en
@@ -77,7 +113,28 @@ def render_catalog_gallery(
         key="reference_catalog_query",
     ).strip()
 
-    visible_items = tuple(item for item in items if _matches(item, category=category, query=query))
+    if query and search_mode == "similar":
+        try:
+            settings = VectorSearchSettings.from_env()
+            with st.spinner(t("catalog.search_loading")):
+                result_ids = _similar_ids(items, settings, project_root, query, category)
+            items_by_id = {item.catalog_product_id: item for item in items}
+            visible_items = tuple(
+                items_by_id[item_id]
+                for item_id in result_ids
+                if category == ALL_CATEGORIES or items_by_id[item_id].craft_category_zh == category
+            )
+            st.caption(t("catalog.search_ranked"))
+        except Exception as exc:
+            LOGGER.warning("Catalogue similarity search unavailable (%s)", type(exc).__name__)
+            st.info(t("catalog.search_fallback"))
+            visible_items = tuple(
+                item for item in items if _matches(item, category=category, query=query)
+            )
+    else:
+        visible_items = tuple(
+            item for item in items if _matches(item, category=category, query=query)
+        )
     st.caption(t("catalog.showing", visible=len(visible_items), total=len(items)))
     if not visible_items:
         st.info(t("catalog.empty"))

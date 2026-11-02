@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from streamlit.testing.v1 import AppTest
 
 from heritagelink.i18n import Language, set_language
@@ -11,7 +13,7 @@ from heritagelink.ui import demo_tour
 
 
 def _demo_app() -> AppTest:
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "buyer"
     app.query_params["demo"] = "1"
     return app
@@ -48,7 +50,7 @@ def test_navigation_is_clamped_to_the_real_steps() -> None:
 
 
 def test_the_tour_appears_only_in_demo_mode() -> None:
-    plain = AppTest.from_file("app.py")
+    plain = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     plain.query_params["mode"] = "buyer"
     plain.run(timeout=30)
 

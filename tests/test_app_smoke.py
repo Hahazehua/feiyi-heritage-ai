@@ -15,7 +15,7 @@ def _buyer_app() -> AppTest:
     same deep link a returning visitor or a reviewer would use; the chooser
     itself is covered in test_entry_screen.py.
     """
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "buyer"
     return app
 

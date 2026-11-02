@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from streamlit.testing.v1 import AppTest
 
 from heritagelink.oral_story_models import OralClaimStatus, OralStoryStatus
@@ -12,7 +14,7 @@ def _button(app: AppTest, label: str):  # type: ignore[no-untyped-def]
 
 
 def test_artisan_can_generate_review_approve_and_export_story() -> None:
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "artisan"
     app.run(timeout=30)
 
@@ -60,7 +62,7 @@ def test_artisan_can_generate_review_approve_and_export_story() -> None:
 
 
 def test_artisan_can_turn_confirmed_oral_history_into_a_guardian_reviewed_script() -> None:
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "artisan"
     app.run(timeout=30)
     _button(app, "Story Studio").click().run(timeout=30)

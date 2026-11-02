@@ -44,6 +44,53 @@ def test_citation_validation_rejects_fabricated_sources_and_quotes():
             validate_answer(json.dumps({"claims": [{**claim, **change}]}), sources)
 
 
+def test_campaign_boundary_and_quota(client, monkeypatch):
+    monkeypatch.setenv("ADK_WORKER_URL", "https://private-worker.run.app")
+    from heritagelink.web import app as web_module
+
+    monkeypatch.setattr(
+        web_module,
+        "run_campaign",
+        lambda body: {
+            "requires_human_review": True,
+            "published": False,
+            "trace": {},
+        },
+    )
+    product = client.get("/api/campaign/products").json()["items"][0]["id"]
+    body = {"product_id": product, "goal": "Introduce this heritage concept"}
+    assert client.post("/api/campaign", json=body).status_code == 403
+    assert (
+        client.post(
+            "/api/campaign", json={**body, "verified_facts": []}, headers=HEADERS
+        ).status_code
+        == 422
+    )
+    for _ in range(3):
+        response = client.post("/api/campaign", json=body, headers=HEADERS)
+        assert response.status_code == 200
+        assert response.json()["requires_human_review"]
+    assert client.post("/api/campaign", json=body, headers=HEADERS).status_code == 429
+
+
+def test_campaign_failure_is_sanitized(client, monkeypatch):
+    monkeypatch.setenv("ADK_WORKER_URL", "https://private-worker.run.app")
+    from heritagelink.web import app as web_module
+
+    def fail(body):
+        raise RuntimeError("secret infrastructure details")
+
+    monkeypatch.setattr(web_module, "run_campaign", fail)
+    product = client.get("/api/campaign/products").json()["items"][0]["id"]
+    response = client.post(
+        "/api/campaign",
+        json={"product_id": product, "goal": "A gift concept draft"},
+        headers=HEADERS,
+    )
+    assert response.status_code == 503
+    assert "secret" not in response.text
+
+
 def test_no_sources_never_calls_model(service):
     service.client = object()  # Would fail if a provider was called.
     result = service.advise(Brief(query="zxqvnonexistent"))

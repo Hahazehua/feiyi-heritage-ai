@@ -1,0 +1,36 @@
+name: Web and ADK checks
+on:
+  pull_request:
+  push:
+    branches: [main, feat/adk-campaign-loop]
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -e '.[dev,gcp,web]'
+      - run: python -m pytest
+      - run: npm ci --no-audit --no-fund && npm run build
+        working-directory: web
+  adk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r requirements-adk.txt
+      - run: python -m pytest tests/test_adk_campaign.py tests/test_adk_worker.py
+      - run: python scripts/demo_adk_campaign.py

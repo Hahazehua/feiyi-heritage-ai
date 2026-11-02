@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from streamlit.testing.v1 import AppTest
 
 
 def _fresh_app() -> AppTest:
     """A first-time visitor: no deep link, no prior choice."""
-    return AppTest.from_file("app.py")
+    return AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
 
 
 def _labels(app: AppTest) -> set[str]:
@@ -46,7 +48,7 @@ def test_choosing_artisan_enters_the_artisan_side() -> None:
 def test_mode_deep_link_skips_the_chooser() -> None:
     """Reviewers and the demo script arrive by URL and must not be stopped."""
     for mode in ("buyer", "artisan"):
-        app = AppTest.from_file("app.py")
+        app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
         app.query_params["mode"] = mode
         app.run(timeout=30)
 
@@ -56,7 +58,7 @@ def test_mode_deep_link_skips_the_chooser() -> None:
 
 
 def test_footer_switch_returns_to_the_chooser() -> None:
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "artisan"
     app.run(timeout=30)
     [button for button in app.button if button.label == "切换身份"][0].click().run(timeout=30)
@@ -75,7 +77,7 @@ def test_losing_the_mode_parameter_returns_to_the_chooser() -> None:
     next rerun gets is the missing parameter. When session state decided which
     side to render, the address bar moved and the page did not.
     """
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "artisan"
     app.run(timeout=30)
     assert app.session_state["entry_role"] == "artisan"
@@ -90,7 +92,7 @@ def test_losing_the_mode_parameter_returns_to_the_chooser() -> None:
 
 def test_leaving_the_about_page_restores_the_role_behind_it() -> None:
     """Back out of About and the side you were reading it from is still there."""
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "artisan"
     app.query_params["page"] = "about"
     app.run(timeout=30)
@@ -105,11 +107,11 @@ def test_leaving_the_about_page_restores_the_role_behind_it() -> None:
 
 
 def test_each_side_hides_the_other_sides_entry() -> None:
-    buyer = AppTest.from_file("app.py")
+    buyer = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     buyer.query_params["mode"] = "buyer"
     buyer.run(timeout=30)
 
-    artisan = AppTest.from_file("app.py")
+    artisan = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     artisan.query_params["mode"] = "artisan"
     artisan.run(timeout=30)
 

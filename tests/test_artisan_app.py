@@ -20,7 +20,7 @@ def _buyer_app() -> AppTest:
 
     Tests that want the artisan side overwrite the mode after calling this.
     """
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "buyer"
     return app
 

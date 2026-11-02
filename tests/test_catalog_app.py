@@ -1,9 +1,11 @@
+from pathlib import Path
+
 from streamlit.testing.v1 import AppTest
 
 
 def _buyer_app() -> AppTest:
     """Open the buyer side directly, past the entry chooser."""
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py")
     app.query_params["mode"] = "buyer"
     return app
 

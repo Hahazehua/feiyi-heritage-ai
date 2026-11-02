@@ -17,7 +17,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from heritagelink.campaign_contract import CampaignInput
 from heritagelink.vector_search import CatalogSearchError
+from heritagelink.web.campaign import run_campaign
 from heritagelink.web.schemas import Brief, InquiryInput
 from heritagelink.web.service import HeritageService
 from heritagelink.web.store import (
@@ -154,6 +156,31 @@ def create_app(service=None, store=None, root: Path = ROOT) -> FastAPI:
         result = request.app.state.service.advise(brief)
         result["trace"]["request_id"] = request.state.request_id
         logger.info(json.dumps({"event": "advice", "status": result["status"], **result["trace"]}))
+        return result
+
+    @app.get("/api/campaign/products")
+    def campaign_products(request: Request):
+        return {
+            "enabled": bool(os.getenv("ADK_WORKER_URL")),
+            "items": [
+                {"id": p.product_id, "title": p.product_name_en}
+                for p in request.app.state.service.products
+            ],
+        }
+
+    @app.post("/api/campaign")
+    def campaign(body: CampaignInput, request: Request):
+        session_owner = owner(request)
+        if not os.getenv("ADK_WORKER_URL"):
+            raise HTTPException(503, "The draft studio is not enabled yet.")
+        if body.product_id not in {p.product_id for p in request.app.state.service.products}:
+            raise HTTPException(422, "Please select a current demo concept.")
+        storage_call(request.app.state.store.consume, session_owner, "campaign", 3, 20)
+        try:
+            result = run_campaign(body)
+        except Exception:
+            raise HTTPException(503, "Draft generation is unavailable. Try again later.") from None
+        result["trace"]["request_id"] = request.state.request_id
         return result
 
     @app.get("/api/inquiries")

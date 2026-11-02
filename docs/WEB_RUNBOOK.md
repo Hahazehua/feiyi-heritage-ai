@@ -1,5 +1,10 @@
 # English web service runbook
 
+Live: https://haha-studio-201693996482.us-central1.run.app/
+Verified revision: `haha-studio-00001-6fh` (November 1, 2026).
+Runtime `roles/datastore.user` binding is conditioned on
+`resource.name=="projects/project-0bc866cb-bf3a-4247-b63/databases/(default)"`.
+
 ## Local
 
 Install Python 3.11+ dependencies with `python -m pip install -e '.[gcp,web,dev]'`.

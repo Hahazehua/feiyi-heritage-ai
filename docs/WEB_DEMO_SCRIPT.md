@@ -41,7 +41,7 @@ Show the request evidence panel. Distinguish measured latency and tokens from es
 Describe the next experiment: compare learned embeddings against the lexical baseline using
 a held-out query set and human factuality review, then observe target buyers completing briefs.
 
-## Verified engineering evidence before cloud publication
+## Verified engineering evidence
 
 - Full Python regression suite: 428 passed on November 1, 2026.
 - New backend contract tests: 9 passed, including source validation, storage failure,
@@ -49,15 +49,20 @@ a held-out query set and human factuality review, then observe target buyers com
 - Hand-authored English retrieval smoke set: 12/12 passed; not a general accuracy estimate.
 - TypeScript and frontend production build passed.
 - GCP build `a54f65f5-db19-4e6e-8f46-04439426cfb1`: SUCCESS.
-- Cloud publication and live DeepSeek/persistence validation must be recorded separately.
+- Published on Cloud Run: https://haha-studio-201693996482.us-central1.run.app/
+- Revision: `haha-studio-00001-6fh`, 100% traffic.
+- Live DeepSeek call returned citation-checked observations: 528 input / 116 output tokens,
+  216 ms retrieval and 6,710 ms generation (one request, not a benchmark).
+- Museum citation opened successfully; saved inquiry survived reload; a separate browser
+  saw an empty workspace. See WEB_IMPLEMENTATION_STATUS.md for the acceptance record.
 
 ## CV wording supported by current evidence
 
-Built an English-first heritage discovery prototype with React, FastAPI, Firestore vector
+Built and deployed an English-first heritage discovery prototype on GCP Cloud Run with
+React, FastAPI, Firestore vector
 retrieval and DeepSeek integration, adding source/quote validation, deterministic commercial
 constraints and session-owned inquiry persistence; validated the repository with 428 Python
 tests and a 12-case domain retrieval regression set.
 
-Only add “deployed and validated on GCP Cloud Run” after live acceptance is complete.
 Do not claim customer impact, semantic embedding quality, multi-agent orchestration or
 production-scale reliability without corresponding evidence.

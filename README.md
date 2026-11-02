@@ -4,6 +4,18 @@
 
 [Live product](https://haha-studio-201693996482.us-central1.run.app/) · [Three-minute demo](docs/WEB_DEMO_SCRIPT.md) · [Architecture & tradeoffs](docs/WEB_PRODUCT_AND_FDE.md) · [Deployment runbook](docs/WEB_RUNBOOK.md) · [Verified release record](docs/WEB_IMPLEMENTATION_STATUS.md)
 
+> **1st place · 一等奖 — Cultural Export Scenario Track (文化出海场景赛道)**, October 2026
+> 滴水湖全球OPC人工智能挑战赛——雪窦山AIGC品牌出海赛道
+> Prize: ¥30,000 cash plus ¥30,000 in compute credits. The award records the
+> month, not a day.
+>
+> **3rd place — S3 Final · Buildathon**, 21 August 2026
+> Dishui Lake Global OPC AI Challenge & The 2nd Yanyuan "Xiechuangzhe" AI+ International Entrepreneurship Competition
+>
+> **Selected for incubation and investment at Shanghai Lingang New Area.**
+> Terms are still being negotiated as of 21 August 2026 and nothing has been
+> disbursed; this line will be made specific once an agreement is signed.
+
 Built with **React, TypeScript, Python, FastAPI, DeepSeek, Firestore vector search, Docker and Google Cloud Run**. This release takes the original Streamlit prototype through a separate web/API implementation, cloud deployment and live acceptance testing.
 
 **Verified November 1, 2026:** live DeepSeek responses with checked citations; inquiry persistence across reloads; isolation between browser workspaces; **428 passing Python tests** across the repository.

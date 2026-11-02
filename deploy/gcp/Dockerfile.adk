@@ -4,6 +4,8 @@ COPY requirements-adk-runtime.txt ./
 RUN pip install --no-cache-dir -r requirements-adk-runtime.txt
 COPY src/ /app/src/
 COPY data/demo/ /app/data/demo/
+COPY assets/catalog/ /app/assets/catalog/
+RUN python -c "import sys; sys.path.insert(0, '/app/src'); from pathlib import Path; from heritagelink.data_loader import load_data; load_data(Path('/app/data/demo'))"
 RUN useradd --uid 10001 --create-home appuser
 USER appuser
 ENV PYTHONPATH=/app/src PORT=8080

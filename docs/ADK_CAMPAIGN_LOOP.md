@@ -78,7 +78,8 @@ route web traffic to `haha-studio-00001-6fh`; the unused worker scales to zero.
 
 ## Validation status
 
-Local frontend production build and 11 web API tests passed. The original full suite
+Local frontend production build, 17 web/proxy tests and 11 ADK/worker tests passed.
+The original full suite
 completed with 421 passed, 2 skipped, 8 failed and 1 error; the failures were legacy
 Streamlit AppTest timeouts on this Windows host. This is not a full-suite pass.
 Whole-repository Ruff has 175 pre-existing errors and 20 formatting issues in

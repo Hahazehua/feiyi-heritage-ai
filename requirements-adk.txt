@@ -1,5 +1,3 @@
 # Standalone environment: do not combine with the current web runtime constraints.
-google-adk==2.13.0
-pandas>=2.2,<4
-openai>=1.68,<3
+-r requirements-adk-runtime.txt
 pytest>=8,<10

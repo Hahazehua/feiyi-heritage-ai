@@ -1,0 +1,9 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, --file, deploy/gcp/Dockerfile.adk, --tag, '${_IMAGE_URI}', .]
+images:
+  - '${_IMAGE_URI}'
+options:
+  machineType: E2_STANDARD_2
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

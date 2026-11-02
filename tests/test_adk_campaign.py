@@ -62,3 +62,22 @@ def test_request_scope_is_validated():
                 None,
             )
         )
+
+
+def test_concurrent_runs_do_not_share_drafts(monkeypatch):
+    monkeypatch.setattr(module, "generate_campaign_assets", lambda ctx, *a, **k: (ctx.product_id,))
+
+    def review(ctx, assets):
+        assert assets == (ctx.product_id,)
+        return SimpleNamespace(approved=True, issues=())
+
+    monkeypatch.setattr(module, "review_campaign_grounding", review)
+
+    async def run():
+        identities = [SimpleNamespace(product_id=p, artisan_id="a") for p in ("first", "second")]
+        return await asyncio.gather(
+            *[module.run_adk_campaign_loop(i, i, None, None) for i in identities]
+        )
+
+    results = asyncio.run(run())
+    assert [result.assets for result in results] == [("first",), ("second",)]

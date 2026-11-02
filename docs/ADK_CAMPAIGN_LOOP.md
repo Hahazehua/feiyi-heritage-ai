@@ -1,71 +1,89 @@
-# ADK campaign drafting / review adapter
+# Google ADK campaign drafting and review
 
-This optional local adapter uses real Google ADK `SequentialAgent`, `LoopAgent`,
-custom `BaseAgent` stages, `Runner`, events and an in-memory session. It reuses the
-existing Growth Studio capabilities instead of changing the public web RAG path.
+The optional English Draft Studio uses Google ADK 2.13.0 `Workflow` graph nodes,
+`Runner`, events and invocation-local in-memory sessions. The graph drafts once,
+checks with the existing deterministic Guardian, and revises at most twice.
+Every revision is checked; empty output and exhausted failed checks never permit export.
+The public cultural RAG route remains separate.
 
-Flow: draft → Guardian → (revise → Guardian), with at most two revisions. Passing
-checks exits the loop; exhaustion also stops and leaves the content for human review.
-The last revision is always reviewed. Empty drafts do not pass the orchestration gate.
-No stage publishes, sends messages or updates catalogue eligibility.
+## Architecture
 
-Drafting uses `generate_campaign_assets`, which supports the existing DeepSeek client
-and deterministic fallback. Guardian and revision remain deterministic rule-based
-capabilities. This implementation must not be described as two LLMs independently
-reviewing each other. Existing rule checks do not establish general factual accuracy.
+React → same-origin FastAPI `/api/campaign` → private Cloud Run worker `/campaign`
+→ ADK Workflow → one bounded DeepSeek call → rule review / deterministic revisions.
 
-## Run the framework tests
+The public API validates browser session and origin, validates the selected product,
+and consumes persistent Firestore quotas (3 per browser / 20 globally per UTC day).
+It obtains a Google-signed ID token with the worker URL as audience. The worker must
+remain IAM-protected; only the existing web runtime account receives service-level
+`roles/run.invoker`. It reconstructs facts from the canonical catalogue and rejects
+caller-provided verification flags. Do not disable the worker's Cloud Run IAM check.
 
-Use a separate environment: ADK 2.13 requires Starlette >=1.3.1, whereas the current
-web project pins Starlette below 1. Installing both together is not supported here.
+Runtime constraints are deliberately separate: ADK requires Starlette >=1.3.1 while
+the legacy web package pins Starlette <1. The worker image installs only
+`requirements-adk-runtime.txt`; do not install the project extras into this image.
+
+The worker shares the existing runtime account and its Secret Manager permission.
+This minimizes IAM changes but retains that account's existing database access;
+a dedicated least-privilege worker identity is a future hardening option.
+
+## Behavior and limits
+
+- One DeepSeek request, 25-second provider timeout, no retries, 1,400 output-token cap.
+- Market assessment and strategy use deterministic rules; only drafting calls the model.
+- Rule review and revision are not independent LLM reviewers and do not prove semantic truth.
+- A failed or malformed model response produces an explicitly labelled template fallback.
+- The frontend shows stage history, issue counts, revisions, facts, sources and token usage.
+- A user acknowledgement enables local text export only. Nothing is posted or sent.
+- Campaign drafts are not persisted. Existing inquiry persistence is unaffected.
+- In-memory ADK sessions do not survive restarts or implement resumable human approval.
+- Anonymous browser quotas are not verified-user identities; the global quota bounds abuse.
+- Sources are catalogue references, not evidence that demo products are available for purchase.
+
+## Local checks
 
 ```powershell
 python -m venv .local/adk-venv
 .local/adk-venv/Scripts/python -m pip install -r requirements-adk.txt
 $env:PYTHONPATH = 'src'
-.local/adk-venv/Scripts/python -m pytest tests/test_adk_campaign.py
+.local/adk-venv/Scripts/python -m pytest tests/test_adk_campaign.py tests/test_adk_worker.py
 .local/adk-venv/Scripts/python scripts/demo_adk_campaign.py
 ```
 
-## Call from an asynchronous integration
+No API key is required for tests. Tests execute real ADK scheduling, including revision
+exhaustion, empty drafts, request scope, concurrent isolation, actual Guardian removal,
+fallback labelling and rejection of forged facts. The synthetic demo starts with eight
+flagged issues, revises once, and ends with human review required.
 
-```python
-from heritagelink.adk_campaign import run_adk_campaign_loop
+Web checks run in the original environment: `python -m pytest tests/test_web.py
+ tests/test_campaign_proxy.py`; the UI is built with `npm ci` / `npm run build` in `web`.
+`.github/workflows/web-adk.yml` runs separate web and ADK jobs without deployment secrets.
 
-# Use validated Growth Studio objects; do not accept a caller's verification flags.
-result = await run_adk_campaign_loop(
-    context, request, analysis, strategy, client=existing_deepseek_client,
-    maximum_revisions=2,
-)
-# Inspect result.events and result.review; preserve human approval before publication.
-# Use result.checks_passed, which also rejects empty output.
-```
+## Deployment
 
-Inputs are the same typed context, request, market analysis and strategy consumed by
-the existing creative capability. Each call owns its callback state, runner and session.
-Events include stage, revision count, issue count and check status, not raw product facts
-or generated text. Session state records control metadata; assets stay in invocation-local
-memory. There is no durable resume across process restarts in this adapter.
+Use the existing explicit source allowlist (`deploy/gcp/stage_source.py`). Build with
+`cloudbuild.adk.yaml` and `cloudbuild.web.yaml`. Deploy `haha-adk-campaign` privately,
+then grant its service-level invoker role to `haha-vector-runtime`. Set `ADK_WORKER_URL`
+on `haha-studio` to the canonical worker URL and update the web image.
 
-Tests exercise real ADK orchestration with controlled capability outputs, without API
-spend. They do not demonstrate a live model or deployed integration. The public website
-still uses its existing single-call RAG workflow. A separate deployment or dependency
-migration, API integration, authentication/quotas and live acceptance are required before
-exposing this adapter publicly.
+Worker: us-central1, min instances 0, max instances 1, concurrency 2, 1 CPU, 1 GiB memory,
+60-second request timeout; `LLM_ENABLED=true`, `DEEPSEEK_MODEL=deepseek-flash`, and
+`DEEPSEEK_API_KEY` from `deepseek-api-key:1`. Reuse request-based CPU allocation.
+Cloud Run, build minutes, image storage and DeepSeek can incur charges beyond allowances;
+min=0 and request quotas are not a billing cap.
 
-References: [ADK loop workflow](https://github.com/google/adk-docs/blob/main/docs/agents/workflow-agents/loop-agents.md),
-[custom agents](https://github.com/google/adk-docs/blob/main/docs/agents/custom-agents.md).
+Accept only after the private worker rejects unauthenticated calls, live UI reports
+DeepSeek generation with token usage and stage history, and human acknowledgement gates
+export. Recheck the existing RAG/citation and inquiry refresh flows. For rollback,
+route web traffic to `haha-studio-00001-6fh`; the unused worker scales to zero.
 
-## Local validation, November 2, 2026
+## Validation status
 
-Six framework tests passed against ADK 2.13.0. The executable synthetic demonstration
-also ran actual Growth Studio drafting/review/revision functions: four assets, eight
-initial Guardian issues, one revision, then zero issues and human review required.
-No provider API was called. In this pinned ADK version, SequentialAgent and LoopAgent
-still run but are deprecated in favor of Workflow; migrate to the graph API before a
-long-lived deployment. The compatibility adapter intentionally keeps this visible.
+Local frontend production build and 11 web API tests passed. The original full suite
+completed with 421 passed, 2 skipped, 8 failed and 1 error; the failures were legacy
+Streamlit AppTest timeouts on this Windows host. This is not a full-suite pass.
+Whole-repository Ruff has 175 pre-existing errors and 20 formatting issues in
+`haha-data-engineering`; those unrelated files are unchanged. See release evidence
+for final worker tests, CI and deployment acceptance results.
 
-Changed-file Ruff lint/format checks passed. A full legacy pytest run was started
-but interrupted before completion; no full-suite pass is claimed for this change.
-Whole-repository Ruff currently reports 175 existing errors and 20 formatting issues
-in the separate haha-data-engineering tree; those files were not changed here.
+Official references: [Google ADK](https://github.com/google/adk-python),
+[Workflow graphs](https://adk.dev/graphs/), [graph routing](https://adk.dev/graphs/routes/).

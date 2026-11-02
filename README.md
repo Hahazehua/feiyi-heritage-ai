@@ -42,12 +42,13 @@ The work below is relevant to the [Google Forward Deployed Engineering Intern, S
 | --- | --- | --- |
 | Python application engineering | Typed APIs, input validation, deterministic eligibility and explicit failures | [API](src/heritagelink/web/app.py), [schemas](src/heritagelink/web/schemas.py), [rules](src/heritagelink/recommender.py) |
 | Cloud AI delivery | React/FastAPI container built in Cloud Build, deployed to Cloud Run, with Secret Manager and scoped IAM | [Dockerfile](deploy/gcp/Dockerfile.web), [build configuration](deploy/gcp/cloudbuild.web.yaml), [runbook](docs/WEB_RUNBOOK.md) |
+| Bounded agent workflows | Google ADK graph orchestration, per-invocation isolation, deterministic review/revision, private service authentication and request quotas | [ADK integration](docs/ADK_CAMPAIGN_LOOP.md), [worker](src/heritagelink/adk_worker.py) |
 | Structured and unstructured data | Validated commercial CSV records combined with museum prose and a versioned vector index | [data loader](src/heritagelink/data_loader.py), [catalogue](src/heritagelink/catalog.py), [vector retrieval](src/heritagelink/vector_search.py) |
 | RAG and output validation | Retrieve evidence, synthesize a structured answer, validate source IDs and quotations, fall back when necessary | [RAG service](src/heritagelink/web/service.py) |
 | State and integration reliability | Durable session-owned drafts, transactional request budgets, idempotent saves and failure reporting | [persistence](src/heritagelink/web/store.py), [API tests](tests/test_web.py) |
 | Evaluation and observation | Regression tests, an offline retrieval smoke set, request IDs, stage timings and token counts | [evaluation script](scripts/evaluate_web_rag.py), [results](docs/web-retrieval-evaluation.json), [live acceptance](docs/WEB_IMPLEMENTATION_STATUS.md) |
 
-This evidence supports discussion of implementation and delivery; it does not establish all hiring qualifications. The current web path does not use ADK, LangGraph or CrewAI, and does not claim multi-agent orchestration, customer-led discovery sessions, measured ROI, or a Google model integration. GCP hosts the application; DeepSeek supplies generation.
+This evidence supports discussion of implementation and delivery; it does not establish all hiring qualifications. The cultural RAG path uses a single bounded model call. The separate [Draft Studio](docs/ADK_CAMPAIGN_LOOP.md) integrates Google ADK Workflow for drafting, rule-based review and bounded revisions, with human acknowledgement before local export. Its release evidence distinguishes local verification from live deployment. This does not claim two independent LLM reviewers, customer-led discovery sessions, measured ROI, or a Google model integration. GCP hosts the application; DeepSeek supplies generation.
 
 ## Architecture
 

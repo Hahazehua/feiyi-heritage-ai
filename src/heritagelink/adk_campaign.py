@@ -7,33 +7,19 @@ Each invocation owns its runner, callbacks and in-memory session. No publication
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import uuid4
 
-from google.adk.agents import BaseAgent, LoopAgent, SequentialAgent
-from google.adk.events import Event, EventActions
+from google.adk import Event, Workflow
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
-from pydantic import Field
 
 from heritagelink.growth_agents import (
     generate_campaign_assets,
     review_campaign_grounding,
     revise_campaign_assets,
 )
-
-
-class _Stage(BaseAgent):
-    action: Callable = Field(exclude=True)
-
-    async def _run_async_impl(self, ctx):
-        delta, stop = await asyncio.to_thread(self.action)
-        yield Event(
-            author=self.name,
-            actions=EventActions(state_delta=delta, escalate=stop),
-        )
 
 
 @dataclass(frozen=True)
@@ -89,18 +75,27 @@ async def run_adk_campaign_loop(
         work["revisions"] += 1
         return {"stage": "revision", "revision_count": work["revisions"]}, False
 
-    root = SequentialAgent(
+    async def drafter():
+        delta, _ = await asyncio.to_thread(draft)
+        return Event(output=delta)
+
+    async def guardian():
+        delta, stop = await asyncio.to_thread(review)
+        return Event(output=delta, route="done" if stop else "revise")
+
+    async def reviser():
+        delta, _ = await asyncio.to_thread(revise)
+        return Event(output=delta)
+
+    def finished():
+        return Event(output={"requires_human_review": True})
+
+    root = Workflow(
         name="heritage_campaign",
-        sub_agents=[
-            _Stage(name="drafter", action=draft),
-            LoopAgent(
-                name="review_revision_loop",
-                max_iterations=maximum_revisions + 1,
-                sub_agents=[
-                    _Stage(name="guardian", action=review),
-                    _Stage(name="reviser", action=revise),
-                ],
-            ),
+        edges=[
+            ("START", drafter, guardian),
+            (guardian, {"revise": reviser, "done": finished}),
+            (reviser, guardian),
         ],
     )
     sessions = InMemorySessionService()
@@ -115,5 +110,8 @@ async def run_adk_campaign_loop(
             role="user", parts=[types.Part(text="Run supplied campaign brief")]
         ),
     ):
-        events.append({"author": event.author, **event.actions.state_delta})
+        if event.node_info.name in {"drafter", "guardian", "reviser"} and isinstance(
+            event.output, dict
+        ):
+            events.append({"author": event.node_info.name, **event.output})
     return CampaignLoopResult(work["assets"], work["review"], work["revisions"], tuple(events))

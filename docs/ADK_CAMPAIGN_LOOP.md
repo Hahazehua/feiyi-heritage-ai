@@ -78,13 +78,16 @@ route web traffic to `haha-studio-00001-6fh`; the unused worker scales to zero.
 
 ## Validation status
 
-Local frontend production build, 17 web/proxy tests and 11 ADK/worker tests passed.
-The original full suite
-completed with 421 passed, 2 skipped, 8 failed and 1 error; the failures were legacy
-Streamlit AppTest timeouts on this Windows host. This is not a full-suite pass.
+Linux CI at `9c548b0` passed: 436 main-suite tests, 2 optional skips, 11 isolated
+ADK/worker tests, the synthetic workflow demo and the frontend production build.
+The web/proxy tests account for 17 of the main-suite passes. Streamlit AppTest paths
+are now resolved from the repository location, independently of the test runner.
+An earlier Windows full-suite attempt had Streamlit timeouts; the complete Linux
+run supplies the release verification.
 Whole-repository Ruff has 175 pre-existing errors and 20 formatting issues in
 `haha-data-engineering`; those unrelated files are unchanged. See release evidence
-for final worker tests, CI and deployment acceptance results.
+for final worker tests, CI and deployment acceptance results:
+[November 2 release record](ADK_RELEASE_2026-11-02.md).
 
 Official references: [Google ADK](https://github.com/google/adk-python),
 [Workflow graphs](https://adk.dev/graphs/), [graph routing](https://adk.dev/graphs/routes/).

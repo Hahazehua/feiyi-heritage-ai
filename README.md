@@ -18,7 +18,7 @@
 
 Built with **React, TypeScript, Python, FastAPI, DeepSeek, Firestore vector search, Docker and Google Cloud Run**. This release takes the original Streamlit prototype through a separate web/API implementation, cloud deployment and live acceptance testing.
 
-**Verified November 1, 2026:** live DeepSeek responses with checked citations; inquiry persistence across reloads; isolation between browser workspaces; **428 passing Python tests** across the repository.
+**Verified:** live DeepSeek responses with checked citations, inquiry persistence across reloads and isolation between browser workspaces (November 1, 2026). The November 2 ADK release passes **436 main-suite tests plus 11 isolated ADK/worker tests** in Linux CI; see the validation record below.
 
 > **MVP demo data / MVP 演示数据.** Museum objects are cultural references, not inventory. Prices and fulfillment details are demo assumptions. Saved inquiries are drafts, not orders or messages to merchants. This is a deployed functional prototype, not a claim of customer adoption or production-scale operation.
 
@@ -83,16 +83,18 @@ The compiled frontend and API share one origin and one container. SQLite support
 
 | Check | Recorded result | Interpretation |
 | --- | --- | --- |
-| Full Python regression suite | **428 passed** | Repository-wide coverage, including legacy workflows; not 428 RAG-specific tests |
-| New web/API tests | **9 passed** | Citation rejection, model fallback, constraints, ownership, consent, idempotency, quotas and storage failure |
+| Main Python regression suite | **436 passed, 2 skipped** | Linux CI; optional ADK tests run in their own dependency environment |
+| ADK/worker suite | **11 passed** | Actual Workflow scheduling, bounded revisions, concurrency isolation, fallback and fact-input validation |
+| Web/API and worker-proxy tests | **17 passed** | Included in the main suite; citation rejection, fallback, ownership, consent, quotas and audience-bound authentication |
 | English retrieval smoke set | **12/12 passed** | Hand-authored in-domain cases; term presence in the top three passages or expected abstention—not answer accuracy |
 | Frontend | TypeScript check and Vite production build passed | Compiled English UI |
-| Python quality checks | Ruff lint and format passed | Recorded release checks |
+| Python quality checks | Changed-file Ruff lint and format passed | Whole-repository checks retain 175 existing lint findings and 20 formatting findings in the separate data-engineering project |
 | Live Cloud Run acceptance | Successful synthesis, source page check, saved draft after reload, separate-browser isolation | End-to-end behavior checked November 1, 2026 |
+| ADK release acceptance | Real DeepSeek draft, ADK stage history, museum source and acknowledgement gate; existing RAG and inquiry reload rechecked | [November 2 release record](docs/ADK_RELEASE_2026-11-02.md), including download-verification limitation |
 
 One live request (`e01a66544aca4546`) retrieved four sources in **216 ms** and generated an answer in **6,710 ms**, using **528 input / 116 output tokens**. These are single-request observations, not percentile latency benchmarks. Token counts are available for billing analysis; cost per request and provider-only tokens/second are not currently calculated. Logs omit question text, inquiry notes, cookies and keys.
 
-Reproduce the [retrieval evaluation](scripts/evaluate_web_rag.py) and inspect the [API tests](tests/test_web.py). Mocked provider tests and live model checks are distinct.
+Reproduce the [retrieval evaluation](scripts/evaluate_web_rag.py), inspect the [API tests](tests/test_web.py), and review the [passing ADK release CI](https://github.com/Hahazehua/feiyi-heritage-ai/actions/runs/41466773777). Mocked provider tests and live model checks are distinct.
 
 ## Stack
 
@@ -101,6 +103,7 @@ Reproduce the [retrieval evaluation](scripts/evaluate_web_rag.py) and inspect th
 | Web interface | React, TypeScript, Vite, CSS, Lucide icons |
 | API and domain logic | Python 3.11+, FastAPI, Pydantic, Uvicorn |
 | Generation | DeepSeek API via the OpenAI-compatible client; deployed model `deepseek-flash` |
+| Draft orchestration | Google ADK 2.13 Workflow and Runner; private Cloud Run worker, rule-based Guardian and human acknowledgement before export |
 | Retrieval | Firestore vector search, 256-dimensional lexical feature hashing |
 | State | Firestore in cloud; SQLite locally |
 | Delivery | Docker, Cloud Build, Artifact Registry, Cloud Run |
